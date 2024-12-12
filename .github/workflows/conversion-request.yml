@@ -1,21 +1,17 @@
 name: Conversion Request
-
 on:
-  issues:
-    types:
-      - labeled
   workflow_dispatch:
     inputs:
       pack_url:
-        description: "URL for Java Pack"
+        description: "Java pack direct download URL"
         required: false
-        default: "null"
+        default: ""
       default_pack_url:
-        description: "URL for Default Pack"
+        description: "Default pack direct download URL"
         required: false
         default: "null"
       merge_pack_url:
-        description: "URL for Bedrock Merge Pack"
+        description: "Bedrock merge pack direct download URL"
         required: false
         default: "null"
       default_assets_version:
@@ -26,52 +22,88 @@ on:
         description: "Block material type"
         required: false
         default: "alpha_test"
+      attachable_material:
+        description: "Attachable material type"
+        required: false
+        default: "entity_alphatest_one_sided"
+      archive_scratch:
+        description: "Archive scratch files"
+        required: false
+        default: "false"
+      rename_model_files:
+        description: "Rename model files"
+        required: false
+        default: "false"
+      font_conversion:
+        description: "Enable font conversion"
+        required: false
+        default: "false"
+      armor_conversion:
+        description: "Enable armor conversion"
+        required: false
+        default: "false"
+      meg3_fix:
+        description: "Enable MEG3 fix"
+        required: false
+        default: "false"
+      sounds_conversion:
+        description: "Enable sounds conversion"
+        required: false
+        default: "false"
+      bow_conversion:
+        description: "Enable bow conversion"
+        required: false
+        default: "false"
+      shield_conversion:
+        description: "Enable shield conversion"
+        required: false
+        default: "false"
+      block_conversion:
+        description: "Enable block conversion"
+        required: false
+        default: "false"
 
 jobs:
   get-pack-info:
     runs-on: ubuntu-latest
-    if: github.event_name == 'issues' && github.event.label.name == 'conversion' || github.event_name == 'workflow_dispatch'
     permissions:
       issues: read
     timeout-minutes: 2
     outputs:
-      pack_url: ${{ steps.organize-inputs.outputs.PACK_URL }}
-      default_pack_url: ${{ steps.organize-inputs.outputs.DEFAULT_PACK_URL }}
-      merge_pack_url: ${{ steps.organize-inputs.outputs.MERGE_PACK_URL }}
-      default_assets_version: ${{ steps.organize-inputs.outputs.DEFAULT_ASSETS_VERSION }}
-      block_material: ${{ steps.organize-inputs.outputs.BLOCK_MATERIAL }}
+      pack_url: ${{ inputs.pack_url }}
+      default_pack_url: ${{ inputs.default_pack_url }}
+      merge_pack_url: ${{ inputs.merge_pack_url }}
+      default_assets_version: ${{ inputs.default_assets_version }}
+      block_material: ${{ inputs.block_material }}
+      attachable_material: ${{ inputs.attachable_material }}
+      archive_scratch: ${{ inputs.archive_scratch }}
+      rename_model_files: ${{ inputs.rename_model_files }}
+      font_conversion: ${{ inputs.font_conversion }}
+      armor_conversion: ${{ inputs.armor_conversion }}
+      meg3_fix: ${{ inputs.meg3_fix }}
+      sounds_conversion: ${{ inputs.sounds_conversion }}
+      bow_conversion: ${{ inputs.bow_conversion }}
+      shield_conversion: ${{ inputs.shield_conversion }}
+      block_conversion: ${{ inputs.block_conversion }}
+
     steps:
-      - name: Issue Forms Body Parser
-        id: parse-issue
-        uses: zentered/issue-forms-body-parser@v2.2.0
-      - name: Organize Inputs
-        id: organize-inputs
+      - name: Debugging - Review Input Values
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo '{ 
-              "java-pack-direct-download-url": {"text": "${{ github.event.inputs.pack_url }}"},
-              "default-pack-direct-download-url": {"text": "${{ github.event.inputs.default_pack_url }}"},
-              "bedrock-merge-pack-direct-download-url": {"text": "${{ github.event.inputs.merge_pack_url }}"},
-              "default-assets-version": {"text": "${{ github.event.inputs.default_assets_version }}"},
-              "block-material": {"text": "${{ github.event.inputs.block_material }}"}
-            }' > inputs.json
-          else
-            echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
-            def test_input($input; $default):
-            if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\";""))  end;
-            {
-              "pack_url": .["java-pack-direct-download-url"].text[1:-1],
-              "default_pack_url": test_input(.["default-pack-direct-download-url"].text; " null ")[1:-1],
-              "merge_pack_url": test_input(.["bedrock-merge-pack-direct-download-url"].text; " null ")[1:-1],
-              "default_assets_version": test_input(.["default-assets-version"].text; "1.19.3"),
-              "block_material": test_input(.["block-material"].text; "alpha_test")
-            }' > inputs.json
-          fi
-          echo "PACK_URL=$(jq -r '.pack_url' inputs.json)" >> $GITHUB_OUTPUT
-          echo "DEFAULT_PACK_URL=$(jq -r '.default_pack_url' inputs.json)" >> $GITHUB_OUTPUT
-          echo "MERGE_PACK_URL=$(jq -r '.merge_pack_url' inputs.json)" >> $GITHUB_OUTPUT
-          echo "DEFAULT_ASSETS_VERSION=$(jq -r '.default_assets_version' inputs.json)" >> $GITHUB_OUTPUT
-          echo "BLOCK_MATERIAL=$(jq -r '.block_material' inputs.json)" >> $GITHUB_OUTPUT
+          echo "pack_url=${{ inputs.pack_url }}"
+          echo "default_pack_url=${{ inputs.default_pack_url }}"
+          echo "merge_pack_url=${{ inputs.merge_pack_url }}"
+          echo "default_assets_version=${{ inputs.default_assets_version }}"
+          echo "block_material=${{ inputs.block_material }}"
+          echo "attachable_material=${{ inputs.attachable_material }}"
+          echo "archive_scratch=${{ inputs.archive_scratch }}"
+          echo "rename_model_files=${{ inputs.rename_model_files }}"
+          echo "font_conversion=${{ inputs.font_conversion }}"
+          echo "armor_conversion=${{ inputs.armor_conversion }}"
+          echo "meg3_fix=${{ inputs.meg3_fix }}"
+          echo "sounds_conversion=${{ inputs.sounds_conversion }}"
+          echo "bow_conversion=${{ inputs.bow_conversion }}"
+          echo "shield_conversion=${{ inputs.shield_conversion }}"
+          echo "block_conversion=${{ inputs.block_conversion }}"
 
   convert-pack:
     runs-on: ubuntu-latest
@@ -80,23 +112,29 @@ jobs:
       contents: read
     timeout-minutes: 90
     outputs:
-      run_id: ${{ steps.get-pack-info.outputs.pack_url }}
+      run_id: ${{ needs.get-pack-info.outputs.pack_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install required dependencies
+      - name: Install dependencies
         run: |
-          sudo apt-get install -y zip jq
+          sudo apt-get update
+          sudo apt-get install -y moreutils zip imagemagick
           yarn global add spritesheet-js
           pip install Pillow requests jproperties
-      - name: Execute conversion
-        id: convert-pack
+
+      - name: Process Conversion
         run: |
           mkdir -p staging
           cp converter.sh staging/
           cd staging
           chmod +x converter.sh
-          curl -L -o input_pack.zip "${{ needs.get-pack-info.outputs.pack_url }}"
-          ./converter.sh input_pack.zip -w false
+          ./converter.sh "${{ needs.get-pack-info.outputs.pack_url }}" -m "${{ needs.get-pack-info.outputs.merge_pack_url }}" -a "${{ needs.get-pack-info.outputs.attachable_material }}" -b "${{ needs.get-pack-info.outputs.block_material }}" -f "${{ needs.get-pack-info.outputs.default_pack_url }}" -v "${{ needs.get-pack-info.outputs.default_assets_version }}"
+
+      - name: Upload Conversion Output
+        uses: actions/upload-artifact@v4
+        with:
+          name: PackFiles
+          path: staging/target/
 
   post-result:
     runs-on: ubuntu-latest
@@ -105,29 +143,11 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Post Results to Issue
+      - name: Create comment after result
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## :sparkles: The run has finished! :sparkles:
-            - Pack file conversion has completed successfully.
-            - Check artifacts or logs for results.
-          reactions: 'rocket'
+            ## Conversion Finished
+            - [Action log](https://github.com/tomzangsad/J2B_Geyser/actions/runs/${{ github.run_id }})
 
-  conversion-failed:
-    runs-on: ubuntu-latest
-    needs: [get-pack-info, convert-pack]
-    if: always()
-    permissions:
-      issues: write
-    steps:
-      - name: Post failure message
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            ## ❌ Conversion Failed
-            The pack conversion failed during execution.
-            - Please review the action logs for more details.
-          reactions: 'x'
