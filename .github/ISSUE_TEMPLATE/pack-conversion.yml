@@ -102,7 +102,7 @@ body:
     attributes:
       label: Font Conversion
       description: |
-        Enable font conversion (Can Error) default `false`.
+        Enable font conversion (Can Error) default `false`.\n หากต้องการ Convert Emoji ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
