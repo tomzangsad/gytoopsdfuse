@@ -57,7 +57,7 @@ jobs:
       font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION || github.event.inputs.FONT_CONVERSION }}
       armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION || github.event.inputs.ARMOR_CONVERSION }}
       meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX}}
-      sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION || github.event.inputs.SOUNDS_CONVERSION }}
+      sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION }}
       bow_conversion: ${{ steps.organize-inputs.outputs.BOW_CONVERSION || github.event.inputs.BOW_CONVERSION }}
       shield_conversion: ${{ steps.organize-inputs.outputs.SHIELD_CONVERSION || github.event.inputs.SHIELD_CONVERSION }}
       block_conversion: ${{ steps.organize-inputs.outputs.BLOCK_CONVERSION || github.event.inputs.BLOCK_CONVERSION }}
