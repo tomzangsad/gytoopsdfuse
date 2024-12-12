@@ -9,12 +9,6 @@ on:
         description: "URL of the custom resource pack. Leave blank to use the default pack."
         default: ""
         required: true
-      DEFAULT_PACK_URL:
-        description: "URL of the default resource pack to be used if PACK_URL is not provided."
-        default: null
-      MERGE_PACK_URL:
-        description: "URL of an additional resource pack to merge with the main pack."
-        default: null
       DEFAULT_ASSETS_VERSION:
         description: "Default version of the assets to use for compatibility."
         default: "1.19.3"
@@ -27,30 +21,21 @@ on:
       ARCHIVE_SCRATCH:
         description: "Whether to archive temporary scratch files. Set to 'true' or 'false'."
         default: "false"
-      RENAME_MODEL_FILES:
-        description: "Whether to rename model files for compatibility. Set to 'true' or 'false'."
-        default: "true"
       FONT_CONVERSION:
         description: "Enable or disable custom font conversions. Set to 'true' or 'false'."
-        default: "true"
+        default: "false"
       ARMOR_CONVERSION:
         description: "Enable or disable custom armor conversions. Set to 'true' or 'false'."
-        default: "true"
-      MEG3_FIX:
-        description: "Apply MEG3-specific fixes for the resource pack. Set to 'true' or 'false'."
         default: "false"
-      SOUNDS_CONVERSION:
-        description: "Enable or disable sounds conversion. Set to 'true' or 'false'."
-        default: "true"
       BOW_CONVERSION:
         description: "Enable or disable bow model conversions. Set to 'true' or 'false'."
-        default: "true"
+        default: "false"
       SHIELD_CONVERSION:
         description: "Enable or disable shield model conversions. Set to 'true' or 'false'."
-        default: "true"
+        default: "false"
       BLOCK_CONVERSION:
         description: "Enable or disable block conversions for custom textures or models. Set to 'true' or 'false'."
-        default: "true"
+        default: "false"
 
 
 jobs:
@@ -62,16 +47,16 @@ jobs:
     timeout-minutes: 2
     outputs:
       pack_url: ${{ steps.organize-inputs.outputs.PACK_URL || github.event.inputs.PACK_URL }}
-      default_pack_url: ${{ steps.organize-inputs.outputs.DEFAULT_PACK_URL || github.event.inputs.DEFAULT_PACK_URL }}
-      merge_pack_url: ${{ steps.organize-inputs.outputs.MERGE_PACK_URL || github.event.inputs.MERGE_PACK_URL }}
+      default_pack_url: ${{ steps.organize-inputs.outputs.DEFAULT_PACK_URL}}
+      merge_pack_url: ${{ steps.organize-inputs.outputs.MERGE_PACK_URL}}
       default_assets_version: ${{ steps.organize-inputs.outputs.DEFAULT_ASSETS_VERSION || github.event.inputs.DEFAULT_ASSETS_VERSION }}
       block_material: ${{ steps.organize-inputs.outputs.BLOCK_MATERIAL || github.event.inputs.BLOCK_MATERIAL }}
       attachable_material: ${{ steps.organize-inputs.outputs.ATTACHABLE_MATERIAL || github.event.inputs.ATTACHABLE_MATERIAL }}
       archive_scratch: ${{ steps.organize-inputs.outputs.ARCHIVE_SCRATCH || github.event.inputs.ARCHIVE_SCRATCH }}
-      rename_model_files: ${{ steps.organize-inputs.outputs.RENAME_MODEL_FILES || github.event.inputs.RENAME_MODEL_FILES }}
+      rename_model_files: ${{ steps.organize-inputs.outputs.RENAME_MODEL_FILES}}
       font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION || github.event.inputs.FONT_CONVERSION }}
       armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION || github.event.inputs.ARMOR_CONVERSION }}
-      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX || github.event.inputs.MEG3_FIX }}
+      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX}}
       sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION || github.event.inputs.SOUNDS_CONVERSION }}
       bow_conversion: ${{ steps.organize-inputs.outputs.BOW_CONVERSION || github.event.inputs.BOW_CONVERSION }}
       shield_conversion: ${{ steps.organize-inputs.outputs.SHIELD_CONVERSION || github.event.inputs.SHIELD_CONVERSION }}
