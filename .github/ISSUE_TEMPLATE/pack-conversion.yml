@@ -98,15 +98,6 @@ body:
         - 'true'
         - 'false'
   - type: dropdown
-    id: rename-model-files
-    attributes:
-      label: Rename Model Files
-      description: |
-        Should scratch files be renamed to reduce path length? If not selected, this will default to `false`.
-      options:
-        - 'true'
-        - 'false'
-  - type: dropdown
     id: font-conversion
     attributes:
       label: Font Conversion
@@ -125,24 +116,6 @@ body:
         - 'true'
         - 'false'
   - type: dropdown
-    id: meg3-fix
-    attributes:
-      label: Meg3 Fix
-      description: |
-        Fix Black Model for MEG3 default `false`.
-      options:
-        - 'true'
-        - 'false'
-  - type: dropdown
-    id: sounds-conversion
-    attributes:
-      label: Sounds Conversion
-      description: |
-        Conversion Sounds default `false`.
-      options:
-        - 'true'
-        - 'false'
-  - type: dropdown
     id: bow-conversion
     attributes:
       label: Bow Conversion
@@ -157,15 +130,6 @@ body:
       label: Shield Conversion
       description: |
         Conversion Shield default `false`, **Not ready for use**
-      options:
-        - 'true'
-        - 'false'
-  - type: dropdown
-    id: block-conversion
-    attributes:
-      label: Block Conversion
-      description: |
-        Conversion Block default `false`
       options:
         - 'true'
         - 'false'
