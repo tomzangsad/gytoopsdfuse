@@ -3,11 +3,12 @@ on:
   issues:
     types:
       - labeled
+  workflow_dispatch:
 
 jobs:
   get-pack-info:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'conversion'
+    if: github.event.label.name == 'conversion' || github.event.label.name == 'conversion'
     permissions:
       issues: read
     timeout-minutes: 2
