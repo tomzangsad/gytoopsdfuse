@@ -102,7 +102,8 @@ body:
     attributes:
       label: Font Conversion
       description: |
-        Enable font conversion (Can Error) default `false`.\n หากต้องการ Convert Emoji ให้เลือกเป็น true
+        Enable font conversion (Can Error) default `false`.
+        หากต้องการ Convert Emoji ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
@@ -112,6 +113,7 @@ body:
       label: Armor Conversion
       description: |
         Enable armor conversion (Only Itemsadder) default `false`.
+        หากต้องการ Convert Armor ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
@@ -121,6 +123,7 @@ body:
       label: Bow Conversion
       description: |
         Conversion Bow default `false`.
+        หากต้องการ Convert Bow ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
@@ -130,6 +133,7 @@ body:
       label: Shield Conversion
       description: |
         Conversion Shield default `false`, **Not ready for use**
+        หากต้องการ Convert Shield ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
