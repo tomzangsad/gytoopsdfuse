@@ -11,8 +11,7 @@ body:
     id: java-pack-direct-download-url
     attributes:
       label: Java Pack Direct Download URL
-      description: |
-        Please provide a direct link to the Java Edition resource pack to be converted.
+      description: Please provide a direct link to the Java Edition resource pack to be converted.
       placeholder: e.g. https://github.com/Paradisu/ParadisuResourcePack/releases/latest/download/ParadisuResourcePack.zip
     validations:
       required: true
@@ -99,12 +98,20 @@ body:
         - 'true'
         - 'false'
   - type: dropdown
+    id: rename-model-files
+    attributes:
+      label: Rename Model Files
+      description: |
+        Should scratch files be renamed to reduce path length? If not selected, this will default to `false`.
+      options:
+        - 'true'
+        - 'false'
+  - type: dropdown
     id: font-conversion
     attributes:
       label: Font Conversion
       description: |
         Enable font conversion (Can Error) default `false`.
-        หากต้องการ Convert Emoji ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
@@ -114,7 +121,24 @@ body:
       label: Armor Conversion
       description: |
         Enable armor conversion (Only Itemsadder) default `false`.
-        หากต้องการ Convert Armor ให้เลือกเป็น true
+      options:
+        - 'true'
+        - 'false'
+  - type: dropdown
+    id: meg3-fix
+    attributes:
+      label: Meg3 Fix
+      description: |
+        Fix Black Model for MEG3 default `false`.
+      options:
+        - 'true'
+        - 'false'
+  - type: dropdown
+    id: sounds-conversion
+    attributes:
+      label: Sounds Conversion
+      description: |
+        Conversion Sounds default `false`.
       options:
         - 'true'
         - 'false'
@@ -124,7 +148,6 @@ body:
       label: Bow Conversion
       description: |
         Conversion Bow default `false`.
-        หากต้องการ Convert Bow ให้เลือกเป็น true
       options:
         - 'true'
         - 'false'
@@ -134,7 +157,15 @@ body:
       label: Shield Conversion
       description: |
         Conversion Shield default `false`, **Not ready for use**
-        หากต้องการ Convert Shield ให้เลือกเป็น true
+      options:
+        - 'true'
+        - 'false'
+  - type: dropdown
+    id: block-conversion
+    attributes:
+      label: Block Conversion
+      description: |
+        Conversion Block default `false`
       options:
         - 'true'
         - 'false'
