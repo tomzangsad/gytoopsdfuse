@@ -69,11 +69,7 @@ jobs:
           echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "SHIELD_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
-        - name: Install jq 1.6
-        run: |
-          curl -Lo jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-          chmod +x jq
-          sudo mv jq /usr/local/bin
+      
 
   convert-pack:
     runs-on: ubuntu-latest
