@@ -3,11 +3,12 @@ on:
   issues:
     types:
       - labeled
+  workflow_dispatch:
 
 jobs:
   get-pack-info:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'conversion'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'conversion'
     permissions:
       issues: read
     timeout-minutes: 2
@@ -20,9 +21,9 @@ jobs:
       attachable_material: ${{ steps.organize-inputs.outputs.ATTACHABLE_MATERIAL }}
       archive_scratch: ${{ steps.organize-inputs.outputs.ARCHIVE_SCRATCH }}
       rename_model_files: ${{ steps.organize-inputs.outputs.RENAME_MODEL_FILES }}
-      font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION}}
-      armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION}}
-      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX}}
+      font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION }}
+      armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION }}
+      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX }}
       sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION }}
       bow_conversion: ${{ steps.organize-inputs.outputs.BOW_CONVERSION }}
       shield_conversion: ${{ steps.organize-inputs.outputs.SHIELD_CONVERSION }}
@@ -69,6 +70,7 @@ jobs:
           echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "SHIELD_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
+
 
   convert-pack:
     runs-on: ubuntu-latest
