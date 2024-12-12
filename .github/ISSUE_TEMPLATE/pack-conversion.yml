@@ -11,7 +11,8 @@ body:
     id: java-pack-direct-download-url
     attributes:
       label: Java Pack Direct Download URL
-      description: Please provide a direct link to the Java Edition resource pack to be converted.
+      description: |
+        Please provide a direct link to the Java Edition resource pack to be converted.
       placeholder: e.g. https://github.com/Paradisu/ParadisuResourcePack/releases/latest/download/ParadisuResourcePack.zip
     validations:
       required: true
