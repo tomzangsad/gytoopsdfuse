@@ -3,12 +3,11 @@ on:
   issues:
     types:
       - labeled
-  workflow_dispatch:
 
 jobs:
   get-pack-info:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'conversion'
+    if: github.event.label.name == 'conversion'
     permissions:
       issues: read
     timeout-minutes: 2
@@ -21,9 +20,9 @@ jobs:
       attachable_material: ${{ steps.organize-inputs.outputs.ATTACHABLE_MATERIAL }}
       archive_scratch: ${{ steps.organize-inputs.outputs.ARCHIVE_SCRATCH }}
       rename_model_files: ${{ steps.organize-inputs.outputs.RENAME_MODEL_FILES }}
-      font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION }}
-      armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION }}
-      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX }}
+      font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION}}
+      armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION}}
+      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX}}
       sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION }}
       bow_conversion: ${{ steps.organize-inputs.outputs.BOW_CONVERSION }}
       shield_conversion: ${{ steps.organize-inputs.outputs.SHIELD_CONVERSION }}
@@ -70,7 +69,6 @@ jobs:
           echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "SHIELD_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
-
 
   convert-pack:
     runs-on: ubuntu-latest
@@ -168,8 +166,8 @@ jobs:
           body: |
             ## :sparkles: The run has finished! :sparkles:
             - Download the pack files from the [action run][1] page. :arrow_double_down:
-            - Upload the resource pack `geyser_resources.mcpack` to the `packs` folder of your Geyser folder. :file_folder:
-            - Upload the mappings file `geyser_mappings.json` to the `custom_mappings` folder of your Geyser folder. :page_with_curl:
+            - Upload the resource pack geyser_resources.mcpack to the packs folder of your Geyser folder. :file_folder:
+            - Upload the mappings file geyser_mappings.json to the custom_mappings folder of your Geyser folder. :page_with_curl:
 
             If you notice issues with the converted files, please refer to the action log for errors and open a bug report if you believe there is an issue with the converter. This issue will be closed automatically.
 
