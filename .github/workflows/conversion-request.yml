@@ -143,11 +143,24 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: Create comment after result
+      - name: Post Result
+        id: post-result
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## Conversion Finished
-            - [Action log](https://github.com/tomzangsad/J2B_Geyser/actions/runs/${{ github.run_id }})
+            ## :sparkles: The run has finished! :sparkles:
+            - Download the pack files from the [action run][1] page. :arrow_double_down:
+            - Upload the resource pack `geyser_resources.mcpack` to the `packs` folder of your Geyser folder. :file_folder:
+            - Upload the mappings file `geyser_mappings.json` to the `custom_mappings` folder of your Geyser folder. :page_with_curl:
+
+            If you notice issues with the converted files, please refer to the action log for errors and open a bug report if you believe there is an issue with the converter. This issue will be closed automatically.
+
+            [1]: https://github.com/tomzangsad/J2B_Geyser/actions/runs/${{ github.run_id}}
+          reactions: 'rocket'
+
+      - name: Close Issue
+        uses: peter-evans/close-issue@v3
+        with:
+          issue-number: ${{ github.event.issue.number }}
 
