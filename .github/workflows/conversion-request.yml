@@ -36,7 +36,7 @@ jobs:
         run: |
           echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
           def test_input($input; $default):
-          if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\";""))  end;
+          if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\\\";""))  end;
           {
             "pack_url": .["java-pack-direct-download-url"].text[1:-1],
             "default_pack_url": test_input(.["default-pack-direct-download-url"].text; " null ")[1:-1],
@@ -51,7 +51,7 @@ jobs:
             "meg3_fix": test_input(.["meg3-fix"].text; "false"),
             "sounds_conversion": test_input(.["sounds-conversion"].text; "false"),
             "bow_conversion": test_input(.["bow-conversion"].text; "false"),
-            "shield_conversion": test_input(.["bow-conversion"].text; "false"),
+            "shield_conversion": test_input(.["shield-conversion"].text; "false"),
             "block_conversion": test_input(.["block-conversion"].text; "false")
           }' > inputs.json
           echo "PACK_URL=$(jq -r '.pack_url' inputs.json)" >> $GITHUB_OUTPUT
@@ -69,7 +69,7 @@ jobs:
           echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "SHIELD_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
-
+          
   convert-pack:
     runs-on: ubuntu-latest
     needs: get-pack-info
@@ -103,7 +103,6 @@ jobs:
           sudo mv jq /usr/local/bin
       - name: Install dependencies
         run: |
-          sudo apt-get update
           sudo apt-get install -y moreutils zip
           yarn global add spritesheet-js
           sudo apt-get install -y imagemagick
@@ -171,7 +170,7 @@ jobs:
 
             If you notice issues with the converted files, please refer to the action log for errors and open a bug report if you believe there is an issue with the converter. This issue will be closed automatically.
 
-            [1]: https://github.com/tomzangsad/J2B_Geyser/actions/runs/${{ github.run_id}}
+            [1]: https://github.com/tomzangsad/TOM1/actions/actions/runs/${{ github.run_id}}
           reactions: 'rocket'
 
       - name: Close Issue
@@ -201,7 +200,7 @@ jobs:
 
             If you believe this is an issue with the converter. please open a bug report. This issue will be closed automatically.
 
-            [1]: https://github.com/tomzangsad/J2B_Geyser/actions/runs/${{ github.run_id}}
+            [1]: https://github.com/tomzangsad/TOM1/actions/runs/${{ github.run_id}}
           reactions: 'x'
       - name: Close issue
         uses: peter-evans/close-issue@v3
