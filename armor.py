@@ -109,9 +109,14 @@ def write_armor(file, gmdl, layer, i):
     with open(file, "w") as f:
         f.write(json.dumps(ajson))
 
-# เรียกใช้ฟังก์ชันจัดการไฟล์ geyser_mappings.json
+# ตรวจสอบว่าไฟล์ geyser_mappings.json มีอยู่จริง
 geyser_mappings_file = "staging/target/geyser_mappings.json"
-remove_duplicates_with_custom_model_data(geyser_mappings_file)
+
+if os.path.exists(geyser_mappings_file):
+    print(f"File {geyser_mappings_file} found, proceeding with processing.")
+    remove_duplicates_with_custom_model_data(geyser_mappings_file)
+else:
+    print(f"File {geyser_mappings_file} not found. Please check the download process.")
 
 while i < 4:
     file_path = f"pack/assets/minecraft/models/item/{item_type[i]}.json"
