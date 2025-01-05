@@ -5,6 +5,7 @@ import glob
 from jproperties import Properties
 
 # ฟังก์ชันสำหรับประมวลผลไฟล์ JSON
+
 def process_json_file(file_path):
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
@@ -43,6 +44,34 @@ def process_json_file(file_path):
         json.dump(data, f, indent=4)
     print(f"Processed {file_path}")
 
+# ฟังก์ชันสำหรับลบรายการที่ซ้ำกันใน geyser_mappings.json
+def remove_duplicates_with_custom_model_data(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        item_types = [
+            "minecraft:leather_helmet",
+            "minecraft:leather_chestplate",
+            "minecraft:leather_leggings",
+            "minecraft:leather_boots",
+        ]
+
+        for item_type in item_types:
+            if item_type in data:
+                unique_entries = {}
+                for entry in data[item_type]:
+                    custom_model_data = entry.get("custom_model_data")
+                    if custom_model_data not in unique_entries:
+                        unique_entries[custom_model_data] = entry
+
+                data[item_type] = list(unique_entries.values())
+
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=4)
+        print(f"Processed {file_path} successfully.")
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
 
 # ฟังก์ชันหลักสำหรับการจัดการไฟล์ armor และ optifine
 optifine = Properties()
@@ -57,33 +86,37 @@ def write_armor(file, gmdl, layer, i):
         "minecraft:attachable": {
             "description": {
                 "identifier": f"geyser_custom:{gmdl}.player",
-                "item": {f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"},
+                "item": {
+                    f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"
+                },
                 "materials": {
                     "default": "armor_leather",
-                    "enchanted": "armor_leather_enchanted"
+                    "enchanted": "armor_leather_enchanted",
                 },
                 "textures": {
                     "default": f"textures/armor_layer/{layer}",
-                    "enchanted": "textures/misc/enchanted_item_glint"
+                    "enchanted": "textures/misc/enchanted_item_glint",
                 },
                 "geometry": {
-                    "default": f"geometry.player.armor.{type}"
+                    "default": f"geometry.player.armor.{type}",
                 },
                 "scripts": {
-                    "parent_setup": "variable.helmet_layer_visible = 0.0;"
+                    "parent_setup": "variable.helmet_layer_visible = 0.0;",
                 },
-                "render_controllers": ["controller.render.armor"]
-            }
-        }
+                "render_controllers": ["controller.render.armor"],
+            },
+        },
     }
     with open(file, "w") as f:
         f.write(json.dumps(ajson))
 
+# เรียกใช้ฟังก์ชันจัดการไฟล์ geyser_mappings.json
+geyser_mappings_file = "staging/target/geyser_mappings.json"
+remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
 while i < 4:
     file_path = f"pack/assets/minecraft/models/item/{item_type[i]}.json"
     try:
-        # ประมวลผลไฟล์ JSON
         process_json_file(file_path)
 
         with open(file_path, "r") as f:
@@ -110,16 +143,23 @@ while i < 4:
                 if not os.path.exists("staging/target/rp/textures/armor_layer"):
                     os.makedirs("staging/target/rp/textures/armor_layer")
                 if not os.path.exists(f"staging/target/rp/textures/armor_layer/{layer}.png"):
-                    shutil.copy(f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png", "staging/target/rp/textures/armor_layer")
+                    shutil.copy(
+                        f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png",
+                        "staging/target/rp/textures/armor_layer",
+                    )
 
                 with open(f"pack/assets/{namespace}/models/{path}.json", "r") as f:
                     texture = json.load(f)["textures"]["layer1"]
                     tpath = texture.split(":")[1]
                     dest_path = f"staging/target/rp/textures/{namespace}/{path}.png"
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    shutil.copy(f"pack/assets/{namespace}/textures/{tpath}.png", dest_path)
+                    shutil.copy(
+                        f"pack/assets/{namespace}/textures/{tpath}.png", dest_path
+                    )
 
-                afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
+                afile = glob.glob(
+                    f"staging/target/rp/attachables/{namespace}/{path}*.json"
+                )
                 with open(afile[0], "r") as f:
                     da = json.load(f)["minecraft:attachable"]
                     gmdl = da["description"]["identifier"].split(":")[1]
