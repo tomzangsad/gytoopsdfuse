@@ -109,6 +109,11 @@ jobs:
           pip install Pillow
           pip install requests
           pip install jproperties
+      
+      - name: Check Files in staging/target/
+        run: |
+          echo "Files in staging/target/ directory:"
+          ls staging/target/
       - name: Convert Pack
         id: convert-pack
         continue-on-error: false
