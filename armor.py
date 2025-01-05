@@ -5,7 +5,6 @@ import glob
 from jproperties import Properties
 
 # ฟังก์ชันสำหรับประมวลผลไฟล์ JSON
-
 def process_json_file(file_path):
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
