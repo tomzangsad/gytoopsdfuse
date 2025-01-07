@@ -1,24 +1,5 @@
 
-# Function to remove duplicates in geyser_mappings.json
-remove_duplicates_with_custom_model_data() {
-  local file_path=$1
 
-  if [ ! -f "$file_path" ]; then
-    echo "File not found: $file_path"
-    return 1
-  fi
-
-  jq '
-    . as $original |
-    {
-      "minecraft:leather_helmet": ($original["minecraft:leather_helmet"] | unique_by(.custom_model_data)),
-      "minecraft:leather_chestplate": ($original["minecraft:leather_chestplate"] | unique_by(.custom_model_data)),
-      "minecraft:leather_leggings": ($original["minecraft:leather_leggings"] | unique_by(.custom_model_data)),
-      "minecraft:leather_boots": ($original["minecraft:leather_boots"] | unique_by(.custom_model_data))
-    }' "$file_path" > "${file_path}.tmp" && mv "${file_path}.tmp" "$file_path"
-
-  echo "Processed $file_path successfully."
-}
 
 #!/usr/bin/env bash
 : ${1?'Please specify an input resource pack in the same directory as the script (e.g. ./converter.sh MyResourcePack.zip)'}
@@ -1335,6 +1316,38 @@ if [ -f sprites.json ]; then
   ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
   
 fi
+
+
+
+remove_duplicates_with_custom_model_data() {
+  local file_path=$1
+
+  # ตรวจสอบว่าไฟล์มีอยู่
+  if [[ ! -f "$file_path" ]]; then
+    echo "File $file_path not found!"
+    return 1
+  fi
+
+  # ใช้ jq เพื่อลบรายการซ้ำกันโดยอิงจาก custom_model_data
+  jq 'to_entries | map(
+      if .key | test("^minecraft:leather_.*") then
+        .value |= unique_by(.custom_model_data)
+      else .
+      end
+    ) | from_entries' "$file_path" > "${file_path}.tmp" && mv "${file_path}.tmp" "$file_path"
+
+  echo "Duplicates removed in $file_path"
+}
+
+# เรียกใช้งานฟังก์ชันหลังจากไฟล์ geyser_mappings.json ถูกสร้าง
+if [[ -f "staging/target/geyser_mappings.json" ]]; then
+  echo "Processing geyser_mappings.json for duplicate removal..."
+  remove_duplicates_with_custom_model_data "staging/target/geyser_mappings.json"
+else
+  echo "geyser_mappings.json not found. Skipping duplicate removal."
+fi
+
+
 
 cd -
 python manager.py
