@@ -1342,7 +1342,7 @@ remove_duplicates_with_custom_model_data() {
 # เรียกใช้งานฟังก์ชันหลังจากไฟล์ geyser_mappings.json ถูกสร้าง
 if [[ -f "staging/target/geyser_mappings.json" ]]; then
   echo "Processing geyser_mappings.json for duplicate removal..."
-  remove_duplicates_with_custom_model_data "staging/target/geyser_mappings.json"
+  remove_duplicates_with_custom_model_data "./target/geyser_mappings.json"
 else
   echo "geyser_mappings.json not found. Skipping duplicate removal."
 fi
