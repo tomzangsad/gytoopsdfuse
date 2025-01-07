@@ -1341,3 +1341,45 @@ mv ./target/rp ./target/unpackaged/rp && mv ./target/bp ./target/unpackaged/bp
 
 echo
 printf "\e[32m[+]\e[m \e[1m\e[37mConversion Process Complete\e[m\n\n\e[37mExiting...\e[m\n\n"
+
+
+# Function to remove duplicate entries in geyser_mappings.json
+def remove_duplicates_with_custom_model_data(file_path):
+    try:
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            return
+
+        # Load the data from the file
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+
+        # Define the item types to process
+        item_types = [
+            "minecraft:leather_helmet",
+            "minecraft:leather_chestplate",
+            "minecraft:leather_leggings",
+            "minecraft:leather_boots",
+        ]
+
+        # Remove duplicates based on custom_model_data
+        for item_type in item_types:
+            if item_type in data:
+                unique_entries = {}
+                for entry in data[item_type]:
+                    custom_model_data = entry.get("custom_model_data")
+                    if custom_model_data not in unique_entries:
+                        unique_entries[custom_model_data] = entry
+                data[item_type] = list(unique_entries.values())
+
+        # Write the processed data back to the file
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=4)
+        print(f"Processed {file_path} successfully.")
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+
+# Example usage within the script
+geyser_mappings_file = "staging/target/geyser_mappings.json"
+if os.path.exists(geyser_mappings_file):
+    remove_duplicates_with_custom_model_data(geyser_mappings_file)
