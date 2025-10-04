@@ -673,6 +673,12 @@ do
         "elements": ($jelements[])
       } + (if $jdisplay then ({"display": ($jdisplay[])}) else {} end)
       ' | sponge ${file}
+	  
+	  # ✅ บันทึก texture หลัก "0" หรือ "particle" ลง icons.csv
+      local texture_main="$(jq -r '.textures["0"] // .textures.particle // empty' ${file})"
+      if [[ -n "$texture_main" ]]; then
+          echo "${path_hash},${texture_main}" >> scratch_files/icons.csv
+      fi
       echo >> scratch_files/count.csv
       local tot_pos=$(wc -l < scratch_files/count.csv)
       status_message completion "Located all parental info for Child ${gid}\n$(ProgressBar ${tot_pos} ${_end})"
@@ -728,13 +734,20 @@ fi
 # add icon textures to item atlas
 if [[ -f scratch_files/icons.csv ]]
 then
-  jq -cR 'split(",")' scratch_files/icons.csv | jq -s 'map({(.[0]): {"textures": (.[1] | gsub("//"; "/"))}}) | add' > scratch_files/icons.json
+  # ใช้ path_hash (gmdl_xxxxx) เป็น key และ textures path เป็น value
+  jq -cR 'split(",")' scratch_files/icons.csv | jq -s '
+    map({
+      (.[0]): { "textures": (.[1] | gsub("//"; "/")) }
+    }) | add
+  ' > scratch_files/icons.json
+
   jq -s '
   .[0] as $icons
-  | .[1] 
+  | .[1]
   | .texture_data += $icons
   ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
 fi
+
 
 # delete unsuitable models
 if [[ -f scratch_files/deleted.csv ]]
