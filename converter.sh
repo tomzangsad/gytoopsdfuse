@@ -802,6 +802,20 @@ mv scratch_files/spritesheet/*.png ./target/rp/textures
 # begin conversion
 jq -r '.[] | [.path, .geyserID, .generated, .namespace, .model_path, .model_name, .path_hash, .geometry] | @tsv | gsub("\\t";",")' config.json | sponge scratch_files/all.csv
 
+# ---- เตรียม icons สำหรับ 3D ล่วงหน้า ----
+while IFS=, read -r file gid generated namespace model_path model_name path_hash geometry
+do
+  if [[ ${generated} = false ]]; then
+    tex_path=$(jq -r '.textures["0"] // empty' "${file}")
+    if [[ -z "${tex_path}" || "${tex_path}" == "null" ]]; then
+      tex_path="minecraft:item/unknown"
+    fi
+    tex_path=$(echo "${tex_path}" | sed 's/:/\//')
+    texture_path="textures/${tex_path}"
+    echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
+  fi
+done < scratch_files/all.csv
+
 while IFS=, read -r file gid generated namespace model_path model_name path_hash geometry
 do
    convert_model () {
@@ -1146,6 +1160,8 @@ do
 	  texture_path="textures/${tex_path}"
 	  echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
 	fi
+
+
 
 
       # progress
