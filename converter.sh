@@ -1144,7 +1144,7 @@ do
       }
 
       ' | sponge ./target/rp/attachables/${namespace}/${model_path}/${model_name}.${path_hash}.attachable.json
-
+	}
    
    wait_for_jobs
    convert_model "${file}" "${gid}" "${generated}" "${namespace}" "${model_path}" "${model_name}" "${path_hash}" "${geometry}" &
@@ -1205,7 +1205,7 @@ then
      consolidate_files './target/rp/models/blocks'
      rm -rf ./target/rp/models/blocks/*/
      consolidate_files './target/rp/attachables'
-     rm -rf rm -rf ./target/rp/attachables/*/
+     rm -rf ./target/rp/attachables/*/
 fi
 
 # attempt to merge with existing pack if input was provided
