@@ -356,18 +356,7 @@ if contains(":") then sub("\\:(.+)"; "") else "minecraft" end
 
 ' ./assets/minecraft/models/item/*.json > config.json || { status_message error "Invalid JSON exists in block or item folder! See above log."; exit 1; }
 status_message completion "Initial predicate config generated"
-# === Add override model paths directly into icons.csv ===
-# ดึง path model ที่อยู่ใน override ของ item models แล้วแปลงเป็น .png
-jq -r '.[] | [.geyserID, .path] | @tsv' config.json | while IFS=$'\t' read gid path; do
-    model_refs=$(jq -r '.overrides[]?.model? // empty' "$path" 2>/dev/null)
-    for model_ref in $model_refs; do
-        if [[ -n "$model_ref" ]]; then
-            texture_path=$(echo "$model_ref" | sed -E 's|:|/|; s|\.json$||; s|$|.png|')
-            echo "${gid},${texture_path}" >> scratch_files/icons.csv
-        fi
-    done
-done
-	
+
 # get a bash array of all model json files in our resource pack
 status_message process "Generating an array of all model JSON files to crosscheck with our predicate config"
 json_dir=($(find ./assets/**/models -type f -name '*.json'))
