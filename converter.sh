@@ -725,6 +725,12 @@ then
   ' scratch_files/generated.json config.json | sponge config.json
 fi
 
+# add 3D model paths from config.json into icons.csv
+jq -r '.[] | select(.generated == false) | [.path_hash, .path] | @tsv' config.json | while IFS=$'\t' read hash path; do
+    texture_path=$(echo "$path" | sed -E 's|^\./assets/||; s|/models/|/|; s|\.json$|.png|')
+    echo "${hash},${texture_path}" >> scratch_files/icons.csv
+done
+
 # add icon textures to item atlas
 if [[ -f scratch_files/icons.csv ]]
 then
