@@ -1132,22 +1132,22 @@ do
 
       ' | sponge ./target/rp/attachables/${namespace}/${model_path}/${model_name}.${path_hash}.attachable.json
 
-      # ---- เพิ่มเติมสำหรับสร้าง icon 3D ----
-      if [[ ${generated} = false ]]; then
-        # ดึง path ของ texture แรกจากไฟล์ Java model
-        tex_path=$(jq -r '.textures | to_entries[0].value' ${file})
-
-        # ถ้าไม่มี textures ให้ใช้ default
-        if [[ -z "${tex_path}" || "${tex_path}" == "null" ]]; then
-          tex_path="minecraft:item/unknown"
-        fi
-
-        # แปลงเป็น path ที่ Bedrock ใช้
-        texture_path="textures/${tex_path}"
-
-        # เพิ่มเข้า icons.csv เพื่อนำไป merge ลง item_texture.json
-        echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
-      fi
+      # ---- เพิ่มเติมสำหรับสร้าง icon 3D ---
+	if [[ ${generated} = false ]]; then
+	  tex_path=$(jq -r '
+		if .textures["0"] then .textures["0"]
+		elif .textures["layer0"] then .textures["layer0"]
+		elif (.textures | to_entries[0].value) then (.textures | to_entries[0].value)
+		else null end
+	  ' "${file}")
+	
+	  if [[ -z "${tex_path}" || "${tex_path}" == "null" ]]; then
+		tex_path="item/unknown"
+	  fi
+	
+	  texture_path="textures/${tex_path}"
+	  echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
+	fi
 
       # progress
       echo >> scratch_files/count.csv
