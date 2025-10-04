@@ -806,11 +806,16 @@ jq -r '.[] | [.path, .geyserID, .generated, .namespace, .model_path, .model_name
 while IFS=, read -r file gid generated namespace model_path model_name path_hash geometry
 do
   if [[ ${generated} = false ]]; then
-    tex_path=$(jq -r '.textures["0"] // empty' "${file}")
+    # ดึง texture ตัวแรกจาก object .textures
+    tex_path=$(jq -r '.textures | to_entries[0].value // empty' "${file}")
+
     if [[ -z "${tex_path}" || "${tex_path}" == "null" ]]; then
       tex_path="minecraft:item/unknown"
     fi
+
+    # 🔧 แปลง namespace:subpath → namespace/subpath
     tex_path=$(echo "${tex_path}" | sed 's/:/\//')
+
     texture_path="textures/${tex_path}"
     echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
   fi
