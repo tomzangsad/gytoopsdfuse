@@ -1134,18 +1134,16 @@ do
 
       # ---- เพิ่มเติมสำหรับสร้าง icon 3D ---
 	if [[ ${generated} = false ]]; then
-	  # ดึงค่า textures["0"] โดยตรง
 	  tex_path=$(jq -r '.textures["0"] // empty' "${file}")
 	
-	  # ถ้าไม่มี textures["0"] ให้ fallback เป็น unknown
 	  if [[ -z "${tex_path}" ]]; then
-		tex_path="item/unknown"
+	    tex_path="minecraft:item/unknown"
 	  fi
 	
-	  # prefix ให้ Bedrock ใช้ได้
-	  texture_path="textures/${tex_path}"
+	  # 🔧 แปลง namespace:subpath → namespace/subpath
+	  tex_path=$(echo "${tex_path}" | sed 's/:/\//')
 	
-	  # บันทึกเข้า icons.csv
+	  texture_path="textures/${tex_path}"
 	  echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
 	fi
 
