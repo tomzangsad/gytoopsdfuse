@@ -360,7 +360,7 @@ status_message completion "Initial predicate config generated"
 # ดึง path model ที่อยู่ใน override ของ item models แล้วแปลงเป็น .png
 jq -r '.[] | [.geyserID, .path] | @tsv' config.json | while IFS=$'\t' read gid path; do
     # model_ref จะเป็น path ของ model เช่น elitecreatures:witchcaster_animated/axe
-    model_ref=$(jq -r '.model? // empty' "$path" 2>/dev/null || echo "")
+    model_ref=$(jq -r '.overrides[]?.model? // empty' "$path" 2>/dev/null || echo "")
     if [[ -n "$model_ref" ]]; then
         # แปลง namespace:subpath → namespace/subpath.png
         texture_path=$(echo "$model_ref" | sed -E 's|:|/|; s|$|.png|')
