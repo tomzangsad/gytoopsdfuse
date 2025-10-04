@@ -356,7 +356,17 @@ if contains(":") then sub("\\:(.+)"; "") else "minecraft" end
 
 ' ./assets/minecraft/models/item/*.json > config.json || { status_message error "Invalid JSON exists in block or item folder! See above log."; exit 1; }
 status_message completion "Initial predicate config generated"
-
+# === Add override model paths directly into icons.csv ===
+# ดึง path model ที่อยู่ใน override ของ item models แล้วแปลงเป็น .png
+jq -r '.[] | [.geyserID, .path] | @tsv' config.json | while IFS=$'\t' read gid path; do
+    # model_ref จะเป็น path ของ model เช่น elitecreatures:witchcaster_animated/axe
+    model_ref=$(jq -r '.model? // empty' "$path" 2>/dev/null || echo "")
+    if [[ -n "$model_ref" ]]; then
+        # แปลง namespace:subpath → namespace/subpath.png
+        texture_path=$(echo "$model_ref" | sed -E 's|:|/|; s|$|.png|')
+        echo "${gid},${texture_path}" >> scratch_files/icons.csv
+    fi
+done
 # get a bash array of all model json files in our resource pack
 status_message process "Generating an array of all model JSON files to crosscheck with our predicate config"
 json_dir=($(find ./assets/**/models -type f -name '*.json'))
@@ -673,12 +683,6 @@ do
         "elements": ($jelements[])
       } + (if $jdisplay then ({"display": ($jdisplay[])}) else {} end)
       ' | sponge ${file}
-	  
-	  # ✅ บันทึก texture หลัก "0" หรือ "particle" ลง icons.csv
-      local texture_main="$(jq -r '.textures["0"] // .textures.particle // empty' ${file})"
-      if [[ -n "$texture_main" ]]; then
-          echo "${path_hash},${texture_main}" >> scratch_files/icons.csv
-      fi
       echo >> scratch_files/count.csv
       local tot_pos=$(wc -l < scratch_files/count.csv)
       status_message completion "Located all parental info for Child ${gid}\n$(ProgressBar ${tot_pos} ${_end})"
@@ -734,20 +738,13 @@ fi
 # add icon textures to item atlas
 if [[ -f scratch_files/icons.csv ]]
 then
-  # ใช้ path_hash (gmdl_xxxxx) เป็น key และ textures path เป็น value
-  jq -cR 'split(",")' scratch_files/icons.csv | jq -s '
-    map({
-      (.[0]): { "textures": (.[1] | gsub("//"; "/")) }
-    }) | add
-  ' > scratch_files/icons.json
-
+  jq -cR 'split(",")' scratch_files/icons.csv | jq -s 'map({(.[0]): {"textures": (.[1] | gsub("//"; "/"))}}) | add' > scratch_files/icons.json
   jq -s '
   .[0] as $icons
-  | .[1]
+  | .[1] 
   | .texture_data += $icons
   ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
 fi
-
 
 # delete unsuitable models
 if [[ -f scratch_files/deleted.csv ]]
@@ -1144,12 +1141,12 @@ do
       }
 
       ' | sponge ./target/rp/attachables/${namespace}/${model_path}/${model_name}.${path_hash}.attachable.json
-	}
+   }
    
    wait_for_jobs
    convert_model "${file}" "${gid}" "${generated}" "${namespace}" "${model_path}" "${model_name}" "${path_hash}" "${geometry}" &
-done < scratch_files/all.csv
 
+done < scratch_files/all.csv
 wait # wait for all the jobs to finish
 
 # write lang file US
@@ -1205,7 +1202,7 @@ then
      consolidate_files './target/rp/models/blocks'
      rm -rf ./target/rp/models/blocks/*/
      consolidate_files './target/rp/attachables'
-     rm -rf ./target/rp/attachables/*/
+     rm -rf rm -rf ./target/rp/attachables/*/
 fi
 
 # attempt to merge with existing pack if input was provided
