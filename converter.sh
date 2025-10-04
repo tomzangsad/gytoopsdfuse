@@ -359,14 +359,15 @@ status_message completion "Initial predicate config generated"
 # === Add override model paths directly into icons.csv ===
 # ดึง path model ที่อยู่ใน override ของ item models แล้วแปลงเป็น .png
 jq -r '.[] | [.geyserID, .path] | @tsv' config.json | while IFS=$'\t' read gid path; do
-    # model_ref จะเป็น path ของ model เช่น elitecreatures:witchcaster_animated/axe
-    model_ref=$(jq -r '.overrides[]?.model? // empty' "$path" 2>/dev/null || echo "")
-    if [[ -n "$model_ref" ]]; then
-        # แปลง namespace:subpath → namespace/subpath.png
-        texture_path=$(echo "$model_ref" | sed -E 's|:|/|; s|$|.png|')
-        echo "${gid},${texture_path}" >> scratch_files/icons.csv
-    fi
+    model_refs=$(jq -r '.overrides[]?.model? // empty' "$path" 2>/dev/null)
+    for model_ref in $model_refs; do
+        if [[ -n "$model_ref" ]]; then
+            texture_path=$(echo "$model_ref" | sed -E 's|:|/|; s|\.json$||; s|$|.png|')
+            echo "${gid},${texture_path}" >> scratch_files/icons.csv
+        fi
+    done
 done
+	
 # get a bash array of all model json files in our resource pack
 status_message process "Generating an array of all model JSON files to crosscheck with our predicate config"
 json_dir=($(find ./assets/**/models -type f -name '*.json'))
