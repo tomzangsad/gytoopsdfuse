@@ -725,8 +725,14 @@ then
   ' scratch_files/generated.json config.json | sponge config.json
 fi
 
-# add 3D model paths from config.json into icons.csv
-jq -r '.[] | select(.generated == false) | [.path_hash, .path] | @tsv' config.json | while IFS=$'\t' read hash path; do
+# add 3D model paths from config.json into icons.csv (filter duplicates)
+jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @tsv' config.json | while IFS=$'\t' read hash path model_name; do
+    # ข้าม model ที่ลงท้ายด้วย _0, _1, _2, _cast, _blocking, _charged, _firework
+    if [[ "$model_name" =~ (_[0-9]+|_cast|_blocking|_charged|_firework)$ ]]; then
+        continue
+    fi
+
+    # แปลง path → .png
     texture_path=$(echo "$path" | sed -E 's|^\./assets/||; s|/models/|/|; s|\.json$|.png|')
     echo "${hash},${texture_path}" >> scratch_files/icons.csv
 done
