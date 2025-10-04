@@ -1134,20 +1134,21 @@ do
 
       # ---- เพิ่มเติมสำหรับสร้าง icon 3D ---
 	if [[ ${generated} = false ]]; then
-	  tex_path=$(jq -r '
-		if .textures["0"] then .textures["0"]
-		elif .textures["layer0"] then .textures["layer0"]
-		elif (.textures | to_entries[0].value) then (.textures | to_entries[0].value)
-		else null end
-	  ' "${file}")
+	  # ดึงค่า textures["0"] โดยตรง
+	  tex_path=$(jq -r '.textures["0"] // empty' "${file}")
 	
-	  if [[ -z "${tex_path}" || "${tex_path}" == "null" ]]; then
+	  # ถ้าไม่มี textures["0"] ให้ fallback เป็น unknown
+	  if [[ -z "${tex_path}" ]]; then
 		tex_path="item/unknown"
 	  fi
 	
+	  # prefix ให้ Bedrock ใช้ได้
 	  texture_path="textures/${tex_path}"
+	
+	  # บันทึกเข้า icons.csv
 	  echo "${path_hash},${texture_path}" >> scratch_files/icons.csv
 	fi
+
 
       # progress
       echo >> scratch_files/count.csv
