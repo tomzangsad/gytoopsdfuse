@@ -1253,7 +1253,7 @@ jq '
       {
         "name": .path_hash,
         "allow_offhand": true,
-        "icon": (if .generated == true then .path_hash else .bedrock_icon.icon end)
+        "icon": (if .generated == true then .path_hash else .path_hash end)
       }
       + (if (.generated == false) then {"frame": (.bedrock_icon.frame)} else {} end)
       + (if .nbt.CustomModelData then {"custom_model_data": (.nbt.CustomModelData)} else {} end)
