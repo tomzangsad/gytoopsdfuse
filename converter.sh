@@ -1149,7 +1149,7 @@ do
    wait_for_jobs
    convert_model "${file}" "${gid}" "${generated}" "${namespace}" "${model_path}" "${model_name}" "${path_hash}" "${geometry}" &
 
-done < scratch_files/all.csv
+#done < scratch_files/all.csv
 wait # wait for all the jobs to finish
 
 # write lang file US
