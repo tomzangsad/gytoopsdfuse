@@ -1326,33 +1326,28 @@ fi
 
 
 
-remove_duplicates_with_custom_model_data() {
-  local file_path=$1
+# ✅ ลบข้อมูลซ้ำใน geyser_mappings.json โดยอิงจาก custom_model_data หรือ name
+if [[ -f "./target/geyser_mappings.json" ]]; then
+  status_message process "Removing duplicate entries from geyser_mappings.json"
 
-  # ตรวจสอบว่าไฟล์มีอยู่
-  if [[ ! -f "$file_path" ]]; then
-    echo "File $file_path not found!"
-    return 1
-  fi
+  jq '
+    .items |= with_entries(
+      .value |= (
+        unique_by(
+          if has("custom_model_data") then .custom_model_data
+          elif has("name") then .name
+          else .
+          end
+        )
+      )
+    )
+  ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
 
-  # ใช้ jq เพื่อลบรายการซ้ำกันโดยอิงจาก custom_model_data
-  jq 'to_entries | map(
-      if .key | test("^minecraft:leather_.*") then
-        .value |= unique_by(.custom_model_data)
-      else .
-      end
-    ) | from_entries' "$file_path" > "${file_path}.tmp" && mv "${file_path}.tmp" "$file_path"
-
-  echo "Duplicates removed in $file_path"
-}
-
-# เรียกใช้งานฟังก์ชันหลังจากไฟล์ geyser_mappings.json ถูกสร้าง
-if [[ -f "staging/target/geyser_mappings.json" ]]; then
-  echo "Processing geyser_mappings.json for duplicate removal..."
-  remove_duplicates_with_custom_model_data "./target/geyser_mappings.json"
+  status_message completion "Duplicate mappings cleaned successfully"
 else
-  echo "geyser_mappings.json not found. Skipping duplicate removal."
+  status_message error "geyser_mappings.json not found, skipping duplicate removal"
 fi
+
 
 
 
