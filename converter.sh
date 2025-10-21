@@ -308,6 +308,11 @@ COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o scratch_files/item_texture.jso
 echo
 printf "${C_CLOSE}"
 
+# 🧱 Skip unwanted asset folders (betterhud, nameplates, modelengine) KaizerMC Edit
+status_message process "Filtering out unwanted asset folders before conversion"
+find ./assets -type d \( -path "./assets/betterhud" -o -path "./assets/nameplates" -o -path "./assets/modelengine" \) -prune -exec echo "Skipping directory: {}" \; -exec rm -rf {} \;
+status_message completion "Filtered unwanted folders (betterhud, nameplates, modelengine)"
+
 # setup our initial config by iterating over all json files in the block and item folders
 # technically we only need to iterate over actual item models that contain overrides, but the constraints of bash would likely make such an approach less efficent 
 status_message process "Iterating through all vanilla associated model JSONs to generate initial predicate config\nOn a large pack, this may take some time...\n"
@@ -1326,7 +1331,7 @@ fi
 
 
 
-# ✅ ลบข้อมูลซ้ำใน geyser_mappings.json โดยอิงจาก custom_model_data หรือ name
+# ✅ ลบข้อมูลซ้ำใน geyser_mappings.json โดยอิงจาก custom_model_data หรือ name KaizerMC Edit
 if [[ -f "./target/geyser_mappings.json" ]]; then
   status_message process "Removing duplicate entries from geyser_mappings.json"
 
