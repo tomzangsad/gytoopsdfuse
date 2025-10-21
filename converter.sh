@@ -730,6 +730,18 @@ then
   ' scratch_files/generated.json config.json | sponge config.json
 fi
 
+# # add 3D model paths from config.json into icons.csv (filter duplicates)
+# jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @tsv' config.json | while IFS=$'\t' read hash path model_name; do
+#     # ข้าม model ที่ลงท้ายด้วย _0, _1, _2, _cast, _blocking, _charged, _firework
+#     if [[ "$model_name" =~ (_[0-9]+|_cast|_blocking|_charged|_firework)$ ]]; then
+#         continue
+#     fi
+
+#     # แปลง path → .png
+#     texture_path=$(echo "$path" | sed -E 's|^\./assets/||; s|/models/|/|; s|\.json$|.png|')
+#     echo "${hash},${texture_path}" >> scratch_files/icons.csv
+# done
+
 # add 3D model paths from config.json into icons.csv (filter duplicates)
 jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @tsv' config.json | while IFS=$'\t' read hash path model_name; do
     # ข้าม model ที่ลงท้ายด้วย _0, _1, _2, _cast, _blocking, _charged, _firework
@@ -738,9 +750,26 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     fi
 
     # แปลง path → .png
-    texture_path=$(echo "$path" | sed -E 's|^\./assets/||; s|/models/|/|; s|\.json$|.png|')
+    raw_path=$(echo "$path" | sed -E 's|^\./assets/||; s|/models/|/|; s|\.json$|.png|')
+
+    # ตรวจสอบว่ามี textures/ นำหน้าหรือยัง ถ้าไม่มีให้เติม
+    if [[ "$raw_path" != textures/* ]]; then
+        texture_path="textures/${raw_path}"
+    else
+        texture_path="$raw_path"
+    fi
+
+    # ✅ เพิ่ม prefix "zicon/" เข้า path (ตามที่โบอยากให้)
+    texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
+
+    # ✅ สร้างโฟลเดอร์ตาม path นั้นจริงใน ./target/rp/
+    texture_dir="./target/rp/$(dirname "$texture_path")"
+    mkdir -p "$texture_dir"
+
+    # เขียนข้อมูลลง icons.csv
     echo "${hash},${texture_path}" >> scratch_files/icons.csv
 done
+
 
 # add icon textures to item atlas
 if [[ -f scratch_files/icons.csv ]]
