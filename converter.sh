@@ -788,20 +788,28 @@ then
   jq -cR 'split(",")' scratch_files/deleted.csv  | jq -s '.' > scratch_files/deleted.json
   jq -s '.[0] as $deleted | .[1] | delpaths($deleted)' scratch_files/deleted.json config.json | sponge config.json
 fi
-# ✅ KaizerMC Edit — Normalize cosmetic model names
-status_message process "Normalizing cosmetic model names (e.g. _cosmetic, _self_2 → base name)"
+# ✅ KaizerMC Edit — Normalize cosmetic model names and texture paths
+status_message process "Normalizing cosmetic names and textures (remove _cosmetic, _self_2 suffixes)"
 
 jq '
   walk(
-    if (type == "object" and has("model_name")) then
-      .model_name |= sub("(_cosmetic(_normal_2)?|_cosmetic_self(_2)?)$"; "")
+    if type == "object" then
+      (if has("model_name") then
+         .model_name |= sub("(_cosmetic(_normal_2)?|_cosmetic_self(_2)?)$"; "")
+       else . end)
+      | (if has("textures") then
+           .textures |= sub("_cosmetic(_normal_2)?(_self(_2)?)?"; "")
+           | .textures |= sub("_cosmetic_self(_2)?"; "")
+           | .textures |= sub("_cosmetic"; "")
+         else . end)
     else
       .
     end
   )
 ' config.json | sponge config.json
 
-status_message completion "Cosmetic model names normalized to their base names"
+status_message completion "Cosmetic suffixes normalized in both model_name and textures"
+
 status_message process "Compiling final model list"
 # get our final 3d model list from the config
 model_list=( $(jq -r '.[] | select(.generated == false) | .path' config.json) )
