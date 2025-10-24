@@ -762,6 +762,9 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     # ✅ เพิ่ม prefix "zicon/" เข้า path (ตามที่โบอยากให้)
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
+    # ✅ ตัด suffix (_cosmetic, _cosmetic_self, _normal_1, _normal_2, _self) ออกก่อนบันทึก
+    texture_path=$(echo "$texture_path" | sed -E 's/(_cosmetic(_self)?|_normal(_[0-9]+)?|_self)\.png$/.png/')
+
     # ✅ สร้างโฟลเดอร์ตาม path นั้นจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
     mkdir -p "$texture_dir"
@@ -769,6 +772,7 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     # เขียนข้อมูลลง icons.csv
     echo "${hash},${texture_path}" >> scratch_files/icons.csv
 done
+
 
 
 # add icon textures to item atlas
