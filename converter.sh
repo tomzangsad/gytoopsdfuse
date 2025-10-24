@@ -788,27 +788,29 @@ then
   jq -cR 'split(",")' scratch_files/deleted.csv  | jq -s '.' > scratch_files/deleted.json
   jq -s '.[0] as $deleted | .[1] | delpaths($deleted)' scratch_files/deleted.json config.json | sponge config.json
 fi
-# ✅ KaizerMC Edit — Normalize cosmetic model names and texture paths
-status_message process "Normalizing cosmetic names and textures (remove _cosmetic, _self_2 suffixes)"
+# ✅ KaizerMC Edit — Normalize cosmetic suffixes inside item_texture.json
+if [[ -f "./target/rp/textures/item_texture.json" ]]; then
+  status_message process "Normalizing texture_data keys in item_texture.json"
 
-jq '
-  walk(
-    if type == "object" then
-      (if has("model_name") then
-         .model_name |= sub("(_cosmetic(_normal_2)?|_cosmetic_self(_2)?)$"; "")
-       else . end)
-      | (if has("textures") then
-           .textures |= sub("_cosmetic(_normal_2)?(_self(_2)?)?"; "")
-           | .textures |= sub("_cosmetic_self(_2)?"; "")
-           | .textures |= sub("_cosmetic"; "")
-         else . end)
+  jq '
+    if has("texture_data") then
+      .texture_data |=
+        with_entries(
+          .key as $k |
+          .value |
+          { 
+            ($k | sub("(_cosmetic(_normal_[0-9]+)?|_cosmetic_self(_[0-9]+)?|_normal_[0-9]+)$"; "")): 
+            ( .textures |= sub("(_cosmetic(_normal_[0-9]+)?|_cosmetic_self(_[0-9]+)?|_normal_[0-9]+)$"; "") )
+          }
+        )
     else
       .
     end
-  )
-' config.json | sponge config.json
+  ' ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
 
-status_message completion "Cosmetic suffixes normalized in both model_name and textures"
+  status_message completion "Normalized all cosmetic suffixes in item_texture.json"
+fi
+
 
 status_message process "Compiling final model list"
 # get our final 3d model list from the config
