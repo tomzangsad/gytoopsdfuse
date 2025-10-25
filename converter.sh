@@ -747,6 +747,7 @@ fi
 #     - ข้าม model ที่ไม่ต้องการ
 #     - เพิ่ม prefix zicon/
 #     - ลบ suffix (_cosmetic, _self, _normal_1, _1, ฯลฯ)
+#     - แสดงสถานะเมื่อมีการลบ suffix
 #     - สร้างโฟลเดอร์จริงใน target/rp/
 #     - ป้องกันไฟล์ซ้ำด้วย sort -u
 # ============================================================
@@ -770,9 +771,11 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     # 🔹 เพิ่ม prefix "zicon/"
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
-    # 🔹 ลบ suffix ที่ไม่ต้องการออก (แบบระบุชื่อชัดเจน)
+    # 🔹 ตรวจจับและลบ suffix ที่ไม่ต้องการออก พร้อม log สถานะ
     if [[ "$texture_path" =~ (_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
+        before="$texture_path"
         texture_path=$(echo "$texture_path" | sed -E 's/(_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
+        status_message process "Removed suffix from: ${before##*/} → ${texture_path##*/}"
     fi
 
     # 🔹 สร้างโฟลเดอร์ปลายทางจริงใน ./target/rp/
