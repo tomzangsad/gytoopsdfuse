@@ -763,7 +763,7 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
     # ✅ ตัด suffix (_cosmetic, _cosmetic_self, _normal_1, _normal_2, _self) ออกก่อนบันทึก
-    texture_path=$(echo "$texture_path" | sed -E 's/(_(cosmetic(_self)?|normal(_[0-9]+)?|self|[0-9]+))\.png$/.png/I')
+    texture_path=$(echo "$texture_path" | sed -E 's/(_(cosmetic(_self)?|normal(_[0-9]+)?|_1|_2|_3|_normal_1|_normal_2|_cosmetic_self|_self|[0-9]+))\.png$/.png/I')
 
     # ✅ สร้างโฟลเดอร์ตาม path นั้นจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
