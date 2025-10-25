@@ -749,7 +749,7 @@ fi
 #     - ลบ suffix (_cosmetic, _self, _normal_1, _1, ฯลฯ)
 #     - แสดงสถานะเมื่อมีการลบ suffix
 #     - สร้างโฟลเดอร์จริงใน target/rp/
-#     - ป้องกันไฟล์ซ้ำด้วย sort -u
+#     - ❌ ไม่ลบรายการซ้ำ (เพราะต้องการใช้รูปเดียวกันในหลาย hash)
 # ============================================================
 
 jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @tsv' config.json | while IFS=$'\t' read hash path model_name; do
@@ -775,19 +775,18 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     if [[ "$texture_path" =~ (_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
         before="$texture_path"
         texture_path=$(echo "$texture_path" | sed -E 's/(_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
-        status_message process "Removed suffix from: ${before##*/} → ${texture_path##*/}"
+        status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
     fi
 
     # 🔹 สร้างโฟลเดอร์ปลายทางจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
     mkdir -p "$texture_dir"
 
-    # 🔹 เขียนข้อมูล hash,path ลง icons.csv
+    # 🔹 เขียนข้อมูล hash,path ลง icons.csv (อนุญาตให้ซ้ำได้)
     echo "${hash},${texture_path}" >> scratch_files/icons.csv
 done
 
-# 🔹 ลบรายการซ้ำออก (unique ตาม texture_path)
-sort -t',' -k2 -u scratch_files/icons.csv -o scratch_files/icons.csv
+status_message completion "✅ Finished mapping all icons (shared textures applied)"
 
 
 
