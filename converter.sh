@@ -745,7 +745,7 @@ fi
 # add 3D model paths from config.json into icons.csv (filter duplicates)
 jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @tsv' config.json | while IFS=$'\t' read hash path model_name; do
     # ข้าม model ที่ลงท้ายด้วย _0, _1, _2, _cast, _blocking, _charged, _firework
-    if [[ "$model_name" =~ (_[0-9]+|_cast|_blocking|_charged|_firework)$ ]]; then
+    if [[ "$model_name" =~ (_cast|_blocking|_charged|_firework)$ ]]; then
         continue
     fi
 
@@ -763,7 +763,7 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
     # ✅ ตัด suffix (_cosmetic, _cosmetic_self, _normal_1, _normal_2, _self) ออกก่อนบันทึก
-    texture_path=$(echo "$texture_path" | sed -E 's/(_cosmetic(_self)?|_normal(_[0-9]+)?|_self)\.png$/.png/')
+    texture_path=$(echo "$texture_path" | sed -E 's/(_cosmetic(_self)?|_normal(_[0-9]+|_[0-9]+)?|_self)\.png$/.png/')
 
     # ✅ สร้างโฟลเดอร์ตาม path นั้นจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
