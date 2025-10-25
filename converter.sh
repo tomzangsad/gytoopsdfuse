@@ -742,36 +742,50 @@ fi
 #     echo "${hash},${texture_path}" >> scratch_files/icons.csv
 # done
 
-# add 3D model paths from config.json into icons.csv (filter duplicates)
+# ============================================================
+# 🧩 ดึง path จาก config.json และเพิ่มลง icons.csv
+#     - ข้าม model ที่ไม่ต้องการ
+#     - เพิ่ม prefix zicon/
+#     - ลบ suffix (_cosmetic, _self, _normal_1, _1, ฯลฯ)
+#     - สร้างโฟลเดอร์จริงใน target/rp/
+#     - ป้องกันไฟล์ซ้ำด้วย sort -u
+# ============================================================
+
 jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @tsv' config.json | while IFS=$'\t' read hash path model_name; do
-    # ข้าม model ที่ลงท้ายด้วย _0, _1, _2, _cast, _blocking, _charged, _firework
+    # 🔹 ข้าม model ที่ไม่ต้องการ เช่น อนิเมชัน
     if [[ "$model_name" =~ (_cast|_blocking|_charged|_firework)$ ]]; then
         continue
     fi
 
-    # แปลง path → .png
+    # 🔹 แปลง path .json → .png
     raw_path=$(echo "$path" | sed -E 's|^\./assets/||; s|/models/|/|; s|\.json$|.png|')
 
-    # ตรวจสอบว่ามี textures/ นำหน้าหรือยัง ถ้าไม่มีให้เติม
+    # 🔹 เติม prefix textures/ ถ้ายังไม่มี
     if [[ "$raw_path" != textures/* ]]; then
         texture_path="textures/${raw_path}"
     else
         texture_path="$raw_path"
     fi
 
-    # ✅ เพิ่ม prefix "zicon/" เข้า path (ตามที่โบอยากให้)
+    # 🔹 เพิ่ม prefix "zicon/"
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
-    # ✅ ตัด suffix (_cosmetic, _cosmetic_self, _normal_1, _normal_2, _self) ออกก่อนบันทึก
-    texture_path=$(echo "$texture_path" | sed -E 's/(_(cosmetic(_self)?|normal(_[0-9]+)?|self|[0-9]+))\.png$/.png/I')
+    # 🔹 ลบ suffix ที่ไม่ต้องการออก (แบบระบุชื่อชัดเจน)
+    if [[ "$texture_path" =~ (_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
+        texture_path=$(echo "$texture_path" | sed -E 's/(_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
+    fi
 
-    # ✅ สร้างโฟลเดอร์ตาม path นั้นจริงใน ./target/rp/
+    # 🔹 สร้างโฟลเดอร์ปลายทางจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
     mkdir -p "$texture_dir"
 
-    # เขียนข้อมูลลง icons.csv
+    # 🔹 เขียนข้อมูล hash,path ลง icons.csv
     echo "${hash},${texture_path}" >> scratch_files/icons.csv
 done
+
+# 🔹 ลบรายการซ้ำออก (unique ตาม texture_path)
+sort -t',' -k2 -u scratch_files/icons.csv -o scratch_files/icons.csv
+
 
 
 
