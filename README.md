@@ -28,7 +28,7 @@ KaizerMC : https://discord.gg/rNGH2SpNs5
 
 ### Donate
 
-  [![Donate with PayPal](https://raw.githubusercontent.com/stefan-niedermann/paypal-donate-button/master/paypal-donate-button.png)](https://paypal.me/LZ5509)
+  [![Donate with PayPal](https://raw.githubusercontent.com/stefan-niedermann/paypal-donate-button/master/paypal-donate-button.png)](https://paypal.me/PhuwadetSutwilai)
 
 ### Local
 
@@ -151,4 +151,4 @@ If you install spritesheet-js globally, but the script fails due to missing the 
 echo "export PATH=$PATH:$(npm config --global get prefix)/bin" >> ~/.bashrc && source ~/.bashrc
 ```
 
-This code was developed by Kas-tle and AZ-Team.
+This code was developed by Kas-tle and AZ-Team and KaizerMC.
