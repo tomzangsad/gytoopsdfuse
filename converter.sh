@@ -771,12 +771,17 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     # 🔹 เพิ่ม prefix "zicon/"
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
-    # 🔹 ตรวจจับและลบ suffix ที่ไม่ต้องการออก พร้อม log สถานะ
-    if [[ "$texture_path" =~ (_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
-        before="$texture_path"
-        texture_path=$(echo "$texture_path" | sed -E 's/(_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
-        status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
-    fi
+    # # 🔹 ตรวจจับและลบ suffix ที่ไม่ต้องการออก พร้อม log สถานะ
+    # if [[ "$texture_path" =~ (_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
+    #     before="$texture_path"
+    #     texture_path=$(echo "$texture_path" | sed -E 's/(_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
+    #     status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
+    # fi
+	if [[ "$texture_path" =~ (_thirdperson\.png|_self_2\.png|_cosmetic_normal_2\.png|_cosmetic_self_2\.png|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
+	    before="$texture_path"
+	    texture_path=$(echo "$texture_path" | sed -E 's/(_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
+	    status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
+	fi
 
     # 🔹 สร้างโฟลเดอร์ปลายทางจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
