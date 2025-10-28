@@ -129,13 +129,35 @@ while i < 4:
         i += 1
         continue
 
-    for override in data["overrides"]:
-        custom_model_data = override["predicate"]["custom_model_data"]
-        model = override["model"]
-        namespace = model.split(":")[0]
-        item = model.split("/")[-1]
-        if item in item_type:
-            continue
+    # ตรวจสอบว่าเป็น format ใหม่ (range_dispatch) หรือไม่
+    if "model" in data and isinstance(data["model"], dict) and data["model"].get("type") == "range_dispatch":
+        entries = data["model"].get("entries", [])
+        for entry in entries:
+            try:
+                # ดึงข้อมูลจาก entry
+                custom_model_data = entry["threshold"]
+                model_info = entry["model"]
+                if model_info["type"] != "model":
+                    continue
+                    
+                model = model_info["model"]
+                # เพิ่ม prefix minecraft: ถ้าไม่มี namespace
+                if ":" not in model:
+                    model = "minecraft:" + model
+                    
+                namespace = model.split(":")[0]
+                item = model.split("/")[-1]
+                
+                if item in item_type:
+                    continue
+                    
+                path = model.split(":")[1] if ":" in model else model
+                # Look for armor layer textures in model's directory first
+                model_dir = os.path.dirname(f"pack/assets/{namespace}/models/{path}.json")
+            except Exception as e:
+                print(f"Error processing entry: {e}")
+                print("Item not found...")
+                continue
         else:
             try:
                 path = model.split(":")[1]
