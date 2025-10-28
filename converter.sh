@@ -833,7 +833,8 @@ fi
 # delete unsuitable models
 if [[ -f scratch_files/deleted.csv ]]
 then
-  jq -cR 'split(",")' scratch_files/deleted.csv  | jq -s '.' > scratch_files/deleted.json
+  # jq -cR 'split(",")' scratch_files/deleted.csv  | jq -s '.' > scratch_files/deleted.json
+  jq -cR 'split(",")' < scratch_files/deleted.csv | jq -s '.' > scratch_files/deleted.json
   jq -s '.[0] as $deleted | .[1] | delpaths($deleted)' scratch_files/deleted.json config.json | sponge config.json
 fi
 
