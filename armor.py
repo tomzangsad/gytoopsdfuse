@@ -148,13 +148,13 @@ while i < 4:
                 layer = None
                 layer_file = None
                 
-                # Search patterns for armor layers
+                # Search patterns for armor layers - CIT first, then other locations
                 search_patterns = [
+                    f"pack/assets/minecraft/optifine/cit/ia_generated_armors/*_layer_{layer_num}*.png",
                     f"{texture_dir}/*layer_{layer_num}*.png",
                     f"{texture_dir}/*armor_layer_{layer_num}*.png",
                     f"pack/assets/{namespace}/textures/**/*layer_{layer_num}*.png",
-                    f"pack/assets/{namespace}/textures/**/*armor_layer_{layer_num}*.png",
-                    f"pack/assets/minecraft/optifine/cit/ia_generated_armors/*_layer_{layer_num}*.png"
+                    f"pack/assets/{namespace}/textures/**/*armor_layer_{layer_num}*.png"
                 ]
                 
                 # Try each search pattern
