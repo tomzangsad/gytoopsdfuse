@@ -1,6 +1,6 @@
 ## Since AZ-Team has stopped developing this converter, we will continue to develop it from AZ-Team and will continue to update and fix various bugs that occur.
 
-KaizerMC : https://discord.gg/rNGH2SpNs5
+KaizerMCx : https://discord.gg/rNGH2SpNs5
 
 ### Todo-List
   - Support Custom Block (Ready for test and use)
