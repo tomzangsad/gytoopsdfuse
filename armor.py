@@ -1,193 +1,10 @@
-# import os
-# import json
-# import shutil
-# import glob
-# from jproperties import Properties
-
-# # ฟังก์ชันสำหรับประมวลผลไฟล์ JSON
-# def process_json_file(file_path):
-#     if not os.path.exists(file_path):
-#         print(f"File not found: {file_path}")
-#         return
-
-#     with open(file_path, 'r') as f:
-#         data = json.load(f)
-
-#     overrides = data.get("overrides", [])
-#     processed_overrides = []
-#     seen_custom_model_data = set()
-
-#     for override in overrides:
-#         predicate = override.get("predicate", {})
-#         model = override.get("model", "")
-
-#         # ลบ override ที่มี trim_type
-#         if "trim_type" in predicate:
-#             continue
-
-#         # ตรวจสอบ custom_model_data
-#         custom_model_data = predicate.get("custom_model_data")
-#         if custom_model_data is not None:
-#             # เก็บเฉพาะอันแรกของ custom_model_data ที่เจอ
-#             if custom_model_data in seen_custom_model_data:
-#                 continue
-#             seen_custom_model_data.add(custom_model_data)
-
-#         processed_overrides.append(override)
-
-#     # อัปเดต overrides ในไฟล์
-#     data["overrides"] = processed_overrides
-
-#     # เขียนผลลัพธ์กลับไปยังไฟล์เดิม
-#     with open(file_path, 'w') as f:
-#         json.dump(data, f, indent=4)
-#     print(f"Processed {file_path}")
-
-# # ฟังก์ชันสำหรับลบรายการที่ซ้ำกันใน geyser_mappings.json
-# def remove_duplicates_with_custom_model_data(file_path):
-#     try:
-#         with open(file_path, 'r') as f:
-#             data = json.load(f)
-
-#         item_types = [
-#             "minecraft:leather_helmet",
-#             "minecraft:leather_chestplate",
-#             "minecraft:leather_leggings",
-#             "minecraft:leather_boots",
-#         ]
-
-#         for item_type in item_types:
-#             if item_type in data:
-#                 unique_entries = {}
-#                 for entry in data[item_type]:
-#                     custom_model_data = entry.get("custom_model_data")
-#                     if custom_model_data not in unique_entries:
-#                         unique_entries[custom_model_data] = entry
-
-#                 data[item_type] = list(unique_entries.values())
-
-#         with open(file_path, 'w') as f:
-#             json.dump(data, f, indent=4)
-#         print(f"Processed {file_path} successfully.")
-#     except Exception as e:
-#         print(f"Error processing {file_path}: {e}")
-
-# # ฟังก์ชันหลักสำหรับการจัดการไฟล์ armor และ optifine
-# optifine = Properties()
-# i = 0
-# item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
-
-# def write_armor(file, gmdl, layer, i):
-#     type_map = ["helmet", "chestplate", "leggings", "boots"]
-#     type = type_map[i]
-#     ajson = {
-#         "format_version": "1.10.0",
-#         "minecraft:attachable": {
-#             "description": {
-#                 "identifier": f"geyser_custom:{gmdl}.player",
-#                 "item": {
-#                     f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"
-#                 },
-#                 "materials": {
-#                     "default": "armor_leather",
-#                     "enchanted": "armor_leather_enchanted",
-#                 },
-#                 "textures": {
-#                     "default": f"textures/armor_layer/{layer}",
-#                     "enchanted": "textures/misc/enchanted_item_glint",
-#                 },
-#                 "geometry": {
-#                     "default": f"geometry.player.armor.{type}",
-#                 },
-#                 "scripts": {
-#                     "parent_setup": "variable.helmet_layer_visible = 0.0;",
-#                 },
-#                 "render_controllers": ["controller.render.armor"],
-#             },
-#         },
-#     }
-#     with open(file, "w") as f:
-#         f.write(json.dumps(ajson))
-
-# # ตรวจสอบว่าไฟล์ geyser_mappings.json มีอยู่จริง
-# geyser_mappings_file = "staging/target/geyser_mappings.json"
-
-# if os.path.exists(geyser_mappings_file):
-#     print(f"File {geyser_mappings_file} found, proceeding with processing.")
-#     remove_duplicates_with_custom_model_data(geyser_mappings_file)
-# else:
-#     print(f"File {geyser_mappings_file} not found. Please check the download process.")
-
-# while i < 4:
-#     file_path = f"pack/assets/minecraft/models/item/{item_type[i]}.json"
-#     try:
-#         process_json_file(file_path)
-
-#         with open(file_path, "r") as f:
-#             data = json.load(f)
-#     except:
-#         i += 1
-#         continue
-
-#     for override in data["overrides"]:
-#         custom_model_data = override["predicate"]["custom_model_data"]
-#         model = override["model"]
-#         namespace = model.split(":")[0]
-#         item = model.split("/")[-1]
-#         if item in item_type:
-#             continue
-#         else:
-#             try:
-#                 path = model.split(":")[1]
-#                 optifine_file = f"{namespace}_{item}"
-#                 with open(f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{optifine_file}.properties", "rb") as f:
-#                     optifine.load(f)
-#                     layer = optifine.get(f"texture.leather_layer_{2 if i == 2 else 1}").data.split(".")[0]
-
-#                 if not os.path.exists("staging/target/rp/textures/armor_layer"):
-#                     os.makedirs("staging/target/rp/textures/armor_layer")
-#                 if not os.path.exists(f"staging/target/rp/textures/armor_layer/{layer}.png"):
-#                     shutil.copy(
-#                         f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png",
-#                         "staging/target/rp/textures/armor_layer",
-#                     )
-
-#                 with open(f"pack/assets/{namespace}/models/{path}.json", "r") as f:
-#                     texture = json.load(f)["textures"]["layer1"]
-#                     tpath = texture.split(":")[1]
-#                     dest_path = f"staging/target/rp/textures/{namespace}/{path}.png"
-#                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-#                     shutil.copy(
-#                         f"pack/assets/{namespace}/textures/{tpath}.png", dest_path
-#                     )
-
-#                 afile = glob.glob(
-#                     f"staging/target/rp/attachables/{namespace}/{path}*.json"
-#                 )
-#                 with open(afile[0], "r") as f:
-#                     da = json.load(f)["minecraft:attachable"]
-#                     gmdl = da["description"]["identifier"].split(":")[1]
-#                 pfile = afile[0].replace(".json", ".player.json")
-#                 write_armor(pfile, gmdl, layer, i)
-#             except Exception as e:
-#                 print(e)
-#                 print("Item not found...")
-#                 continue
-#     i += 1
-
-
-
-
-
 import os
 import json
 import shutil
 import glob
 from jproperties import Properties
 
-# -----------------------------
-# 🧩 ฟังก์ชันสำหรับประมวลผลไฟล์ JSON
-# -----------------------------
+# ฟังก์ชันสำหรับประมวลผลไฟล์ JSON
 def process_json_file(file_path):
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
@@ -211,21 +28,22 @@ def process_json_file(file_path):
         # ตรวจสอบ custom_model_data
         custom_model_data = predicate.get("custom_model_data")
         if custom_model_data is not None:
+            # เก็บเฉพาะอันแรกของ custom_model_data ที่เจอ
             if custom_model_data in seen_custom_model_data:
                 continue
             seen_custom_model_data.add(custom_model_data)
 
         processed_overrides.append(override)
 
+    # อัปเดต overrides ในไฟล์
     data["overrides"] = processed_overrides
+
+    # เขียนผลลัพธ์กลับไปยังไฟล์เดิม
     with open(file_path, 'w') as f:
         json.dump(data, f, indent=4)
     print(f"Processed {file_path}")
 
-
-# -----------------------------
-# 🧩 ลบรายการที่ซ้ำใน geyser_mappings.json
-# -----------------------------
+# ฟังก์ชันสำหรับลบรายการที่ซ้ำกันใน geyser_mappings.json
 def remove_duplicates_with_custom_model_data(file_path):
     try:
         with open(file_path, 'r') as f:
@@ -242,9 +60,10 @@ def remove_duplicates_with_custom_model_data(file_path):
             if item_type in data:
                 unique_entries = {}
                 for entry in data[item_type]:
-                    cmd = entry.get("custom_model_data")
-                    if cmd not in unique_entries:
-                        unique_entries[cmd] = entry
+                    custom_model_data = entry.get("custom_model_data")
+                    if custom_model_data not in unique_entries:
+                        unique_entries[custom_model_data] = entry
+
                 data[item_type] = list(unique_entries.values())
 
         with open(file_path, 'w') as f:
@@ -253,13 +72,14 @@ def remove_duplicates_with_custom_model_data(file_path):
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
 
+# ฟังก์ชันหลักสำหรับการจัดการไฟล์ armor และ optifine
+optifine = Properties()
+i = 0
+item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
 
-# -----------------------------
-# 🧩 เขียนไฟล์ armor player.json
-# -----------------------------
 def write_armor(file, gmdl, layer, i):
     type_map = ["helmet", "chestplate", "leggings", "boots"]
-    type_name = type_map[i]
+    type = type_map[i]
     ajson = {
         "format_version": "1.10.0",
         "minecraft:attachable": {
@@ -277,135 +97,80 @@ def write_armor(file, gmdl, layer, i):
                     "enchanted": "textures/misc/enchanted_item_glint",
                 },
                 "geometry": {
-                    "default": f"geometry.player.armor.{type_name}",
+                    "default": f"geometry.player.armor.{type}",
                 },
                 "scripts": {
-                    "parent_setup": "variable.helmet_layer_visible = 0.0;"
+                    "parent_setup": "variable.helmet_layer_visible = 0.0;",
                 },
                 "render_controllers": ["controller.render.armor"],
             },
         },
     }
     with open(file, "w") as f:
-        json.dump(ajson, f, indent=4)
-    print(f"🧩 Wrote .player.json: {file}")
+        f.write(json.dumps(ajson))
 
-
-# -----------------------------
-# 🧩 เริ่มทำงาน
-# -----------------------------
-optifine = Properties()
-item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
-
+# ตรวจสอบว่าไฟล์ geyser_mappings.json มีอยู่จริง
 geyser_mappings_file = "staging/target/geyser_mappings.json"
+
 if os.path.exists(geyser_mappings_file):
-    print(f"✅ File {geyser_mappings_file} found.")
+    print(f"File {geyser_mappings_file} found, proceeding with processing.")
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 else:
-    print(f"⚠️ File {geyser_mappings_file} not found. Skipping duplicate cleanup.")
+    print(f"File {geyser_mappings_file} not found. Please check the download process.")
 
-# -----------------------------
-# 🧩 วนลูป armor 4 ชนิด
-# -----------------------------
-for i, armor_name in enumerate(item_type):
-    search_pattern = f"pack/assets/**/models/item/{armor_name}.json"
-    matches = glob.glob(search_pattern, recursive=True)
-    if not matches:
-        print(f"⚠️ No model file found for {armor_name}, skipping...")
+while i < 4:
+    file_path = f"pack/assets/minecraft/models/item/{item_type[i]}.json"
+    try:
+        process_json_file(file_path)
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+    except:
+        i += 1
         continue
 
-    file_path = matches[0]
-    process_json_file(file_path)
-
-    with open(file_path, "r") as f:
-        data = json.load(f)
-
     for override in data["overrides"]:
-        try:
-            custom_model_data = override["predicate"]["custom_model_data"]
-            model = override["model"]
-            namespace = model.split(":")[0]
-            path = model.split(":")[1]
-            item = model.split("/")[-1]
-
-            prop_path = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{namespace}_{item}.properties"
-            # -------------------------------
-            # หา texture armor layer
-            # -------------------------------
-            if os.path.exists(prop_path):
-                with open(prop_path, "rb") as f:
+        custom_model_data = override["predicate"]["custom_model_data"]
+        model = override["model"]
+        namespace = model.split(":")[0]
+        item = model.split("/")[-1]
+        if item in item_type:
+            continue
+        else:
+            try:
+                path = model.split(":")[1]
+                optifine_file = f"{namespace}_{item}"
+                with open(f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{optifine_file}.properties", "rb") as f:
                     optifine.load(f)
                     layer = optifine.get(f"texture.leather_layer_{2 if i == 2 else 1}").data.split(".")[0]
-            else:
-                possible_layers = glob.glob("pack/assets/minecraft/textures/**/*.png", recursive=True)
-                layer = None
-                for lay in possible_layers:
-                    name = os.path.basename(lay).lower()
-                    if "_armor_layer" in name and item.split("_")[0] in name:
-                        layer = os.path.splitext(os.path.basename(lay))[0]
-                        source_layer_path = lay
-                        break
-                if not layer:
-                    fallback = [p for p in possible_layers if "armor_layer_1" in os.path.basename(p)]
-                    if fallback:
-                        layer = os.path.splitext(os.path.basename(fallback[0]))[0]
-                        source_layer_path = fallback[0]
-                    else:
-                        raise FileNotFoundError("No armor_layer texture found.")
-                os.makedirs("staging/target/rp/textures/armor_layer", exist_ok=True)
-                shutil.copy(source_layer_path, f"staging/target/rp/textures/armor_layer/{os.path.basename(source_layer_path)}")
 
-            # -------------------------------
-            # คัดลอก texture ของ model armor
-            # -------------------------------
-            with open(f"pack/assets/{namespace}/models/{path}.json", "r") as f:
-                texture = json.load(f)["textures"]["layer1"]
-                tpath = texture.split(":")[1]
-                dest_path = f"staging/target/rp/textures/{namespace}/{path}.png"
-                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                shutil.copy(f"pack/assets/{namespace}/textures/{tpath}.png", dest_path)
+                if not os.path.exists("staging/target/rp/textures/armor_layer"):
+                    os.makedirs("staging/target/rp/textures/armor_layer")
+                if not os.path.exists(f"staging/target/rp/textures/armor_layer/{layer}.png"):
+                    shutil.copy(
+                        f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png",
+                        "staging/target/rp/textures/armor_layer",
+                    )
 
-            # -------------------------------
-            # สร้าง attachable ทั้งหมดถ้าไม่เจอ
-            # -------------------------------
-            attach_dir = f"staging/target/rp/attachables/{namespace}/{os.path.dirname(path)}"
-            os.makedirs(attach_dir, exist_ok=True)
+                with open(f"pack/assets/{namespace}/models/{path}.json", "r") as f:
+                    texture = json.load(f)["textures"]["layer1"]
+                    tpath = texture.split(":")[1]
+                    dest_path = f"staging/target/rp/textures/{namespace}/{path}.png"
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    shutil.copy(
+                        f"pack/assets/{namespace}/textures/{tpath}.png", dest_path
+                    )
 
-            attach_path = f"{attach_dir}/{item}.json"
-            if not os.path.exists(attach_path):
-                base_attachable = {
-                    "format_version": "1.10.0",
-                    "minecraft:attachable": {
-                        "description": {
-                            "identifier": f"geyser_custom:{item}",
-                            "materials": {
-                                "default": "entity_alphatest_one_sided",
-                                "enchanted": "entity_alphatest_one_sided",
-                            },
-                            "textures": {
-                                "default": f"textures/{namespace}/{path}",
-                                "enchanted": "textures/misc/enchanted_item_glint",
-                            },
-                            "geometry": {
-                                "default": f"geometry.geyser_custom.geo_{custom_model_data:x}"
-                            },
-                            "render_controllers": ["controller.render.item_default"]
-                        }
-                    }
-                }
-                with open(attach_path, "w") as f:
-                    json.dump(base_attachable, f, indent=4)
-                print(f"🆕 Created attachable: {attach_path}")
-
-            # -------------------------------
-            # โหลด / สร้าง player.json เสมอ
-            # -------------------------------
-            gmdl = item
-            pfile = attach_path.replace(".json", ".player.json")
-            write_armor(pfile, gmdl, layer, i)
-
-        except Exception as e:
-            print(f"❌ Error processing {item}: {e}")
-            continue
-
-print("✅ All armor processing complete.")
+                afile = glob.glob(
+                    f"staging/target/rp/attachables/{namespace}/{path}*.json"
+                )
+                with open(afile[0], "r") as f:
+                    da = json.load(f)["minecraft:attachable"]
+                    gmdl = da["description"]["identifier"].split(":")[1]
+                pfile = afile[0].replace(".json", ".player.json")
+                write_armor(pfile, gmdl, layer, i)
+            except Exception as e:
+                print(e)
+                print("Item not found...")
+                continue
+    i += 1
