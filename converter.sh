@@ -231,26 +231,47 @@ else
   }
   ' | sponge ./target/bp/manifest.json
 
+  # # generate rp terrain_texture.json
+  # status_message process "Generating resource pack terrain texture definition"
+  # jq -nc '
+  # {
+  #   "resource_pack_name": "geyser_custom",
+  #   "texture_name": "atlas.terrain",
+  #   "texture_data": {
+  #   }
+  # }
+  # ' | sponge ./target/rp/textures/terrain_texture.json
+
+  # # generate rp item_texture.json
+  # status_message process "Initializing atlas.items for Bedrock 1.21+"
+  # echo '{"resource_pack_name":"geyser_custom","texture_name":"atlas.items","texture_data":{}}' > ./target/rp/textures/atlas.items.json
   # generate rp terrain_texture.json
   status_message process "Generating resource pack terrain texture definition"
   jq -nc '
   {
-    "resource_pack_name": "geyser_custom",
-    "texture_name": "atlas.terrain",
-    "texture_data": {
-    }
+	  "resource_pack_name": "geyser_custom",
+	  "texture_name": "atlas.terrain",
+	  "texture_data": {}
   }
-  ' | sponge ./target/rp/textures/terrain_texture.json
+  ' | sponge ./target/rp/textures/atlas.terrain.json
+  # generate rp atlas.items.json (แทน item_texture.json)
+  status_message process "Initializing atlas.items for Bedrock 1.21+"
+  echo '{"resource_pack_name":"geyser_custom","texture_name":"atlas.items","texture_data":{}}' > ./target/rp/textures/atlas.items.json
+  status_message info "⚙️ Using Bedrock 1.21+ Atlas Format (atlas.items.json)"
 
-  # generate rp item_texture.json
-  status_message process "Generating resource pack item texture definition"
-  jq -nc '
-  {
-    "resource_pack_name": "geyser_custom",
-    "texture_name": "atlas.items",
-    "texture_data": {}
-  }
-  ' | sponge ./target/rp/textures/item_texture.json
+
+
+
+
+	
+  # status_message process "Generating resource pack item texture definition"
+  # jq -nc '
+  # {
+  #   "resource_pack_name": "geyser_custom",
+  #   "texture_name": "atlas.items",
+  #   "texture_data": {}
+  # }
+  # ' | sponge ./target/rp/textures/item_texture.json
 
   status_message process "Generating resource pack disabling animation"
   # generate our disabling animation
@@ -804,7 +825,9 @@ then
   .[0] as $icons
   | .[1] 
   | .texture_data += $icons
-  ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
+  # ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
+  ' scratch_files/icons.json ./target/rp/textures/atlas.items.json | sponge ./target/rp/textures/atlas.items.json
+
 fi
 
 # delete unsuitable models
