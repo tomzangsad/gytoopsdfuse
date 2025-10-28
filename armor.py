@@ -315,7 +315,16 @@ else:
 # 🧩 วนลูป armor 4 ชนิด
 # -----------------------------
 while i < 4:
-    file_path = f"pack/assets/minecraft/models/item/{item_type[i]}.json"
+    # พยายามหาทุก namespace
+    search_pattern = f"pack/assets/**/models/item/{item_type[i]}.json"
+    matches = glob.glob(search_pattern, recursive=True)
+    
+    if matches:
+        file_path = matches[0]
+    else:
+        print(f"⚠️ No model file found for {item_type[i]}, skipping...")
+        i += 1
+        continue
     try:
         process_json_file(file_path)
         with open(file_path, "r") as f:
