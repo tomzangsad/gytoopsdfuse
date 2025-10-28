@@ -122,11 +122,16 @@ read -p $'\e[37mTo acknowledge and continue, press enter. To exit, press Ctrl+C.
 fi
 
 # ensure we have all the required dependencies
+dependency_check "jq" "https://stedolan.github.io/jq/download/" "jq --version" "1.6\|1.7"
 dependency_check "sponge" "https://joeyh.name/code/moreutils/" "-v sponge" ""
 dependency_check "imagemagick" "https://imagemagick.org/script/download.php" "convert --version" ""
-dependency_check "jq-1.6" "https://stedolan.github.io/jq/download/" "jq --version" "1.6"
 dependency_check "spritesheet-js" "https://www.npmjs.com/package/spritesheet-js" "-v spritesheet-js" ""
 status_message completion "All dependencies have been satisfied\n"
+# dependency_check "sponge" "https://joeyh.name/code/moreutils/" "-v sponge" ""
+# dependency_check "imagemagick" "https://imagemagick.org/script/download.php" "convert --version" ""
+# dependency_check "jq-1.6" "https://stedolan.github.io/jq/download/" "jq --version" "1.6"
+# dependency_check "spritesheet-js" "https://www.npmjs.com/package/spritesheet-js" "-v spritesheet-js" ""
+# status_message completion "All dependencies have been satisfied\n"
 
 # prompt user for initial configuration
 status_message info "This script will now ask some configuration questions. Default values are yellow. Simply press enter to use the defaults.\n"
@@ -231,47 +236,26 @@ else
   }
   ' | sponge ./target/bp/manifest.json
 
-  # # generate rp terrain_texture.json
-  # status_message process "Generating resource pack terrain texture definition"
-  # jq -nc '
-  # {
-  #   "resource_pack_name": "geyser_custom",
-  #   "texture_name": "atlas.terrain",
-  #   "texture_data": {
-  #   }
-  # }
-  # ' | sponge ./target/rp/textures/terrain_texture.json
-
-  # # generate rp item_texture.json
-  # status_message process "Initializing atlas.items for Bedrock 1.21+"
-  # echo '{"resource_pack_name":"geyser_custom","texture_name":"atlas.items","texture_data":{}}' > ./target/rp/textures/atlas.items.json
   # generate rp terrain_texture.json
   status_message process "Generating resource pack terrain texture definition"
   jq -nc '
   {
-	  "resource_pack_name": "geyser_custom",
-	  "texture_name": "atlas.terrain",
-	  "texture_data": {}
+    "resource_pack_name": "geyser_custom",
+    "texture_name": "atlas.terrain",
+    "texture_data": {
+    }
   }
-  ' | sponge ./target/rp/textures/atlas.terrain.json
-  # generate rp atlas.items.json (แทน item_texture.json)
-  status_message process "Initializing atlas.items for Bedrock 1.21+"
-  echo '{"resource_pack_name":"geyser_custom","texture_name":"atlas.items","texture_data":{}}' > ./target/rp/textures/atlas.items.json
-  status_message info "⚙️ Using Bedrock 1.21+ Atlas Format (atlas.items.json)"
+  ' | sponge ./target/rp/textures/terrain_texture.json
 
-
-
-
-
-	
-  # status_message process "Generating resource pack item texture definition"
-  # jq -nc '
-  # {
-  #   "resource_pack_name": "geyser_custom",
-  #   "texture_name": "atlas.items",
-  #   "texture_data": {}
-  # }
-  # ' | sponge ./target/rp/textures/item_texture.json
+  # generate rp item_texture.json
+  status_message process "Generating resource pack item texture definition"
+  jq -nc '
+  {
+    "resource_pack_name": "geyser_custom",
+    "texture_name": "atlas.items",
+    "texture_data": {}
+  }
+  ' | sponge ./target/rp/textures/item_texture.json
 
   status_message process "Generating resource pack disabling animation"
   # generate our disabling animation
@@ -825,16 +809,14 @@ then
   .[0] as $icons
   | .[1] 
   | .texture_data += $icons
-  # ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
   ' scratch_files/icons.json ./target/rp/textures/atlas.items.json | sponge ./target/rp/textures/atlas.items.json
-
+  # ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
 fi
 
 # delete unsuitable models
 if [[ -f scratch_files/deleted.csv ]]
 then
-  # jq -cR 'split(",")' scratch_files/deleted.csv  | jq -s '.' > scratch_files/deleted.json
-  jq -cR 'split(",")' < scratch_files/deleted.csv | jq -s '.' > scratch_files/deleted.json
+  jq -cR 'split(",")' scratch_files/deleted.csv  | jq -s '.' > scratch_files/deleted.json
   jq -s '.[0] as $deleted | .[1] | delpaths($deleted)' scratch_files/deleted.json config.json | sponge config.json
 fi
 
