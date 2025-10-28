@@ -391,13 +391,46 @@ while i < 4:
                 # 🟥 สร้างไฟล์ .player.json สำหรับ Geyser
                 # ---------------------------------------------
                 afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
+                
+                # ถ้ายังไม่มี attachable → สร้างใหม่เลย
                 if not afile:
-                    print(f"⚠️ No attachable found for {item}")
-                    continue
-
+                    print(f"⚠️ No attachable found for {item}, generating new attachable...")
+                    attach_dir = f"staging/target/rp/attachables/{namespace}/{os.path.dirname(path)}"
+                    os.makedirs(attach_dir, exist_ok=True)
+                
+                    # สร้างไฟล์ attachable พื้นฐาน
+                    base_attachable = {
+                        "format_version": "1.10.0",
+                        "minecraft:attachable": {
+                            "description": {
+                                "identifier": f"geyser_custom:{item}",
+                                "materials": {
+                                    "default": "armor_leather",
+                                    "enchanted": "armor_leather_enchanted",
+                                },
+                                "textures": {
+                                    "default": f"textures/armor_layer/{layer}",
+                                    "enchanted": "textures/misc/enchanted_item_glint",
+                                },
+                                "geometry": {
+                                    "default": f"geometry.player.armor.{['helmet','chestplate','leggings','boots'][i]}",
+                                },
+                                "render_controllers": ["controller.render.armor"],
+                            }
+                        }
+                    }
+                
+                    attach_path = f"{attach_dir}/{item}.json"
+                    with open(attach_path, "w") as f:
+                        json.dump(base_attachable, f, indent=4)
+                    afile = [attach_path]
+                    print(f"🆕 Created base attachable: {attach_path}")
+                
+                # โหลด attachable และสร้าง .player.json
                 with open(afile[0], "r") as f:
                     da = json.load(f)["minecraft:attachable"]
                     gmdl = da["description"]["identifier"].split(":")[1]
+                
                 pfile = afile[0].replace(".json", ".player.json")
                 write_armor(pfile, gmdl, layer, i)
                 print(f"✅ Generated armor: {item} → {pfile}")
