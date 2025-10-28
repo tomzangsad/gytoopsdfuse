@@ -139,17 +139,44 @@ while i < 4:
         else:
             try:
                 path = model.split(":")[1]
-                optifine_file = f"{namespace}_{item}"
-                with open(f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{optifine_file}.properties", "rb") as f:
-                    optifine.load(f)
-                    layer = optifine.get(f"texture.leather_layer_{2 if i == 2 else 1}").data.split(".")[0]
+                # Look for armor layer textures in model's directory first
+                model_dir = os.path.dirname(f"pack/assets/{namespace}/models/{path}.json")
+                texture_dir = model_dir.replace("/models/", "/textures/")
+                
+                # Try to find armor layer files
+                layer_num = "2" if i == 2 else "1"
+                layer = None
+                layer_file = None
+                
+                # Search patterns for armor layers
+                search_patterns = [
+                    f"{texture_dir}/*layer_{layer_num}*.png",
+                    f"{texture_dir}/*armor_layer_{layer_num}*.png",
+                    f"pack/assets/{namespace}/textures/**/*layer_{layer_num}*.png",
+                    f"pack/assets/{namespace}/textures/**/*armor_layer_{layer_num}*.png",
+                    f"pack/assets/minecraft/optifine/cit/ia_generated_armors/*_layer_{layer_num}*.png"
+                ]
+                
+                # Try each search pattern
+                for pattern in search_patterns:
+                    matches = glob.glob(pattern, recursive=True)
+                    if matches:
+                        layer_file = matches[0]
+                        layer = os.path.splitext(os.path.basename(layer_file))[0]
+                        break
+                
+                if layer is None:
+                    raise FileNotFoundError(f"Could not find armor layer {layer_num} texture")
 
+                # Create armor layer directory if it doesn't exist
                 if not os.path.exists("staging/target/rp/textures/armor_layer"):
                     os.makedirs("staging/target/rp/textures/armor_layer")
+                
+                # Copy the found layer file
                 if not os.path.exists(f"staging/target/rp/textures/armor_layer/{layer}.png"):
                     shutil.copy(
-                        f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png",
-                        "staging/target/rp/textures/armor_layer",
+                        layer_file,
+                        "staging/target/rp/textures/armor_layer"
                     )
 
                 with open(f"pack/assets/{namespace}/models/{path}.json", "r") as f:
