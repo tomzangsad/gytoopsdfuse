@@ -399,15 +399,14 @@ while i < 4:
                 # ---------------------------------------------
                 # 🟥 สร้างไฟล์ .player.json สำหรับ Geyser
                 # ---------------------------------------------
-                afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
+                # 🔍 ค้นหาไฟล์ attachable ให้ครอบคลุมทุก subfolder
+                afile = glob.glob(f"staging/target/rp/attachables/{namespace}/**/{path.split('/')[-1]}*.json", recursive=True)
                 
-                # ถ้ายังไม่มี attachable → สร้างใหม่เลย
                 if not afile:
                     print(f"⚠️ No attachable found for {item}, generating new attachable...")
                     attach_dir = f"staging/target/rp/attachables/{namespace}/{os.path.dirname(path)}"
                     os.makedirs(attach_dir, exist_ok=True)
                 
-                    # สร้างไฟล์ attachable พื้นฐาน
                     base_attachable = {
                         "format_version": "1.10.0",
                         "minecraft:attachable": {
@@ -435,10 +434,11 @@ while i < 4:
                     afile = [attach_path]
                     print(f"🆕 Created base attachable: {attach_path}")
                 
-                # โหลด attachable และสร้าง .player.json
+                # ✅ โหลด attachable และสร้าง .player.json
                 with open(afile[0], "r") as f:
                     da = json.load(f)["minecraft:attachable"]
                     gmdl = da["description"]["identifier"].split(":")[1]
+
                 
                 pfile = afile[0].replace(".json", ".player.json")
                 write_armor(pfile, gmdl, layer, i)
