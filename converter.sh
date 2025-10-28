@@ -809,8 +809,8 @@ then
   .[0] as $icons
   | .[1] 
   | .texture_data += $icons
-  ' scratch_files/icons.json ./target/rp/textures/atlas.items.json | sponge ./target/rp/textures/atlas.items.json
-  # ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
+  ' scratch_files/icons.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
+  # ' scratch_files/icons.json ./target/rp/textures/atlas.items.json | sponge ./target/rp/textures/atlas.items.json
 fi
 
 # delete unsuitable models
