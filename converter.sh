@@ -782,11 +782,11 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     #     texture_path=$(echo "$texture_path" | sed -E 's/(_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
     #     status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
     # fi
-	if [[ "$texture_path" =~ (_bow_[0-4]\.png|_crossbow_[0-4]\.png|_pulling_[0-4]\.png|_charged\.png|_firework\.png|_arrow\.png|_blocking\.png|_cast\.png|_thirdperson\.png|_self_2\.png|_cosmetic_normal_2\.png|_cosmetic_self_2\.png|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png)$ ]]; then
-	    before="$texture_path"
-	    texture_path=$(echo "$texture_path" | sed -E 's/(_bow_[0-4]|_thirdperson|_crossbow_[0-4]|_pulling_[0-4]|_charged|_firework|_arrow|_blocking|_cast|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self)\.png$/.png/I')
-	    status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
-	fi
+	# if [[ "$texture_path" =~ (_bow_[0-4]\.png|_crossbow_[0-4]\.png|_pulling_[0-4]\.png|_charged\.png|_firework\.png|_arrow\.png|_blocking\.png|_cast\.png|_thirdperson\.png|_self_2\.png|_cosmetic_normal_2\.png|_cosmetic_self_2\.png|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png)$ ]]; then
+	#     before="$texture_path"
+	#     texture_path=$(echo "$texture_path" | sed -E 's/(_bow_[0-4]|_thirdperson|_crossbow_[0-4]|_pulling_[0-4]|_charged|_firework|_arrow|_blocking|_cast|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self)\.png$/.png/I')
+	#     status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
+	# fi
 
     # 🔹 สร้างโฟลเดอร์ปลายทางจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
