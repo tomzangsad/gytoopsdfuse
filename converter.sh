@@ -567,64 +567,48 @@ jq -nc '
 ' | sponge ./target/rp/animations/animation.geyser_custom.disable.json
 
 # DO DEFAULT ASSETS HERE!!
-mkdir -p ./cached_fallback
-
-if [[ ${fallback_pack} != none ]]; then
-    if [[ -f ./cached_fallback/default_assets.zip ]]; then
-        status_message process "Using cached fallback pack"
-        cp ./cached_fallback/default_assets.zip ./default_assets.zip
-    else
-        status_message process "Downloading fallback resource pack (first time only)"
-        curl --no-styled-output -#L \
-            -o default_assets.zip \
-            "https://github.com/InventivetalentDev/minecraft-assets/archive/refs/heads/${default_asset_version:=1.19.2}.zip"
-        cp default_assets.zip ./cached_fallback/default_assets.zip
-        status_message completion "Cached fallback pack saved"
-    fi
+# get the current default textures and merge them with our rp
+if [[ ${fallback_pack} != none ]] && [[ ! -f default_assets.zip ]]
+then
+  status_message process "Now downloading the fallback resource pack:"
+  printf "\e[3m\e[37m"
+  echo
+  COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o default_assets.zip https://github.com/InventivetalentDev/minecraft-assets/archive/refs/heads/${default_asset_version:=1.19.2}.zip
+  echo
+  printf "${C_CLOSE}"
+  status_message completion "Fallback resources downloaded"
 fi
 
-# # get the current default textures and merge them with our rp
-# if [[ ${fallback_pack} != none ]] && [[ ! -f default_assets.zip ]]
-# then
-#   status_message process "Now downloading the fallback resource pack:"
-#   printf "\e[3m\e[37m"
-#   echo
-#   COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o default_assets.zip https://github.com/InventivetalentDev/minecraft-assets/archive/refs/heads/${default_asset_version:=1.19.2}.zip
-#   echo
-#   printf "${C_CLOSE}"
-#   status_message completion "Fallback resources downloaded"
-# fi
+if [[ ${fallback_pack} != null &&  ${fallback_pack} != none ]]
+then
+  printf "\e[3m\e[37m"
+  echo
+  COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o provided_assets.zip "${fallback_pack}"
+  echo
+  printf "${C_CLOSE}"
+  status_message completion "Provided resources downloaded"
+  mkdir ./providedassetholding
+  unzip -n -q -d ./providedassetholding provided_assets.zip "assets/**"
+  status_message completion "Provided resources decompressed"
+  cp -n -r "./providedassetholding/assets"/** './assets/'
+  status_message completion "Provided resources merged with target pack"
+fi
 
-# if [[ ${fallback_pack} != null &&  ${fallback_pack} != none ]]
-# then
-#   printf "\e[3m\e[37m"
-#   echo
-#   COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o provided_assets.zip "${fallback_pack}"
-#   echo
-#   printf "${C_CLOSE}"
-#   status_message completion "Provided resources downloaded"
-#   mkdir ./providedassetholding
-#   unzip -n -q -d ./providedassetholding provided_assets.zip "assets/**"
-#   status_message completion "Provided resources decompressed"
-#   cp -n -r "./providedassetholding/assets"/** './assets/'
-#   status_message completion "Provided resources merged with target pack"
-# fi
-
-# if [[ ${fallback_pack} != none ]]
-# then
-#   root_folder=($(unzip -Z -1 default_assets.zip | head -1))
-#   mkdir ./defaultassetholding
-#   unzip -n -q -d ./defaultassetholding default_assets.zip "${root_folder}assets/minecraft/textures/**/*"
-#   unzip -n -q -d ./defaultassetholding default_assets.zip "${root_folder}assets/minecraft/models/**/*"
-#   status_message completion "Fallback resources decompressed"
-#   mkdir -p './assets/minecraft/textures/'
-#   cp -n -r "./defaultassetholding/${root_folder}assets/minecraft/textures"/* './assets/minecraft/textures/'
-#   cp -n -r "./defaultassetholding/${root_folder}assets/minecraft/models"/* './assets/minecraft/models/'
-#   status_message completion "Fallback resources merged with target pack"
-#   rm -rf defaultassetholding
-#   #rm -f default_assets.zip
-#   status_message critical "Extraneous fallback resources deleted\n"
-# fi
+if [[ ${fallback_pack} != none ]]
+then
+  root_folder=($(unzip -Z -1 default_assets.zip | head -1))
+  mkdir ./defaultassetholding
+  unzip -n -q -d ./defaultassetholding default_assets.zip "${root_folder}assets/minecraft/textures/**/*"
+  unzip -n -q -d ./defaultassetholding default_assets.zip "${root_folder}assets/minecraft/models/**/*"
+  status_message completion "Fallback resources decompressed"
+  mkdir -p './assets/minecraft/textures/'
+  cp -n -r "./defaultassetholding/${root_folder}assets/minecraft/textures"/* './assets/minecraft/textures/'
+  cp -n -r "./defaultassetholding/${root_folder}assets/minecraft/models"/* './assets/minecraft/models/'
+  status_message completion "Fallback resources merged with target pack"
+  rm -rf defaultassetholding
+  #rm -f default_assets.zip
+  status_message critical "Extraneous fallback resources deleted\n"
+fi
 
 # generate a fallback texture
 convert -size 16x16 xc:\#FFFFFF ./assets/minecraft/textures/0.png
