@@ -175,7 +175,6 @@
 #                 continue
 #     i += 1
 
-
 import os
 import json
 import shutil
@@ -186,6 +185,7 @@ from jproperties import Properties
 # 🔧 ฟังก์ชันพื้นฐาน
 # ===============================
 def process_json_file(file_path):
+    """ล้างข้อมูล override ซ้ำ / trim_type ออกจากไฟล์ item"""
     if not os.path.exists(file_path):
         print(f"❌ File not found: {file_path}")
         return []
@@ -221,6 +221,7 @@ def process_json_file(file_path):
 
 
 def remove_duplicates_with_custom_model_data(file_path):
+    """ลบข้อมูลซ้ำใน geyser_mappings.json"""
     try:
         with open(file_path, "r") as f:
             data = json.load(f)
@@ -246,14 +247,13 @@ def remove_duplicates_with_custom_model_data(file_path):
 
         with open(file_path, "w") as f:
             json.dump(data, f, indent=4)
-
         print(f"🧩 Cleaned duplicates in {file_path}")
-
     except Exception as e:
         print(f"⚠️ Error cleaning {file_path}: {e}")
 
 
 def write_armor(file, gmdl, layer, i):
+    """สร้างไฟล์ armor.attachable player"""
     type_map = ["helmet", "chestplate", "leggings", "boots"]
     armor_type = type_map[i]
 
@@ -281,25 +281,22 @@ def write_armor(file, gmdl, layer, i):
     os.makedirs(os.path.dirname(file), exist_ok=True)
     with open(file, "w") as f:
         json.dump(ajson, f, indent=4)
-
     print(f"✅ Generated {file}")
 
 
 # ===============================
-# 🚀 เริ่มต้นโปรเซสหลัก
+# 🚀 เริ่มการประมวลผลหลัก
 # ===============================
 geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
+else:
+    print("⚠️ geyser_mappings.json not found, skipping duplicate cleanup.")
 
 optifine = Properties()
 item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
 
-icons_csv = "scratch_files/icons.csv"
-os.makedirs("scratch_files", exist_ok=True)
-
 for i, armor in enumerate(item_type):
-
     item_json = f"pack/assets/minecraft/models/item/{armor}.json"
     overrides = process_json_file(item_json)
 
@@ -313,7 +310,7 @@ for i, armor in enumerate(item_type):
             item = path.split("/")[-1]
 
             # ==========================
-            # 📘 LOAD .properties
+            # 📘 โหลด .properties
             # ==========================
             prop_file = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{namespace}_{item}.properties"
             if not os.path.exists(prop_file):
@@ -323,24 +320,67 @@ for i, armor in enumerate(item_type):
             optifine.load(open(prop_file, "rb"))
 
             layer_key = f"texture.leather_layer_{2 if i == 2 else 1}"
+            layer = None
             if optifine.get(layer_key):
                 layer = optifine.get(layer_key).data.split(".")[0]
+            elif optifine.get(f"{layer_key}_overlay"):
+                layer = optifine.get(f"{layer_key}_overlay").data.split(".")[0]
             else:
-                print(f"⚠️ Missing armor layer in {prop_file}")
+                print(f"⚠️ No layer info found in {prop_file}")
                 continue
 
             # ==========================
-            # 🧩 COPY armor texture
+            # 🧩 Copy armor texture
             # ==========================
             os.makedirs("staging/target/rp/textures/armor_layer", exist_ok=True)
             src_texture = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png"
-
             if os.path.exists(src_texture):
                 shutil.copy(src_texture, f"staging/target/rp/textures/armor_layer/{layer}.png")
                 print(f"🧩 Copied {layer}.png → armor_layer/")
 
+            else:
+                print(f"⚠️ Texture missing: {src_texture}")
+
             # ==========================
-            # 🔎 หา attachable เดิม (เอา gmdl ก่อน)
+            # 🖼️ Copy item icon (2D)
+            # ==========================
+            model_json_path = f"pack/assets/{namespace}/models/{path}.json"
+
+            if os.path.exists(model_json_path):
+                with open(model_json_path, "r") as f:
+                    model_data = json.load(f)
+
+                textures = model_data.get("textures", {})
+
+                icon_texture = textures.get("layer0") or textures.get("layer1")
+
+                if icon_texture == "item/empty" and textures.get("layer1"):
+                    icon_texture = textures["layer1"]
+
+                if ":" in icon_texture:
+                    icon_texture = icon_texture.split(":")[1]
+
+                # icon_texture = "green/green_boots" "ice_set/item/ia_auto/ice_boots"
+                src_icon = f"pack/assets/{namespace}/textures/{icon_texture}.png"
+
+                # ======================================
+                # 🎯 แก้ตรงนี้ — ให้เก็บ path ตาม namespace
+                # ======================================
+                dest_icon = f"staging/target/rp/textures/{namespace}/{icon_texture}.png"
+                os.makedirs(os.path.dirname(dest_icon), exist_ok=True)
+
+                if os.path.exists(src_icon):
+                    shutil.copy(src_icon, dest_icon)
+                    print(f"🖼️ Copied item icon → {dest_icon}")
+                else:
+                    print(f"⚠️ Missing icon texture: {src_icon}")
+
+            else:
+                print(f"⚠️ Missing model file for item icon: {model_json_path}")
+                continue
+
+            # ==========================
+            # 🔎 หา attachable เดิม
             # ==========================
             afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
             if not afile:
@@ -352,64 +392,20 @@ for i, armor in enumerate(item_type):
                 gmdl = da["description"]["identifier"].split(":")[1]
 
             # ==========================
-            # 🖼️ Copy icon แบบเดิม (เผื่อหาเจอ)
+            # ⭐ icon ลง icons.csv (atlas)
             # ==========================
-            _, fullpath = model.split(":")
-            icon_name = fullpath.split("/")[-1]
+            icons_csv = "scratch_files/icons.csv"
+            os.makedirs("scratch_files", exist_ok=True)
 
-            icon_texture_path = f"{namespace}/{fullpath}"
-
-            src_icon_candidates = [
-                f"pack/assets/{namespace}/textures/{fullpath}.png",
-                f"pack/assets/{namespace}/textures/{icon_name}.png",
-                f"pack/assets/{namespace}/textures/item/{icon_name}.png",
-                f"pack/assets/{namespace}/textures/item/ia_auto/{icon_name}.png",
-            ]
-
-            src_icon = None
-            for c in src_icon_candidates:
-                if os.path.exists(c):
-                    src_icon = c
-                    break
-
-            # ตำแหน่งที่ควรจะไปอยู่จริง
-            correct_icon_path = f"staging/target/rp/textures/{icon_texture_path}.png"
-            os.makedirs(os.path.dirname(correct_icon_path), exist_ok=True)
-
-            if src_icon:
-                shutil.copy(src_icon, correct_icon_path)
-                print(f"🖼️ Copied item icon → {correct_icon_path}")
-            else:
-                print(f"⚠️ Missing item icon for {icon_name}")
-
-            # ==========================
-            # 🔧 Auto-Move: แก้ path icon ให้ถูกต้องเสมอ
-            # ==========================
-            possible_wrong_places = [
-                f"staging/target/rp/textures/{namespace}/{icon_name}.png",
-                f"staging/target/rp/textures/{icon_name}.png",
-                f"staging/target/rp/textures/{namespace}/{icon_name}/{icon_name}.png",
-                f"staging/target/rp/textures/{namespace}/item/{icon_name}.png",
-            ]
-
-            for wrong in possible_wrong_places:
-                if os.path.exists(wrong):
-                    shutil.move(wrong, correct_icon_path)
-                    print(f"🔧 Auto-fixed icon path → {correct_icon_path}")
-                    break
-
-            # ==========================
-            # ⭐ เขียน atlas icon
-            # ==========================
-            atlas_entry = f"textures/{icon_texture_path}.png"
+            atlas_texture_path = f"textures/{namespace}/{icon_texture}.png"
 
             with open(icons_csv, "a", encoding="utf-8") as f:
-                f.write(f"{gmdl},{atlas_entry}\n")
+                f.write(f"{gmdl},{atlas_texture_path}\n")
 
-            print(f"📌 Added icon to atlas: {gmdl} → {atlas_entry}")
+            print(f"📌 Added icon to atlas: {gmdl} → {atlas_texture_path}")
 
             # ==========================
-            # สร้าง player.json
+            # สร้าง .player.json ต่อ
             # ==========================
             pfile = afile[0].replace(".json", ".player.json")
             write_armor(pfile, gmdl, layer, i)
@@ -417,3 +413,4 @@ for i, armor in enumerate(item_type):
         except Exception as e:
             print(f"❌ Error while processing {model}: {e}")
             continue
+
