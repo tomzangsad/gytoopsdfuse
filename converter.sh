@@ -793,7 +793,7 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     mkdir -p "$texture_dir"
 
     # 🔹 เขียนข้อมูล hash,path ลง icons.csv (อนุญาตให้ซ้ำได้)
-    echo "${hash},${texture_path}" >> scratch_files/icons.csv
+    # echo "${hash},${texture_path}" >> scratch_files/icons.csv
 done
 
 status_message completion "✅ Finished mapping all icons (shared textures applied)"
