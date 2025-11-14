@@ -31,12 +31,13 @@ jobs:
       - name: Issue Forms Body Parser
         id: parse-issue
         uses: zentered/issue-forms-body-parser@v2.2.0
+
       - name: Organize Inputs
         id: organize-inputs
         run: |
           echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
           def test_input($input; $default):
-          if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\\\";""))  end;
+          if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\\\";"")) end;
           {
             "pack_url": .["java-pack-direct-download-url"].text[1:-1],
             "default_pack_url": test_input(.["default-pack-direct-download-url"].text; " null ")[1:-1],
@@ -54,6 +55,7 @@ jobs:
             "shield_conversion": test_input(.["shield-conversion"].text; "false"),
             "block_conversion": test_input(.["block-conversion"].text; "false")
           }' > inputs.json
+
           echo "PACK_URL=$(jq -r '.pack_url' inputs.json)" >> $GITHUB_OUTPUT
           echo "DEFAULT_PACK_URL=$(jq -r '.default_pack_url' inputs.json)" >> $GITHUB_OUTPUT
           echo "MERGE_PACK_URL=$(jq -r '.merge_pack_url' inputs.json)" >> $GITHUB_OUTPUT
@@ -67,51 +69,45 @@ jobs:
           echo "MEG3_FIX=$(jq -r '.meg3_fix' inputs.json)" >> $GITHUB_OUTPUT
           echo "SOUNDS_CONVERSION=$(jq -r '.sounds_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          echo "SHIELD_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
+          echo "SHIELD_CONVERSION=$(jq -r '.shield_conversion' inputs.json)" >> $GITHUB_OUTPUT
           echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          
+
   convert-pack:
     runs-on: ubuntu-latest
     needs: get-pack-info
     permissions:
       contents: read
     timeout-minutes: 90
-    outputs:
-      run_id: ${{ steps.get-pack-info.outputs.pack_url }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Enable default asset cache
         id: cache-default-assets
         uses: actions/cache@v4
         with:
           path: /home/runner/work/java2bedrock.sh/java2bedrock.sh/staging/default_assets.zip
           key: ${{ runner.os }}-${{ needs.get-pack-info.outputs.default_assets_version }}
+
       - name: Install NodeJS
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install jq 1.6
-        run: |
-          curl -Lo jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
-          chmod +x jq
-          sudo mv jq /usr/local/bin
+
       - name: Install dependencies
         run: |
-          sudo apt-get install -y moreutils zip
+          sudo apt-get install -y moreutils zip imagemagick
           yarn global add spritesheet-js
-          sudo apt-get install -y imagemagick
-          pip install Pillow
-          pip install requests
-          pip install jproperties
+          pip install Pillow requests jproperties
+
       - name: Convert Pack
-        id: convert-pack
-        continue-on-error: false
         env:
           PACK_URL: ${{ needs.get-pack-info.outputs.pack_url }}
           DEFAULT_PACK_URL: ${{ needs.get-pack-info.outputs.default_pack_url }}
@@ -133,45 +129,16 @@ jobs:
           cp converter.sh staging/
           cd staging
           chmod +x converter.sh
-          COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o input_pack.zip "${PACK_URL}"
+          curl -#L -o input_pack.zip "${PACK_URL}"
+
           MERGE_PACK_FILE="${MERGE_PACK_URL}"
           if [ "${MERGE_PACK_URL}" != "null" ]; then
-            COLUMNS=$COLUMNS-1 curl --no-styled-output -#L -o merge_pack.zip "${MERGE_PACK_URL}"
+            curl -#L -o merge_pack.zip "${MERGE_PACK_URL}"
             MERGE_PACK_FILE="merge_pack.zip"
           fi
+
           ./converter.sh input_pack.zip -w "false" -m ${MERGE_PACK_FILE} -a ${ATTACHABLE_MATERIAL} -b ${BLOCK_MATERIAL} -f ${DEFAULT_PACK_URL} -v ${DEFAULT_ASSETS_VERSION} -r ${RENAME_MODEL_FILES} -s ${ARCHIVE_SCRATCH} -u "true"
-      
-      - name: Run duplicate removal script
-        run: |
-          python3 -c "
-          import os
-          import json
-          def remove_duplicates_with_custom_model_data(file_path):
-              try:
-                  with open(file_path, 'r') as f:
-                      data = json.load(f)
-                  item_types = [
-                      'minecraft:leather_helmet', 'minecraft:leather_chestplate',
-                      'minecraft:leather_leggings', 'minecraft:leather_boots',
-                  ]
-                  for item_type in item_types:
-                      if item_type in data:
-                          unique_entries = {}
-                          for entry in data[item_type]:
-                              custom_model_data = entry.get('custom_model_data')
-                              if custom_model_data not in unique_entries:
-                                  unique_entries[custom_model_data] = entry
-                          data[item_type] = list(unique_entries.values())
-                  with open(file_path, 'w') as f:
-                      json.dump(data, f, indent=4)
-                  print(f'Processed {file_path} successfully.')
-              except Exception as e:
-                  print(f'Error processing {file_path}: {e}')
-              
-              # Path to the JSON file
-              file_path = 'staging/target/geyser_mappings.json'
-              remove_duplicates_with_custom_model_data(file_path)
-                    "
+
       - name: Upload converted pack
         uses: actions/upload-artifact@v4
         with:
@@ -191,51 +158,21 @@ jobs:
       issues: write
     steps:
       - name: Post Result
-        id: post-result
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
             ## :sparkles: The run has finished! :sparkles:
-            - Download the pack files from the [action run][1] page. :arrow_double_down:
-            - Upload the resource pack `geyser_resources.mcpack` to the `packs` folder of your Geyser folder. :file_folder:
-            - Upload the mappings file `geyser_mappings.json` to the `custom_mappings` folder of your Geyser folder. :page_with_curl:
+            - Download the pack files from the [action run][1] page.
+            - Upload the resource pack `geyser_resources.mcpack` to your Geyser `packs` folder.
+            - Upload `geyser_mappings.json` to `custom_mappings`.
 
-            If you notice issues with the converted files, please refer to the action log for errors and open a bug report if you believe there is an issue with the converter. This issue will be closed automatically.
+            If you notice issues please open a bug report. The issue will be closed automatically.
 
-            [1]: https://github.com/tomzangsad/TOM1/actions/actions/runs/${{ github.run_id}}
+            [1]: https://github.com/tomzangsad/TOM1/actions/runs/${{ github.run_id}}
           reactions: 'rocket'
 
       - name: Close Issue
-        uses: peter-evans/close-issue@v3
-        with:
-          issue-number: ${{ github.event.issue.number }}
-  conversion-failed:
-    runs-on: ubuntu-latest
-    needs: [get-pack-info, convert-pack, post-result]
-    if: always() && (needs.get-pack-info.result == 'failure' || needs.convert-pack.result == 'failure' || needs.convert-pack.result == 'post-result')
-    timeout-minutes: 2
-    permissions:
-      issues: write
-    steps:
-      - name: Post Result
-        id: post-result
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          body: |
-            ## :stop_sign: The run has failed :stop_sign:
-            - Check the [action run][1] page for errors. :clipboard:
-            - Status by job:
-              - Get Pack Info: *${{ needs.get-pack-info.result }}*
-              - Convert Pack: *${{ needs.convert-pack.result }}*
-              - Post Result: *${{ needs.post-result.result }}*
-
-            If you believe this is an issue with the converter. please open a bug report. This issue will be closed automatically.
-
-            [1]: https://github.com/tomzangsad/TOM1/actions/runs/${{ github.run_id}}
-          reactions: 'x'
-      - name: Close issue
         uses: peter-evans/close-issue@v3
         with:
           issue-number: ${{ github.event.issue.number }}
