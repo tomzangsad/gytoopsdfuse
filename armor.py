@@ -373,6 +373,7 @@ for i, armor in enumerate(item_type):
                 if os.path.exists(src_icon):
                     shutil.copy(src_icon, dest_icon)
                     print(f"🖼️ Copied item icon → {dest_icon}")
+                    
                 else:
                     print(f"⚠️ Missing icon texture: {src_icon}")
             else:
@@ -386,13 +387,30 @@ for i, armor in enumerate(item_type):
             if not afile:
                 print(f"⚠️ No attachable found for {model}")
                 continue
-
+            
             with open(afile[0], "r") as f:
                 da = json.load(f)["minecraft:attachable"]
                 gmdl = da["description"]["identifier"].split(":")[1]
-
+            
+            # ==========================
+            # ⭐ ที่นี่!! → เพิ่ม icon เข้า icons.csv
+            # ==========================
+            icons_csv = "scratch_files/icons.csv"
+            os.makedirs("scratch_files", exist_ok=True)
+            
+            atlas_texture_path = f"textures/{icon_texture}.png"
+            
+            with open(icons_csv, "a", encoding="utf-8") as f:
+                f.write(f"{gmdl},{atlas_texture_path}\n")
+            
+            print(f"📌 Added icon to atlas: {gmdl} → {atlas_texture_path}")
+            
+            # ==========================
+            # สร้าง .player.json ต่อ
+            # ==========================
             pfile = afile[0].replace(".json", ".player.json")
             write_armor(pfile, gmdl, layer, i)
+
 
         except Exception as e:
             print(f"❌ Error while processing {model}: {e}")
