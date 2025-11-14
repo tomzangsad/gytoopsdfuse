@@ -333,7 +333,7 @@ for i, armor in enumerate(item_type):
             else:
                 print(f"⚠️ No layer info found in {prop_file}")
                 continue
-
+            
             # ==========================
             # 🧩 Copy armor texture
             # ==========================
@@ -344,7 +344,30 @@ for i, armor in enumerate(item_type):
                 print(f"🧩 Copied {layer}.png → armor_layer/")
             else:
                 print(f"⚠️ Texture missing: {src_texture}")
-
+            # ==========================
+            # 🖼️ Copy icon 2D texture (item)
+            # ==========================
+            model_path = f"pack/assets/{namespace}/models/{path}.json"
+            if os.path.exists(model_path):
+                with open(model_path, "r") as f:
+                    model_data = json.load(f)
+                textures = model_data.get("textures", {})
+                icon_texture = textures.get("layer0") or textures.get("layer1")
+                if icon_texture:
+                    # ตัด namespace ออก เช่น "minecraft:items/helmet" → "items/helmet"
+                    if ":" in icon_texture:
+                        icon_texture = icon_texture.split(":")[1]
+                    src_icon = f"pack/assets/{namespace}/textures/{icon_texture}.png"
+                    dest_icon = f"staging/target/rp/textures/{icon_texture}.png"
+                    os.makedirs(os.path.dirname(dest_icon), exist_ok=True)
+                    if os.path.exists(src_icon):
+                        shutil.copy(src_icon, dest_icon)
+                        print(f"🖼️ Copied item icon → {dest_icon}")
+                    else:
+                        print(f"⚠️ Missing item icon: {src_icon}")
+            else:
+                print(f"⚠️ Missing model file for item icon: {model_path}")
+                
             # ==========================
             # 🔎 หา attachable เดิมเพื่อสร้าง .player.json
             # ==========================
