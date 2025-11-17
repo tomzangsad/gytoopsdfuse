@@ -47,13 +47,13 @@ jobs:
             "attachable_material": test_input(.["attachable-material"].text; "entity_alphatest_one_sided"),
             "archive_scratch": test_input(.["archive-scratch-files"].text; "false"),
             "rename_model_files": test_input(.["rename-model-files"].text; "false"),
-            "font_conversion": test_input(.["font-conversion"].text; "false"),
-            "armor_conversion": test_input(.["armor-conversion"].text; "false"),
+            "font_conversion": test_input(.["font-conversion"].text; "true"),
+            "armor_conversion": test_input(.["armor-conversion"].text; "true"),
             "meg3_fix": test_input(.["meg3-fix"].text; "false"),
-            "sounds_conversion": test_input(.["sounds-conversion"].text; "false"),
-            "bow_conversion": test_input(.["bow-conversion"].text; "false"),
-            "shield_conversion": test_input(.["shield-conversion"].text; "false"),
-            "block_conversion": test_input(.["block-conversion"].text; "false")
+            "sounds_conversion": test_input(.["sounds-conversion"].text; "true"),
+            "bow_conversion": test_input(.["bow-conversion"].text; "true"),
+            "shield_conversion": test_input(.["shield-conversion"].text; "true"),
+            "block_conversion": test_input(.["block-conversion"].text; "true")
           }' > inputs.json
 
           echo "PACK_URL=$(jq -r '.pack_url' inputs.json)" >> $GITHUB_OUTPUT
