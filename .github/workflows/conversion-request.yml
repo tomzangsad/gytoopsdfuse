@@ -1,76 +1,61 @@
 name: Conversion Request
+
 on:
   issues:
     types:
       - labeled
 
+  workflow_dispatch:
+    inputs:
+      pack_url:
+        description: "Direct pack URL"
+        required: true
+        type: string
+
 jobs:
   get-pack-info:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'conversion'
+    if: github.event_name == 'workflow_dispatch' || (github.event.label.name == 'conversion')
     permissions:
       issues: read
     timeout-minutes: 2
+
     outputs:
-      pack_url: ${{ steps.organize-inputs.outputs.PACK_URL }}
-      default_pack_url: ${{ steps.organize-inputs.outputs.DEFAULT_PACK_URL }}
-      merge_pack_url: ${{ steps.organize-inputs.outputs.MERGE_PACK_URL }}
-      default_assets_version: ${{ steps.organize-inputs.outputs.DEFAULT_ASSETS_VERSION }}
-      block_material: ${{ steps.organize-inputs.outputs.BLOCK_MATERIAL }}
-      attachable_material: ${{ steps.organize-inputs.outputs.ATTACHABLE_MATERIAL }}
-      archive_scratch: ${{ steps.organize-inputs.outputs.ARCHIVE_SCRATCH }}
-      rename_model_files: ${{ steps.organize-inputs.outputs.RENAME_MODEL_FILES }}
-      font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION }}
-      armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION }}
-      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX }}
-      sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION }}
-      bow_conversion: ${{ steps.organize-inputs.outputs.BOW_CONVERSION }}
-      shield_conversion: ${{ steps.organize-inputs.outputs.SHIELD_CONVERSION }}
-      block_conversion: ${{ steps.organize-inputs.outputs.BLOCK_CONVERSION }}
+      pack_url: ${{ steps.setup-inputs.outputs.PACK_URL }}
+      default_pack_url: "null"
+      merge_pack_url: "null"
+      default_assets_version: "1.19.3"
+      block_material: "alpha_test"
+      attachable_material: "entity_alphatest_one_sided"
+      archive_scratch: "false"
+      rename_model_files: "false"
+      font_conversion: "false"
+      armor_conversion: "false"
+      meg3_fix: "false"
+      sounds_conversion: "false"
+      bow_conversion: "false"
+      shield_conversion: "false"
+      block_conversion: "false"
+
     steps:
+      - name: Setup inputs (dispatch mode)
+        id: setup-inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "PACK_URL=${{ github.event.inputs.pack_url }}" >> $GITHUB_OUTPUT
+
       - name: Issue Forms Body Parser
         id: parse-issue
+        if: github.event_name == 'issues'
         uses: zentered/issue-forms-body-parser@v2.2.0
 
       - name: Organize Inputs
         id: organize-inputs
+        if: github.event_name == 'issues'
         run: |
-          echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
-          def test_input($input; $default):
-          if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\\\";"")) end;
-          {
-            "pack_url": .["java-pack-direct-download-url"].text[1:-1],
-            "default_pack_url": test_input(.["default-pack-direct-download-url"].text; " null ")[1:-1],
-            "merge_pack_url": test_input(.["bedrock-merge-pack-direct-download-url"].text; " null ")[1:-1],
-            "default_assets_version": test_input(.["default-assets-version"].text; "1.19.3"),
-            "block_material": test_input(.["block-material"].text; "alpha_test"),
-            "attachable_material": test_input(.["attachable-material"].text; "entity_alphatest_one_sided"),
-            "archive_scratch": test_input(.["archive-scratch-files"].text; "false"),
-            "rename_model_files": test_input(.["rename-model-files"].text; "false"),
-            "font_conversion": test_input(.["font-conversion"].text; "false"),
-            "armor_conversion": test_input(.["armor-conversion"].text; "false"),
-            "meg3_fix": test_input(.["meg3-fix"].text; "false"),
-            "sounds_conversion": test_input(.["sounds-conversion"].text; "false"),
-            "bow_conversion": test_input(.["bow-conversion"].text; "false"),
-            "shield_conversion": test_input(.["shield-conversion"].text; "false"),
-            "block_conversion": test_input(.["block-conversion"].text; "false")
-          }' > inputs.json
+          echo ${{ toJSON(steps.parse-issue.outputs.data) }} > inputs.json
+          echo "PACK_URL=$(jq -r '.\"java-pack-direct-download-url\".text[1:-1]' inputs.json)" >> $GITHUB_OUTPUT
 
-          echo "PACK_URL=$(jq -r '.pack_url' inputs.json)" >> $GITHUB_OUTPUT
-          echo "DEFAULT_PACK_URL=$(jq -r '.default_pack_url' inputs.json)" >> $GITHUB_OUTPUT
-          echo "MERGE_PACK_URL=$(jq -r '.merge_pack_url' inputs.json)" >> $GITHUB_OUTPUT
-          echo "DEFAULT_ASSETS_VERSION=$(jq -r '.default_assets_version' inputs.json)" >> $GITHUB_OUTPUT
-          echo "BLOCK_MATERIAL=$(jq -r '.block_material' inputs.json)" >> $GITHUB_OUTPUT
-          echo "ATTACHABLE_MATERIAL=$(jq -r '.attachable_material' inputs.json)" >> $GITHUB_OUTPUT
-          echo "ARCHIVE_SCRATCH=$(jq -r '.archive_scratch' inputs.json)" >> $GITHUB_OUTPUT
-          echo "RENAME_MODEL_FILES=$(jq -r '.rename_model_files' inputs.json)" >> $GITHUB_OUTPUT
-          echo "FONT_CONVERSION=$(jq -r '.font_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          echo "ARMOR_CONVERSION=$(jq -r '.armor_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          echo "MEG3_FIX=$(jq -r '.meg3_fix' inputs.json)" >> $GITHUB_OUTPUT
-          echo "SOUNDS_CONVERSION=$(jq -r '.sounds_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          echo "SHIELD_CONVERSION=$(jq -r '.shield_conversion' inputs.json)" >> $GITHUB_OUTPUT
-          echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
 
   convert-pack:
     runs-on: ubuntu-latest
