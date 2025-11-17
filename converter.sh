@@ -776,17 +776,35 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
     # 🔹 เพิ่ม prefix "zicon/"
     texture_path=$(echo "$texture_path" | sed 's|^textures/|textures/zicon/|')
 
-    # # 🔹 ตรวจจับและลบ suffix ที่ไม่ต้องการออก พร้อม log สถานะ
+    # 🔹 ตรวจจับและลบ suffix ที่ไม่ต้องการออก พร้อม log สถานะ
     # if [[ "$texture_path" =~ (_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png|_[0-9]+\.png)$ ]]; then
     #     before="$texture_path"
     #     texture_path=$(echo "$texture_path" | sed -E 's/(_thirdperson|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self|_[0-9]+)\.png$/.png/I')
     #     status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
     # fi
-	# if [[ "$texture_path" =~ (_bow_[0-4]\.png|_crossbow_[0-4]\.png|_pulling_[0-4]\.png|_charged\.png|_firework\.png|_arrow\.png|_blocking\.png|_cast\.png|_thirdperson\.png|_self_2\.png|_cosmetic_normal_2\.png|_cosmetic_self_2\.png|_cosmetic_self\.png|_cosmetic\.png|_normal(_[0-9]+)?\.png|_self\.png)$ ]]; then
-	#     before="$texture_path"
-	#     texture_path=$(echo "$texture_path" | sed -E 's/(_bow_[0-4]|_thirdperson|_crossbow_[0-4]|_pulling_[0-4]|_charged|_firework|_arrow|_blocking|_cast|_self_2|_cosmetic_normal_2|_cosmetic_self_2|_cosmetic_self|_cosmetic|_normal(_[0-9]+)?|_self)\.png$/.png/I')
-	#     status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
-	# fi
+	# 🔹 ตรวจจับและลบ suffix ตามที่โบกำหนด
+	if [[ "$texture_path" =~ (_self(_2)?|_new_self_2|_normal(_2)?|_charged|_firework|_blocking|_cosmetic(_normal_2|_self(_2)?)?|_cast|_cosmeticscore|_cosmetics)\.png$ ]]; then
+	    before="$texture_path"
+	    texture_path=$(echo "$texture_path" | sed -E '
+	        s/_self_2\.png$/.png/;
+	        s/_self\.png$/.png/;
+	        s/_new_self_2\.png$/.png/;
+	        s/_normal_2\.png$/.png/;
+	        s/_normal\.png$/.png/;
+	        s/_charged\.png$/.png/;
+	        s/_firework\.png$/.png/;
+	        s/_blocking\.png$/.png/;
+	        s/_cosmetic_normal_2\.png$/.png/;
+	        s/_cosmetic_self_2\.png$/.png/;
+	        s/_cosmetic_self\.png$/.png/;
+	        s/_cosmetic\.png$/.png/;
+	        s/_cast\.png$/.png/;
+	        s/_cosmeticscore\.png$/.png/;
+	        s/_cosmetics\.png$/.png/;
+	    ')
+	    status_message process "Unified texture: ${before##*/} → ${texture_path##*/}"
+	fi
+
 
     # 🔹 สร้างโฟลเดอร์ปลายทางจริงใน ./target/rp/
     texture_dir="./target/rp/$(dirname "$texture_path")"
