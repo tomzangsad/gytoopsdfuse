@@ -12,6 +12,7 @@ jobs:
     permissions:
       issues: read
     timeout-minutes: 2
+
     outputs:
       pack_url: ${{ steps.organize-inputs.outputs.PACK_URL }}
       default_pack_url: ${{ steps.organize-inputs.outputs.DEFAULT_PACK_URL }}
@@ -40,11 +41,15 @@ jobs:
           echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
           def clean($x):
             ($x | tostring
-              | gsub("\""; "")
               | gsub("\\r"; "")
               | gsub("\\n"; "")
-              | gsub(" "; ""))
-            ;
+              | gsub("\""; "")
+              | gsub(" "; "")
+              | select(. != "*Noresponse*")
+              | select(. != "*No response*")
+              | select(. != "None")
+              | select(. != "")
+            );
 
           {
             "pack_url": clean(.["java-pack-direct-download-url"].text),
@@ -65,7 +70,8 @@ jobs:
           }' > inputs.json
 
           for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
-            echo "$(echo $key | tr '[:lower:]' '[:upper:]')=$(jq -r ".[$key]" inputs.json)" >> $GITHUB_OUTPUT
+            value=$(jq -r ".[$key]" inputs.json)
+            echo "$(echo $key | tr '[:lower:]' '[:upper:]')=$value" >> $GITHUB_OUTPUT
           done
 
 
@@ -126,7 +132,6 @@ jobs:
           cd staging
           chmod +x converter.sh
 
-          # 👉 CLEAN URL ปลอดภัย 100%
           CLEAN_URL=$(echo "${PACK_URL}" | tr -d '\r' | tr -d '\n' | tr -d '"')
           echo "Downloading: $CLEAN_URL"
           curl -#L --fail --insecure -o input_pack.zip "$CLEAN_URL"
