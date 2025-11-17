@@ -48,9 +48,9 @@ jobs:
             end;
 
           {
-            "pack_url": norm(.["java-pack-direct-download-url"].text),
-            "default_pack_url": test_input(.["default-pack-direct-download-url"].text; "null"),
-            "merge_pack_url": test_input(.["bedrock-merge-pack-direct-download-url"].text; "null"),
+            "pack_url": (.["java-pack-direct-download-url"].text | gsub("[<>]"; "")),
+            "default_pack_url": (test_input(.["default-pack-direct-download-url"].text; "null") | gsub("[<>]"; "")),
+            "merge_pack_url": (test_input(.["bedrock-merge-pack-direct-download-url"].text; "null") | gsub("[<>]"; "")),
             "default_assets_version": test_input(.["default-assets-version"].text; "1.19.3"),
             "block_material": test_input(.["block-material"].text; "alpha_test"),
             "attachable_material": test_input(.["attachable-material"].text; "entity_alphatest_one_sided"),
