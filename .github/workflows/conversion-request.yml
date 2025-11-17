@@ -1,5 +1,4 @@
 name: Conversion Request
-
 on:
   issues:
     types:
@@ -14,64 +13,62 @@ jobs:
     timeout-minutes: 2
 
     outputs:
-      pack_url: ${{ steps.organize-inputs.outputs.PACK_URL }}
-      default_pack_url: ${{ steps.organize-inputs.outputs.DEFAULT_PACK_URL }}
-      merge_pack_url: ${{ steps.organize-inputs.outputs.MERGE_PACK_URL }}
-      default_assets_version: ${{ steps.organize-inputs.outputs.DEFAULT_ASSETS_VERSION }}
-      block_material: ${{ steps.organize-inputs.outputs.BLOCK_MATERIAL }}
-      attachable_material: ${{ steps.organize-inputs.outputs.ATTACHABLE_MATERIAL }}
-      archive_scratch: ${{ steps.organize-inputs.outputs.ARCHIVE_SCRATCH }}
-      rename_model_files: ${{ steps.organize-inputs.outputs.RENAME_MODEL_FILES }}
-      font_conversion: ${{ steps.organize-inputs.outputs.FONT_CONVERSION }}
-      armor_conversion: ${{ steps.organize-inputs.outputs.ARMOR_CONVERSION }}
-      meg3_fix: ${{ steps.organize-inputs.outputs.MEG3_FIX }}
-      sounds_conversion: ${{ steps.organize-inputs.outputs.SOUNDS_CONVERSION }}
-      bow_conversion: ${{ steps.organize-inputs.outputs.BOW_CONVERSION }}
-      shield_conversion: ${{ steps.organize-inputs.outputs.SHIELD_CONVERSION }}
-      block_conversion: ${{ steps.organize-inputs.outputs.BLOCK_CONVERSION }}
+      pack_url:               ${{ steps.organize.outputs.PACK_URL }}
+      default_pack_url:       ${{ steps.organize.outputs.DEFAULT_PACK_URL }}
+      merge_pack_url:         ${{ steps.organize.outputs.MERGE_PACK_URL }}
+      default_assets_version: ${{ steps.organize.outputs.DEFAULT_ASSETS_VERSION }}
+      block_material:         ${{ steps.organize.outputs.BLOCK_MATERIAL }}
+      attachable_material:    ${{ steps.organize.outputs.ATTACHABLE_MATERIAL }}
+      archive_scratch:        ${{ steps.organize.outputs.ARCHIVE_SCRATCH }}
+      rename_model_files:     ${{ steps.organize.outputs.RENAME_MODEL_FILES }}
+      font_conversion:        ${{ steps.organize.outputs.FONT_CONVERSION }}
+      armor_conversion:       ${{ steps.organize.outputs.ARMOR_CONVERSION }}
+      meg3_fix:               ${{ steps.organize.outputs.MEG3_FIX }}
+      sounds_conversion:      ${{ steps.organize.outputs.SOUNDS_CONVERSION }}
+      bow_conversion:         ${{ steps.organize.outputs.BOW_CONVERSION }}
+      shield_conversion:      ${{ steps.organize.outputs.SHIELD_CONVERSION }}
+      block_conversion:       ${{ steps.organize.outputs.BLOCK_CONVERSION }}
 
     steps:
-      - name: Issue Forms Body Parser
-        id: parse-issue
+
+      - name: Parse Issue
+        id: parse
         uses: zentered/issue-forms-body-parser@v2.2.0
 
       - name: Organize Inputs
-        id: organize-inputs
+        id: organize
         run: |
-          echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
+          echo '${{ toJSON(steps.parse.outputs.data) }}' | jq '
           def clean($x):
-            ($x | tostring
-              | gsub("\\r"; "")
-              | gsub("\\n"; "")
-              | gsub("\""; "")
-              | gsub(" "; "")
-              | select(. != "*Noresponse*")
-              | select(. != "*No response*")
-              | select(. != "None")
-              | select(. != "")
-            );
+            if ($x == null or $x == "" or $x == "*No response*" or $x == "None")
+            then "null"
+            else ($x | tostring
+                 | gsub("\\r";"")
+                 | gsub("\\n";"")
+                 | gsub("\"";"")
+                 | gsub(" "; ""))
+            end;
 
           {
-            "pack_url": clean(.["java-pack-direct-download-url"].text),
-            "default_pack_url": clean(.["default-pack-direct-download-url"].text),
-            "merge_pack_url": clean(.["bedrock-merge-pack-direct-download-url"].text),
-            "default_assets_version": clean(.["default-assets-version"].text),
-            "block_material": clean(.["block-material"].text),
-            "attachable_material": clean(.["attachable-material"].text),
-            "archive_scratch": clean(.["archive-scratch-files"].text),
-            "rename_model_files": clean(.["rename-model-files"].text),
-            "font_conversion": clean(.["font-conversion"].text),
-            "armor_conversion": clean(.["armor-conversion"].text),
-            "meg3_fix": clean(.["meg3-fix"].text),
-            "sounds_conversion": clean(.["sounds-conversion"].text),
-            "bow_conversion": clean(.["bow-conversion"].text),
-            "shield_conversion": clean(.["shield-conversion"].text),
-            "block_conversion": clean(.["block-conversion"].text)
-          }' > inputs.json
+            PACK_URL:               clean(.["java-pack-direct-download-url"].text),
+            DEFAULT_PACK_URL:       clean(.["default-pack-direct-download-url"].text),
+            MERGE_PACK_URL:         clean(.["bedrock-merge-pack-direct-download-url"].text),
+            DEFAULT_ASSETS_VERSION: clean(.["default-assets-version"].text),
+            BLOCK_MATERIAL:         clean(.["block-material"].text),
+            ATTACHABLE_MATERIAL:    clean(.["attachable-material"].text),
+            ARCHIVE_SCRATCH:        clean(.["archive-scratch-files"].text),
+            RENAME_MODEL_FILES:     clean(.["rename-model-files"].text),
+            FONT_CONVERSION:        clean(.["font-conversion"].text),
+            ARMOR_CONVERSION:       clean(.["armor-conversion"].text),
+            MEG3_FIX:               clean(.["meg3-fix"].text),
+            SOUNDS_CONVERSION:      clean(.["sounds-conversion"].text),
+            BOW_CONVERSION:         clean(.["bow-conversion"].text),
+            SHIELD_CONVERSION:      clean(.["shield-conversion"].text),
+            BLOCK_CONVERSION:       clean(.["block-conversion"].text)
+          }' > out.json
 
-          for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
-            value=$(jq -r ".[$key]" inputs.json)
-            echo "$(echo $key | tr '[:lower:]' '[:upper:]')=$value" >> $GITHUB_OUTPUT
+          for key in PACK_URL DEFAULT_PACK_URL MERGE_PACK_URL DEFAULT_ASSETS_VERSION BLOCK_MATERIAL ATTACHABLE_MATERIAL ARCHIVE_SCRATCH RENAME_MODEL_FILES FONT_CONVERSION ARMOR_CONVERSION MEG3_FIX SOUNDS_CONVERSION BOW_CONVERSION SHIELD_CONVERSION BLOCK_CONVERSION; do
+            echo "$key=$(jq -r ".[$key]" out.json)" >> $GITHUB_OUTPUT
           done
 
 
@@ -79,30 +76,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: get-pack-info
     timeout-minutes: 90
+    permissions: { contents: read }
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Enable default asset cache
-        id: cache-default-assets
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/work/java2bedrock.sh/java2bedrock.sh/staging/default_assets.zip
-          key: ${{ runner.os }}-${{ needs.get-pack-info.outputs.default_assets_version }}
-
-      - name: Install NodeJS
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get install -y moreutils zip imagemagick
           yarn global add spritesheet-js
@@ -110,21 +89,21 @@ jobs:
 
       - name: Convert Pack
         env:
-          PACK_URL: ${{ needs.get-pack-info.outputs.pack_url }}
-          DEFAULT_PACK_URL: ${{ needs.get-pack-info.outputs.default_pack_url }}
-          MERGE_PACK_URL: ${{ needs.get-pack-info.outputs.merge_pack_url }}
+          PACK_URL:               ${{ needs.get-pack-info.outputs.pack_url }}
+          MERGE_PACK_URL:         ${{ needs.get-pack-info.outputs.merge_pack_url }}
+          DEFAULT_PACK_URL:       ${{ needs.get-pack-info.outputs.default_pack_url }}
           DEFAULT_ASSETS_VERSION: ${{ needs.get-pack-info.outputs.default_assets_version }}
-          BLOCK_MATERIAL: ${{ needs.get-pack-info.outputs.block_material }}
-          ATTACHABLE_MATERIAL: ${{ needs.get-pack-info.outputs.attachable_material }}
-          ARCHIVE_SCRATCH: ${{ needs.get-pack-info.outputs.archive_scratch }}
-          RENAME_MODEL_FILES: ${{ needs.get-pack-info.outputs.rename_model_files }}
-          FONT_CONVERSION: ${{ needs.get-pack-info.outputs.font_conversion }}
-          ARMOR_CONVERSION: ${{ needs.get-pack-info.outputs.armor_conversion }}
-          MEG3_FIX: ${{ needs.get-pack-info.outputs.meg3_fix }}
-          SOUNDS_CONVERSION: ${{ needs.get-pack-info.outputs.sounds_conversion }}
-          BOW_CONVERSION: ${{ needs.get-pack-info.outputs.bow_conversion }}
-          SHIELD_CONVERSION: ${{ needs.get-pack-info.outputs.shield_conversion }}
-          BLOCK_CONVERSION: ${{ needs.get-pack-info.outputs.block_conversion }}
+          BLOCK_MATERIAL:         ${{ needs.get-pack-info.outputs.block_material }}
+          ATTACHABLE_MATERIAL:    ${{ needs.get-pack-info.outputs.attachable_material }}
+          ARCHIVE_SCRATCH:        ${{ needs.get-pack-info.outputs.archive_scratch }}
+          RENAME_MODEL_FILES:     ${{ needs.get-pack-info.outputs.rename_model_files }}
+          FONT_CONVERSION:        ${{ needs.get-pack-info.outputs.font_conversion }}
+          ARMOR_CONVERSION:       ${{ needs.get-pack-info.outputs.armor_conversion }}
+          MEG3_FIX:               ${{ needs.get-pack-info.outputs.meg3_fix }}
+          SOUNDS_CONVERSION:      ${{ needs.get-pack-info.outputs.sounds_conversion }}
+          BOW_CONVERSION:         ${{ needs.get-pack-info.outputs.bow_conversion }}
+          SHIELD_CONVERSION:      ${{ needs.get-pack-info.outputs.shield_conversion }}
+          BLOCK_CONVERSION:       ${{ needs.get-pack-info.outputs.block_conversion }}
 
         run: |
           mkdir -p staging
@@ -132,54 +111,32 @@ jobs:
           cd staging
           chmod +x converter.sh
 
-          CLEAN_URL=$(echo "${PACK_URL}" | tr -d '\r' | tr -d '\n' | tr -d '"')
+          # Clean URL
+          CLEAN_URL=$(echo "$PACK_URL" | tr -d '"')
           echo "Downloading: $CLEAN_URL"
+
           curl -#L --fail --insecure -o input_pack.zip "$CLEAN_URL"
 
-          MERGE_PACK_FILE="${MERGE_PACK_URL}"
-          if [ "${MERGE_PACK_URL}" != "null" ] && [ -n "${MERGE_PACK_URL}" ]; then
-            CLEAN_MERGE_URL=$(echo "${MERGE_PACK_URL}" | tr -d '\r' | tr -d '\n' | tr -d '"')
-            echo "Downloading merge pack: $CLEAN_MERGE_URL"
-            curl -#L --fail --insecure -o merge_pack.zip "$CLEAN_MERGE_URL"
+          MERGE_PACK_FILE="null"
+          if [ "$MERGE_PACK_URL" != "null" ]; then
+            CLEAN_MERGE=$(echo "$MERGE_PACK_URL" | tr -d '"')
+            curl -#L --fail --insecure -o merge_pack.zip "$CLEAN_MERGE"
             MERGE_PACK_FILE="merge_pack.zip"
           fi
 
-          ./converter.sh input_pack.zip -w "false" -m ${MERGE_PACK_FILE} -a ${ATTACHABLE_MATERIAL} -b ${BLOCK_MATERIAL} -f ${DEFAULT_PACK_URL} -v ${DEFAULT_ASSETS_VERSION} -r ${RENAME_MODEL_FILES} -s ${ARCHIVE_SCRATCH} -u "true"
-
-      - name: Upload converted pack
-        uses: actions/upload-artifact@v4
-        with:
-          name: PackFiles
-          path: |
-            staging/target/packaged/geyser_resources.mcpack
-            staging/target/packaged/geyser_addon.mcaddon
-            staging/target/*.json
-            staging/target/scratch_files.zip
-            staging/config.json
-
-      - name: Notify Controller
-        run: curl -X POST http://192.168.1.111:3010/notify/convert_done
+          ./converter.sh input_pack.zip -w false -m $MERGE_PACK_FILE -a $ATTACHABLE_MATERIAL -b $BLOCK_MATERIAL -f $DEFAULT_PACK_URL -v $DEFAULT_ASSETS_VERSION -r $RENAME_MODEL_FILES -s $ARCHIVE_SCRATCH -u true
 
 
   post-result:
     runs-on: ubuntu-latest
     needs: convert-pack
-    timeout-minutes: 2
     permissions:
       issues: write
 
     steps:
-      - name: Post Result
+      - name: Done
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            ## ✅ Conversion Finished!
-            - Download your pack from Artifacts.
-            - Upload geyser_resources.mcpack into Geyser.
-            - Upload geyser_mappings.json into custom_mappings.
-
-      - name: Close Issue
-        uses: peter-evans/close-issue@v3
-        with:
-          issue-number: ${{ github.event.issue.number }}
+            ✅ Conversion completed!
