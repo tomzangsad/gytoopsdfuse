@@ -185,3 +185,10 @@ jobs:
         uses: peter-evans/close-issue@v3
         with:
           issue-number: ${{ github.event.issue.number }}
+      
+          
+      - name: Notify Controller (Conversion Done)
+        run: |
+          curl -X POST "http://kaizermc.thddns.net:9551/notify/convert_done" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"done"}'
