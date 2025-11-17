@@ -32,13 +32,13 @@ jobs:
       attachable_material: "entity_alphatest_one_sided"
       archive_scratch: "false"
       rename_model_files: "false"
-      font_conversion: "false"
-      armor_conversion: "false"
+      font_conversion: "true"
+      armor_conversion: "true"
       meg3_fix: "false"
-      sounds_conversion: "false"
-      bow_conversion: "false"
-      shield_conversion: "false"
-      block_conversion: "false"
+      sounds_conversion: "true"
+      bow_conversion: "true"
+      shield_conversion: "true"
+      block_conversion: "true"
 
     steps:
       - name: Setup for workflow_dispatch
