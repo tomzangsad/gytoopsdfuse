@@ -114,7 +114,6 @@ body:
         Enable font conversion (Can Error) default `false`.
       options:
         - 'true'
-        - 'false'
   - type: dropdown
     id: armor-conversion
     attributes:
@@ -123,7 +122,6 @@ body:
         Enable armor conversion (Only Itemsadder) default `false`.
       options:
         - 'true'
-        - 'false'
   - type: dropdown
     id: meg3-fix
     attributes:
@@ -131,7 +129,6 @@ body:
       description: |
         Fix Black Model for MEG3 default `false`.
       options:
-        - 'true'
         - 'false'
   - type: dropdown
     id: sounds-conversion
@@ -141,7 +138,6 @@ body:
         Conversion Sounds default `false`.
       options:
         - 'true'
-        - 'false'
   - type: dropdown
     id: bow-conversion
     attributes:
@@ -150,7 +146,6 @@ body:
         Conversion Bow default `false`.
       options:
         - 'true'
-        - 'false'
   - type: dropdown
     id: shield-conversion
     attributes:
@@ -159,7 +154,6 @@ body:
         Conversion Shield default `false`, **Not ready for use**
       options:
         - 'true'
-        - 'false'
   - type: dropdown
     id: block-conversion
     attributes:
@@ -168,7 +162,6 @@ body:
         Conversion Block default `false`
       options:
         - 'true'
-        - 'false'
   - type: checkboxes
     id: terms
     attributes:
