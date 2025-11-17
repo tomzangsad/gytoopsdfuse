@@ -35,41 +35,42 @@ jobs:
       - name: Organize Inputs
         id: organize-inputs
         run: |
-          echo '${{ toJSON(steps.parse-issue.outputs.data) }}' | jq '
-          def norm($v):
-            if ($v == null) then null
-            elif ($v|tostring|startswith("*No response*")) then null
-            elif ($v|tostring|startswith("None")) then null
-            else ($v|tostring)
-            end;
-      
-          def use_default($v; $def):
-            if ($v == null or $v == "" or $v == "null") then $def else $v end;
-      
+          echo ${{ toJSON(steps.parse-issue.outputs.data) }} | jq '
+          def test_input($input; $default):
+          if ($input == "*No response*" or $input == "None") then $default else ($input | tostring | gsub("\\\\";"")) end;
           {
-            "pack_url":                norm(.["java-pack-direct-download-url"].text),
-            "default_pack_url":        use_default(norm(.["default-pack-direct-download-url"].text); null),
-            "merge_pack_url":          use_default(norm(.["bedrock-merge-pack-direct-download-url"].text); null),
-            "default_assets_version":  use_default(norm(.["default-assets-version"].text); "1.19.3"),
-            "block_material":          use_default(norm(.["block-material"].text); "alpha_test"),
-            "attachable_material":     use_default(norm(.["attachable-material"].text); "entity_alphatest_one_sided"),
-      
-            "archive_scratch":         use_default(norm(.["archive-scratch"].text);        "true"),
-            "rename_model_files":      use_default(norm(.["rename-model-files"].text);     "true"),
-            "font_conversion":         use_default(norm(.["font-conversion"].text);        "true"),
-            "armor_conversion":        use_default(norm(.["armor-conversion"].text);       "true"),
-            "meg3_fix":                use_default(norm(.["meg3-fix"].text);               "true"),
-            "sounds_conversion":       use_default(norm(.["sounds-conversion"].text);      "true"),
-            "bow_conversion":          use_default(norm(.["bow-conversion"].text);         "true"),
-            "shield_conversion":       use_default(norm(.["shield-conversion"].text);      "true"),
-            "block_conversion":        use_default(norm(.["block-conversion"].text);       "true")
-          }
-          ' > inputs.json
-      
-          for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
-            echo "$(echo $key | tr a-z A-Z)=$(jq -r ".[$key]" inputs.json)" >> $GITHUB_OUTPUT
-          done
+            "pack_url": .["java-pack-direct-download-url"].text[1:-1],
+            "default_pack_url": test_input(.["default-pack-direct-download-url"].text; " null ")[1:-1],
+            "merge_pack_url": test_input(.["bedrock-merge-pack-direct-download-url"].text; " null ")[1:-1],
+            "default_assets_version": test_input(.["default-assets-version"].text; "1.19.3"),
+            "block_material": test_input(.["block-material"].text; "alpha_test"),
+            "attachable_material": test_input(.["attachable-material"].text; "entity_alphatest_one_sided"),
+            "archive_scratch": test_input(.["archive-scratch-files"].text; "false"),
+            "rename_model_files": test_input(.["rename-model-files"].text; "false"),
+            "font_conversion": test_input(.["font-conversion"].text; "false"),
+            "armor_conversion": test_input(.["armor-conversion"].text; "false"),
+            "meg3_fix": test_input(.["meg3-fix"].text; "false"),
+            "sounds_conversion": test_input(.["sounds-conversion"].text; "false"),
+            "bow_conversion": test_input(.["bow-conversion"].text; "false"),
+            "shield_conversion": test_input(.["shield-conversion"].text; "false"),
+            "block_conversion": test_input(.["block-conversion"].text; "false")
+          }' > inputs.json
 
+          echo "PACK_URL=$(jq -r '.pack_url' inputs.json)" >> $GITHUB_OUTPUT
+          echo "DEFAULT_PACK_URL=$(jq -r '.default_pack_url' inputs.json)" >> $GITHUB_OUTPUT
+          echo "MERGE_PACK_URL=$(jq -r '.merge_pack_url' inputs.json)" >> $GITHUB_OUTPUT
+          echo "DEFAULT_ASSETS_VERSION=$(jq -r '.default_assets_version' inputs.json)" >> $GITHUB_OUTPUT
+          echo "BLOCK_MATERIAL=$(jq -r '.block_material' inputs.json)" >> $GITHUB_OUTPUT
+          echo "ATTACHABLE_MATERIAL=$(jq -r '.attachable_material' inputs.json)" >> $GITHUB_OUTPUT
+          echo "ARCHIVE_SCRATCH=$(jq -r '.archive_scratch' inputs.json)" >> $GITHUB_OUTPUT
+          echo "RENAME_MODEL_FILES=$(jq -r '.rename_model_files' inputs.json)" >> $GITHUB_OUTPUT
+          echo "FONT_CONVERSION=$(jq -r '.font_conversion' inputs.json)" >> $GITHUB_OUTPUT
+          echo "ARMOR_CONVERSION=$(jq -r '.armor_conversion' inputs.json)" >> $GITHUB_OUTPUT
+          echo "MEG3_FIX=$(jq -r '.meg3_fix' inputs.json)" >> $GITHUB_OUTPUT
+          echo "SOUNDS_CONVERSION=$(jq -r '.sounds_conversion' inputs.json)" >> $GITHUB_OUTPUT
+          echo "BOW_CONVERSION=$(jq -r '.bow_conversion' inputs.json)" >> $GITHUB_OUTPUT
+          echo "SHIELD_CONVERSION=$(jq -r '.shield_conversion' inputs.json)" >> $GITHUB_OUTPUT
+          echo "BLOCK_CONVERSION=$(jq -r '.block_conversion' inputs.json)" >> $GITHUB_OUTPUT
 
   convert-pack:
     runs-on: ubuntu-latest
