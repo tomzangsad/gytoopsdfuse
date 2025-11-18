@@ -186,13 +186,22 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.number }}
       
+      - name: Auto Find Pack Files
+        id: files
+        run: |
+          echo "RES=$(find staging -type f -name 'geyser_resources*.mcpack')" >> $GITHUB_OUTPUT
+          echo "ADD=$(find staging -type f -name 'geyser_addon*.mcaddon')" >> $GITHUB_OUTPUT
+          echo "CFG=$(find staging -type f -name 'config.json')" >> $GITHUB_OUTPUT
+          echo "SCR=$(find staging -type f -name 'scratch*.zip')" >> $GITHUB_OUTPUT
+          
       - name: Send Pack to Controller
         run: |
           curl -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
-            -F "resources=@staging/target/packaged/geyser_resources.mcpack" \
-            -F "addon=@staging/target/packaged/geyser_addon.mcaddon" \
-            -F "config=@staging/config.json" \
-            -F "scratch=@staging/target/scratch_files.zip"
+          -F "resources=@${{ steps.files.outputs.RES }}" \
+          -F "addon=@${{ steps.files.outputs.ADD }}" \
+          -F "config=@${{ steps.files.outputs.CFG }}" \
+          -F "scratch=@${{ steps.files.outputs.SCR }}"
+
 
       - name: Notify Controller (Conversion Done)
         run: |
