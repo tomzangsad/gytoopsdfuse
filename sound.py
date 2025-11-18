@@ -1,77 +1,78 @@
 import json, glob, os, shutil
 
-def copy_sound(name):
-    """copy sound file from correct namespace folder"""
-    namespace, rel = name.split(":")
-    src = f"pack/assets/{namespace}/sounds/{rel}.ogg"
-    dst = f"staging/target/rp/sounds/{rel}.ogg"
+def find_sound_file(namespace, rel):
+    """Find actual .ogg path inside the pack"""
+    # primary path
+    p = f"pack/assets/{namespace}/sounds/{rel}.ogg"
+    if os.path.exists(p):
+        return p
 
-    if not os.path.exists(src):
-        print(f"⚠ Missing sound file: {src}")
+    # fallback for minecraft vanilla (wood/stone/etc)
+    parts = rel.split("/")
+    if len(parts) == 2:
+        cat, n = parts
+        for folder in ["block", "step", "dig"]:
+            guess = f"pack/assets/minecraft/sounds/{folder}/{cat}{n[-1]}.ogg"
+            if os.path.exists(guess):
+                return guess
+
+    return None
+
+
+def copy_sound(name):
+    """Copy sound file. name can be 'minecraft:dig/wood1' or 'dig/wood1'"""
+    if ":" not in name:
+        name = "minecraft:" + name
+
+    namespace, rel = name.split(":", 1)
+
+    src = find_sound_file(namespace, rel)
+    if not src:
+        print("❌ Missing file:", name)
         return None
 
+    dst = f"staging/target/rp/sounds/{rel}.ogg"
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copyfile(src, dst)
-
-    # BEDROCK USES: sounds/<rel>
     return f"sounds/{rel}"
 
-# ---------------------------------------------------------
-# Load all sounds.json
-# ---------------------------------------------------------
-files = glob.glob("pack/assets/**/sounds.json")
-print(f"Sounds Files: {files}")
 
-# Prepare bedrock sound_definitions
-os.makedirs("staging/target/rp/sounds", exist_ok=True)
-sound_defs_path = "staging/target/rp/sounds/sound_definitions.json"
+files = glob.glob("pack/assets/**/sounds.json")
+print("Sound files:", files)
 
 sound_defs = {
     "format_version": "1.14.0",
     "sound_definitions": {}
 }
 
-# ---------------------------------------------------------
-# Convert every sounds.json
-# ---------------------------------------------------------
 for file in files:
+    namespace = file.split(os.sep)[2]
+    print("Processing:", namespace)
+
     with open(file, "r") as f:
         data = json.load(f)
 
-    namespace = file.split(os.sep)[2]  # pack/assets/<namespace>/sounds.json
-    print("Processing namespace:", namespace)
+    for key, info in data.items():
 
-    for name, info in data.items():
+        sound_id = f"{namespace}:{key}"
+        sound_defs["sound_definitions"][sound_id] = {
+            "category": info.get("category", "neutral"),
+            "sounds": []
+        }
 
-        full_id = f"{namespace}:{name}"
-        sound_defs["sound_definitions"][full_id] = {}
-
-        # category
-        sound_defs["sound_definitions"][full_id]["category"] = info.get("category", "neutral")
-
-        listsound = []
-
-        for sound in info["sounds"]:
-            # dict: {"name": "fluffyworld:xsound/bling"}
-            if isinstance(sound, dict):
-                sname = sound["name"]
-                out = copy_sound(sname)
+        for s in info["sounds"]:
+            if isinstance(s, dict):
+                out = copy_sound(s["name"])
                 if out:
-                    sound["name"] = out
-                    listsound.append(sound)
+                    s["name"] = out
+                    sound_defs["sound_definitions"][sound_id]["sounds"].append(s)
 
-            # string: "fluffyworld:xsound/bling"
             else:
-                out = copy_sound(sound)
+                out = copy_sound(s)
                 if out:
-                    listsound.append(out)
+                    sound_defs["sound_definitions"][sound_id]["sounds"].append(out)
 
-        sound_defs["sound_definitions"][full_id]["sounds"] = listsound
-
-# ---------------------------------------------------------
-# Save final sound_definitions.json
-# ---------------------------------------------------------
-with open(sound_defs_path, "w") as f:
+with open("staging/target/rp/sounds/sound_definitions.json", "w") as f:
     json.dump(sound_defs, f, indent=2)
 
-print("✔ Done converting sounds!")
+print("✔ Sound conversion completed.")
