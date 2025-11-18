@@ -186,9 +186,17 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.number }}
       
-          
+      - name: Send Pack to Controller
+        run: |
+          curl -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
+            -F "resources=@staging/target/packaged/geyser_resources.mcpack" \
+            -F "addon=@staging/target/packaged/geyser_addon.mcaddon" \
+            -F "config=@staging/config.json" \
+            -F "scratch=@staging/target/scratch_files.zip"
+
       - name: Notify Controller (Conversion Done)
         run: |
           curl -X POST "http://kaizermc.thddns.net:9551/notify/convert_done" \
             -H "Content-Type: application/json" \
             -d '{"status":"done"}'
+          
