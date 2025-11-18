@@ -194,18 +194,16 @@ jobs:
           echo "CFG=$(find staging -type f -name 'config.json')" >> $GITHUB_OUTPUT
           echo "SCR=$(find staging -type f -name 'scratch*.zip')" >> $GITHUB_OUTPUT
           
+      - name: Zip PackFiles
+        run: |
+          cd staging
+          zip -r PackFiles.zip target/packaged/*.mcpack target/packaged/*.mcaddon target/*.json scratch*.zip config.json
+
+
+
       - name: Send Pack to Controller
         run: |
           curl -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
-          -F "resources=@${{ steps.files.outputs.RES }}" \
-          -F "addon=@${{ steps.files.outputs.ADD }}" \
-          -F "config=@${{ steps.files.outputs.CFG }}" \
-          -F "scratch=@${{ steps.files.outputs.SCR }}"
+          -F "pack=@staging/PackFiles.zip"
 
-
-      - name: Notify Controller (Conversion Done)
-        run: |
-          curl -X POST "http://kaizermc.thddns.net:9551/notify/convert_done" \
-            -H "Content-Type: application/json" \
-            -d '{"status":"done"}'
           
