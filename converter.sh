@@ -610,6 +610,77 @@ then
   status_message critical "Extraneous fallback resources deleted\n"
 fi
 
+###############################################################
+#   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
+###############################################################
+status_message process "Generating Isometric Block Icons..."
+
+# icon output in RP
+ICON_ROOT="./target/rp/textures/zicon"
+
+mkdir -p "$ICON_ROOT"
+
+# Loop all block textures that Java has
+# Every block = every PNG inside assets/<namespace>/textures/block/
+find ./assets -type d -path "*/textures/block" | while read blockdir; do
+    namespace=$(echo "$blockdir" | sed -E 's|.*assets/([^/]+)/textures/block|\1|')
+
+    outdir="${ICON_ROOT}/${namespace}/item/ia_auto"
+    mkdir -p "$outdir"
+
+    status_message process "🧩 Namespace [$namespace] → generating icons..."
+
+    for png_file in "$blockdir"/*.png; do
+
+        filename=$(basename -- "$png_file")
+        filename_noext="${filename%.*}"
+
+        # skip side-textures handled later
+        case "$filename" in
+            *_top.png|*_north.png|*_west.png) continue;;
+        esac
+
+        # detect alternative textures
+        alt_top="${blockdir}/${filename_noext}_top.png"
+        alt_north="${blockdir}/${filename_noext}_north.png"
+        alt_west="${blockdir}/${filename_noext}_west.png"
+
+        top_texture="$png_file"
+        north_texture="$png_file"
+        west_texture="$png_file"
+
+        [ -f "$alt_top" ] && top_texture="$alt_top"
+        [ -f "$alt_north" ] && north_texture="$alt_north"
+        [ -f "$alt_west" ] && west_texture="$alt_west"
+
+        # temp
+        mkdir -p tmp
+        convert "$top_texture" -flop tmp/top.png
+        convert "$north_texture" -brightness-contrast -10x0 tmp/north.png
+        convert "$west_texture" -brightness-contrast -20x0 tmp/west.png
+
+        # build isometric 64×64
+        convert \
+            \( tmp/top.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0  0,0 -34.8,-32  96,96 34.8,-32" \) \
+            \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0  0,0 -34.8,-32  96,96 0,64" \) \
+            \( tmp/west.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0  0,96 0,64  96,0 34.8,-32" \) \
+            -background none -compose plus -layers merge +repage \
+            -bordercolor transparent -border 4 \
+            -resize 64x64! -gravity center -crop 64x64+0+0 \
+            PNG8:"${outdir}/${filename_noext}.png"
+
+        status_message completion "✓ Icon: ${namespace}/${filename_noext}.png"
+
+    done
+done
+
+rm -rf tmp
+status_message completion "All Block Icons Generated Successfully!"
+###############################################################
+#   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
+###############################################################
+
+
 # generate a fallback texture
 convert -size 16x16 xc:\#FFFFFF ./assets/minecraft/textures/0.png
 
