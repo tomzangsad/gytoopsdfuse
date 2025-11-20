@@ -617,11 +617,9 @@ status_message process "Generating Isometric Block Icons..."
 
 # icon output in RP
 ICON_ROOT="./target/rp/textures/zicon"
-
 mkdir -p "$ICON_ROOT"
 
 # Loop all block textures that Java has
-# Every block = every PNG inside assets/<namespace>/textures/block/
 find ./assets -type d -path "*/textures/block" | while read blockdir; do
     namespace=$(echo "$blockdir" | sed -E 's|.*assets/([^/]+)/textures/block|\1|')
 
@@ -634,6 +632,12 @@ find ./assets -type d -path "*/textures/block" | while read blockdir; do
 
         filename=$(basename -- "$png_file")
         filename_noext="${filename%.*}"
+
+        # ❌ Skip tripwire + tripwire_hook
+        if [[ "$filename_noext" =~ ^tripwire$ || "$filename_noext" =~ ^tripwire_hook$ ]]; then
+            status_message plain "⏭️ Skip tripwire icon: ${namespace}/${filename_noext}.png"
+            continue
+        fi
 
         # skip side-textures handled later
         case "$filename" in
@@ -677,8 +681,7 @@ done
 rm -rf tmp
 status_message completion "All Block Icons Generated Successfully!"
 ###############################################################
-#   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
-###############################################################
+
 
 
 # generate a fallback texture
