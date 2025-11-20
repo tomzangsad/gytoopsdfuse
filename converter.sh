@@ -619,6 +619,80 @@ status_message process "Cropping animated textures"
 for i in $(find ./assets/**/textures -type f -name "*.mcmeta" | sed 's/\.mcmeta//'); do 
 convert ${i} -set option:distort:viewport "%[fx:min(w,h)]x%[fx:min(w,h)]" -distort affine "0,0 0,0" -define png:format=png8 -clamp ${i} 2> /dev/null
 done
+# ============================================================
+#  KAIZERMC — Generate Isometric Block Icons
+# ============================================================
+
+generate_isometric_icon() {
+    local base_png="$1"
+    local out_png="$2"
+
+    mkdir -p tmp
+
+    convert "$base_png" -resize 96x96! PNG32:tmp/base.png
+    convert tmp/base.png -flop PNG32:tmp/top.png
+    convert tmp/base.png -brightness-contrast -10 PNG32:tmp/north.png
+    convert tmp/base.png -brightness-contrast -20 PNG32:tmp/west.png
+
+    convert \
+      \( tmp/top.png -virtual-pixel transparent +distort Affine '0,96 0,0   0,0 -34.8,-32  96,96 34.8,-32' \) \
+      \( tmp/north.png -virtual-pixel transparent +distort Affine '96,0 0,0   0,0 -34.8,-32  96,96 0,64' \) \
+      \( tmp/west.png -virtual-pixel transparent +distort Affine '0,0 0,0   0,96 0,64  96,0 34.8,-32' \) \
+      -background none -compose plus -layers merge +repage \
+      -resize 64x64! PNG32:"$out_png"
+
+    rm -f tmp/*.png
+}
+
+status_message process "🟦 Generating Isometric Block Icons from blockstates"
+
+BLOCKSTATE_DIR="./assets/minecraft/blockstates"
+ZICON_ROOT="./target/rp/textures/zicon"
+
+mkdir -p "$ZICON_ROOT"
+
+for blockstate in ${BLOCKSTATE_DIR}/*.json; do
+    [[ -f "$blockstate" ]] || continue
+    bname=$(basename "$blockstate" .json)
+    status_message process "🧱 Blockstate: $bname"
+
+    models=$(jq -r '.variants[]?.model // empty' "$blockstate")
+
+    for model in $models; do
+
+        if [[ "$model" == *:* ]]; then
+            namespace="${model%%:*}"
+            modelpath="${model#*:}"
+        else
+            namespace="minecraft"
+            modelpath="$model"
+        fi
+
+        # texture path
+        texture_png="./assets/${namespace}/textures/${modelpath}.png"
+
+        if [[ ! -f "$texture_png" ]]; then
+            status_message critical "Texture missing → $texture_png"
+            continue
+        fi
+
+        out_dir="$ZICON_ROOT/${namespace}/$(dirname "$modelpath")"
+        mkdir -p "$out_dir"
+
+        out_png="${out_dir}/$(basename "$modelpath").png"
+
+        generate_isometric_icon "$texture_png" "$out_png"
+        status_message completion "🎨 Isometric → $out_png"
+
+        # add icon to icons.csv
+        hashname=$(echo -n "${namespace}_${modelpath}" | md5sum | head -c 7)
+        echo "gmdl_${hashname},textures/zicon/${namespace}/${modelpath}.png" >> scratch_files/icons.csv
+
+    done
+done
+
+status_message completion "🟩 Finished Isometric Block Icons"
+# ============================================================
 
 status_message completion "Initial pack setup complete\n"
 
@@ -816,96 +890,6 @@ jq -r '.[] | select(.generated == false) | [.path_hash, .path, .model_name] | @t
 done
 
 status_message completion "✅ Finished mapping all icons (shared textures applied)"
-
-###############################################################
-#   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
-###############################################################
-status_message process "Generating Isometric Block Icons (from blockstates)..."
-
-ICON_ROOT="./target/rp/textures/zicon"
-mkdir -p "$ICON_ROOT"
-
-BLOCKSTATE_DIR="./staging/pack/assets/minecraft/blockstates"
-
-for blockstate in ${BLOCKSTATE_DIR}/*.json; do
-    [ -f "$blockstate" ] || continue
-
-    blockname=$(basename "$blockstate" .json)
-    status_message process "🧩 Processing blockstate: $blockname"
-
-    models=$(jq -r '.variants[]?.model // empty' "$blockstate")
-
-    for model in $models; do
-        
-        [[ "$model" == block/original* ]] && continue
-        [[ "$model" == *tripwire* ]] && continue
-
-        # parse namespace + path
-        if [[ "$model" == *:* ]]; then
-            namespace="${model%%:*}"
-            path="${model#*:}"
-        else
-            namespace="minecraft"
-            path="$model"
-        fi
-
-        # 1) หาไฟล์ model JSON เหมือน Python
-        model_json="./staging/temp_models/assets/${namespace}/models/${path}.json"
-
-        if [[ ! -f "$model_json" ]]; then
-            status_message plain "⚠️ Model JSON not found: $model_json"
-            continue
-        fi
-
-        # 2) ดึงค่า texture จาก model JSON
-        texture=$(jq -r '.textures.layer0 // .textures.default // ."minecraft:attachable".description.textures.default // empty' "$model_json")
-
-        if [[ -z "$texture" ]]; then
-            status_message plain "⚠️ No texture found in model: $model_json"
-            continue
-        fi
-
-        # 3) หาไฟล์ PNG จริงเหมือน Python
-        png_texture="${texture#*:}"   # ตัด namespace ออก
-        png_path="./staging/pack/assets/${namespace}/textures/${png_texture}.png"
-
-        if [[ ! -f "$png_path" ]]; then
-            status_message plain "⚠️ PNG not found: $png_path"
-            continue
-        fi
-
-        outdir="${ICON_ROOT}/${namespace}/item/ia_auto"
-        mkdir -p "$outdir"
-
-        filename=$(basename "$png_path")
-
-        mkdir -p tmp
-
-        convert "$png_path" -flop tmp/top.png
-        convert "$png_path" -brightness-contrast -10x0 tmp/north.png
-        convert "$png_path" -brightness-contrast -20x0 tmp/west.png
-
-        convert \
-            \( tmp/top.png   -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
-            \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0 0,0 -34.8,-32 96,96 0,64" \) \
-            \( tmp/west.png  -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0 0,96 0,64 96,0 34.8,-32" \) \
-            -background none -compose plus -layers merge +repage \
-            -bordercolor transparent -border 4 \
-            -resize 64x64! -gravity center -crop 64x64+0+0 \
-            PNG8:"${outdir}/${filename}"
-
-        status_message completion "✓ Icon: ${namespace}/${filename}"
-
-    done
-done
-
-rm -rf tmp
-status_message completion "All Block Icons Generated!"
-###############################################################
-
-
-
-
 
 # add icon textures to item atlas
 if [[ -f scratch_files/icons.csv ]]
