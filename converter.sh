@@ -618,8 +618,11 @@ status_message process "Generating Isometric Block Icons (from blockstates)..."
 ICON_ROOT="./target/rp/textures/zicon"
 mkdir -p "$ICON_ROOT"
 
+# ต้องทำงานใน staging เพราะ Python ทำที่นี่
+BLOCKSTATE_DIR="./staging/pack/assets/minecraft/blockstates"
+
 # 🔍 Loop ALL blockstates that Python checks
-for blockstate in pack/assets/minecraft/blockstates/*.json; do
+for blockstate in ${BLOCKSTATE_DIR}/*.json; do
     [ -f "$blockstate" ] || continue
 
     blockname=$(basename "$blockstate" .json)
@@ -630,17 +633,15 @@ for blockstate in pack/assets/minecraft/blockstates/*.json; do
 
     for model in $models; do
 
-        # skip vanilla original & tripwire
+        # สคิปของเดิม
         if [[ "$model" == block/original* ]]; then continue; fi
         if [[ "$model" == *tripwire* ]]; then continue; fi
 
         namespace=$(echo "$model" | cut -d: -f1)
         path=$(echo "$model" | cut -d: -f2)
 
-        # convert model path into png texture path
-        # Example: pack1:item/ia_auto/pack1_ruby_ore
-        # → assets/pack1/textures/item/ia_auto/pack1_ruby_ore.png
-        png_path="assets/${namespace}/textures/${path}.png"
+        # ตำแหน่งรูป block จาก pack1 / minerals_pack แบบ Python
+        png_path="./staging/assets/${namespace}/textures/${path}.png"
 
         if [[ ! -f "$png_path" ]]; then
             status_message plain "⚠️ PNG not found for: $model"
@@ -675,6 +676,7 @@ done
 rm -rf tmp
 status_message completion "All Block Icons Generated!"
 ###############################################################
+
 
 
 
