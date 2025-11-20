@@ -613,74 +613,69 @@ fi
 ###############################################################
 #   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
 ###############################################################
-status_message process "Generating Isometric Block Icons..."
+status_message process "Generating Isometric Block Icons (from blockstates)..."
 
-# icon output in RP
 ICON_ROOT="./target/rp/textures/zicon"
 mkdir -p "$ICON_ROOT"
 
-# Loop all block textures that Java has
-find ./assets -type d -path "*/textures/block" | while read blockdir; do
-    namespace=$(echo "$blockdir" | sed -E 's|.*assets/([^/]+)/textures/block|\1|')
+# 🔍 Loop ALL blockstates that Python checks
+for blockstate in pack/assets/minecraft/blockstates/*.json; do
+    [ -f "$blockstate" ] || continue
 
-    outdir="${ICON_ROOT}/${namespace}/item/ia_auto"
-    mkdir -p "$outdir"
+    blockname=$(basename "$blockstate" .json)
+    status_message process "🧩 Processing blockstate: $blockname"
 
-    status_message process "🧩 Namespace [$namespace] → generating icons..."
+    # extract all model paths in variants
+    models=$(jq -r '.variants[]?.model // empty' "$blockstate")
 
-    for png_file in "$blockdir"/*.png; do
+    for model in $models; do
 
-        filename=$(basename -- "$png_file")
-        filename_noext="${filename%.*}"
+        # skip vanilla original & tripwire
+        if [[ "$model" == block/original* ]]; then continue; fi
+        if [[ "$model" == *tripwire* ]]; then continue; fi
 
-        # ❌ Skip tripwire + tripwire_hook
-        if [[ "$filename_noext" =~ ^tripwire$ || "$filename_noext" =~ ^tripwire_hook$ ]]; then
-            status_message plain "⏭️ Skip tripwire icon: ${namespace}/${filename_noext}.png"
+        namespace=$(echo "$model" | cut -d: -f1)
+        path=$(echo "$model" | cut -d: -f2)
+
+        # convert model path into png texture path
+        # Example: pack1:item/ia_auto/pack1_ruby_ore
+        # → assets/pack1/textures/item/ia_auto/pack1_ruby_ore.png
+        png_path="assets/${namespace}/textures/${path}.png"
+
+        if [[ ! -f "$png_path" ]]; then
+            status_message plain "⚠️ PNG not found for: $model"
             continue
         fi
 
-        # skip side-textures handled later
-        case "$filename" in
-            *_top.png|*_north.png|*_west.png) continue;;
-        esac
+        outdir="${ICON_ROOT}/${namespace}/item/ia_auto"
+        mkdir -p "$outdir"
 
-        # detect alternative textures
-        alt_top="${blockdir}/${filename_noext}_top.png"
-        alt_north="${blockdir}/${filename_noext}_north.png"
-        alt_west="${blockdir}/${filename_noext}_west.png"
+        filename=$(basename "$png_path")
 
-        top_texture="$png_file"
-        north_texture="$png_file"
-        west_texture="$png_file"
-
-        [ -f "$alt_top" ] && top_texture="$alt_top"
-        [ -f "$alt_north" ] && north_texture="$alt_north"
-        [ -f "$alt_west" ] && west_texture="$alt_west"
-
-        # temp
         mkdir -p tmp
-        convert "$top_texture" -flop tmp/top.png
-        convert "$north_texture" -brightness-contrast -10x0 tmp/north.png
-        convert "$west_texture" -brightness-contrast -20x0 tmp/west.png
 
-        # build isometric 64×64
+        convert "$png_path" -flop tmp/top.png
+        convert "$png_path" -brightness-contrast -10x0 tmp/north.png
+        convert "$png_path" -brightness-contrast -20x0 tmp/west.png
+
         convert \
-            \( tmp/top.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0  0,0 -34.8,-32  96,96 34.8,-32" \) \
-            \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0  0,0 -34.8,-32  96,96 0,64" \) \
-            \( tmp/west.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0  0,96 0,64  96,0 34.8,-32" \) \
+            \( tmp/top.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
+            \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0 0,0 -34.8,-32 96,96 0,64" \) \
+            \( tmp/west.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0 0,96 0,64 96,0 34.8,-32" \) \
             -background none -compose plus -layers merge +repage \
             -bordercolor transparent -border 4 \
             -resize 64x64! -gravity center -crop 64x64+0+0 \
-            PNG8:"${outdir}/${filename_noext}.png"
+            PNG8:"${outdir}/${filename}"
 
-        status_message completion "✓ Icon: ${namespace}/${filename_noext}.png"
+        status_message completion "✓ Icon: ${namespace}/${filename}"
 
     done
 done
 
 rm -rf tmp
-status_message completion "All Block Icons Generated Successfully!"
+status_message completion "All Block Icons Generated!"
 ###############################################################
+
 
 
 
