@@ -825,7 +825,7 @@ status_message process "Generating Isometric Block Icons (from blockstates)..."
 ICON_ROOT="./target/rp/textures/zicon"
 mkdir -p "$ICON_ROOT"
 
-# ต้องทำงานใน staging เพราะ Python ทำที่นี่
+# ใช้ path เดียวกับ Python
 BLOCKSTATE_DIR="./staging/pack/assets/minecraft/blockstates"
 
 # 🔍 Loop ALL blockstates that Python checks
@@ -840,18 +840,24 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 
     for model in $models; do
 
-        # สคิปของเดิม
-        if [[ "$model" == block/original* ]]; then continue; fi
-        if [[ "$model" == *tripwire* ]]; then continue; fi
+        # ข้าม model ที่ไม่ต้องการ
+        [[ "$model" == block/original* ]] && continue
+        [[ "$model" == *tripwire* ]] && continue
 
-        namespace=$(echo "$model" | cut -d: -f1)
-        path=$(echo "$model" | cut -d: -f2)
+        # รองรับ model มี / ไม่มี namespace
+        if [[ "$model" == *:* ]]; then
+            namespace="${model%%:*}"
+            path="${model#*:}"
+        else
+            namespace="minecraft"
+            path="$model"
+        fi
 
-        # ตำแหน่งรูป block จาก pack1 / minerals_pack แบบ Python
-        png_path="./staging/assets/${namespace}/textures/${path}.png"
+        # PNG path แบบเดียวกับ Python
+        png_path="./staging/pack/assets/${namespace}/textures/${path}.png"
 
         if [[ ! -f "$png_path" ]]; then
-            status_message plain "⚠️ PNG not found for: $model"
+            status_message plain "⚠️ PNG not found for: $model (→ ${png_path})"
             continue
         fi
 
@@ -862,14 +868,16 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 
         mkdir -p tmp
 
+        # Generate top + north + west faces
         convert "$png_path" -flop tmp/top.png
         convert "$png_path" -brightness-contrast -10x0 tmp/north.png
         convert "$png_path" -brightness-contrast -20x0 tmp/west.png
 
+        # Merge into isometric icon
         convert \
-            \( tmp/top.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
+            \( tmp/top.png   -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
             \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0 0,0 -34.8,-32 96,96 0,64" \) \
-            \( tmp/west.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0 0,96 0,64 96,0 34.8,-32" \) \
+            \( tmp/west.png  -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0 0,96 0,64 96,0 34.8,-32" \) \
             -background none -compose plus -layers merge +repage \
             -bordercolor transparent -border 4 \
             -resize 64x64! -gravity center -crop 64x64+0+0 \
@@ -883,6 +891,7 @@ done
 rm -rf tmp
 status_message completion "All Block Icons Generated!"
 ###############################################################
+
 
 
 # add icon textures to item atlas
