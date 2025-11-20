@@ -894,6 +894,7 @@ status_message completion "All Block Icons Generated!"
 
 
 
+
 # add icon textures to item atlas
 if [[ -f scratch_files/icons.csv ]]
 then
