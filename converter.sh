@@ -610,76 +610,6 @@ then
   status_message critical "Extraneous fallback resources deleted\n"
 fi
 
-###############################################################
-#   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
-###############################################################
-status_message process "Generating Isometric Block Icons (from blockstates)..."
-
-ICON_ROOT="./target/rp/textures/zicon"
-mkdir -p "$ICON_ROOT"
-
-# ต้องทำงานใน staging เพราะ Python ทำที่นี่
-BLOCKSTATE_DIR="./staging/pack/assets/minecraft/blockstates"
-
-# 🔍 Loop ALL blockstates that Python checks
-for blockstate in ${BLOCKSTATE_DIR}/*.json; do
-    [ -f "$blockstate" ] || continue
-
-    blockname=$(basename "$blockstate" .json)
-    status_message process "🧩 Processing blockstate: $blockname"
-
-    # extract all model paths in variants
-    models=$(jq -r '.variants[]?.model // empty' "$blockstate")
-
-    for model in $models; do
-
-        # สคิปของเดิม
-        if [[ "$model" == block/original* ]]; then continue; fi
-        if [[ "$model" == *tripwire* ]]; then continue; fi
-
-        namespace=$(echo "$model" | cut -d: -f1)
-        path=$(echo "$model" | cut -d: -f2)
-
-        # ตำแหน่งรูป block จาก pack1 / minerals_pack แบบ Python
-        png_path="./staging/assets/${namespace}/textures/${path}.png"
-
-        if [[ ! -f "$png_path" ]]; then
-            status_message plain "⚠️ PNG not found for: $model"
-            continue
-        fi
-
-        outdir="${ICON_ROOT}/${namespace}/item/ia_auto"
-        mkdir -p "$outdir"
-
-        filename=$(basename "$png_path")
-
-        mkdir -p tmp
-
-        convert "$png_path" -flop tmp/top.png
-        convert "$png_path" -brightness-contrast -10x0 tmp/north.png
-        convert "$png_path" -brightness-contrast -20x0 tmp/west.png
-
-        convert \
-            \( tmp/top.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
-            \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0 0,0 -34.8,-32 96,96 0,64" \) \
-            \( tmp/west.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0 0,96 0,64 96,0 34.8,-32" \) \
-            -background none -compose plus -layers merge +repage \
-            -bordercolor transparent -border 4 \
-            -resize 64x64! -gravity center -crop 64x64+0+0 \
-            PNG8:"${outdir}/${filename}"
-
-        status_message completion "✓ Icon: ${namespace}/${filename}"
-
-    done
-done
-
-rm -rf tmp
-status_message completion "All Block Icons Generated!"
-###############################################################
-
-
-
-
 
 # generate a fallback texture
 convert -size 16x16 xc:\#FFFFFF ./assets/minecraft/textures/0.png
@@ -887,7 +817,72 @@ done
 
 status_message completion "✅ Finished mapping all icons (shared textures applied)"
 
+###############################################################
+#   KAIZERMC - BLOCK ICON GENERATOR (Isometric)
+###############################################################
+status_message process "Generating Isometric Block Icons (from blockstates)..."
 
+ICON_ROOT="./target/rp/textures/zicon"
+mkdir -p "$ICON_ROOT"
+
+# ต้องทำงานใน staging เพราะ Python ทำที่นี่
+BLOCKSTATE_DIR="./staging/pack/assets/minecraft/blockstates"
+
+# 🔍 Loop ALL blockstates that Python checks
+for blockstate in ${BLOCKSTATE_DIR}/*.json; do
+    [ -f "$blockstate" ] || continue
+
+    blockname=$(basename "$blockstate" .json)
+    status_message process "🧩 Processing blockstate: $blockname"
+
+    # extract all model paths in variants
+    models=$(jq -r '.variants[]?.model // empty' "$blockstate")
+
+    for model in $models; do
+
+        # สคิปของเดิม
+        if [[ "$model" == block/original* ]]; then continue; fi
+        if [[ "$model" == *tripwire* ]]; then continue; fi
+
+        namespace=$(echo "$model" | cut -d: -f1)
+        path=$(echo "$model" | cut -d: -f2)
+
+        # ตำแหน่งรูป block จาก pack1 / minerals_pack แบบ Python
+        png_path="./staging/assets/${namespace}/textures/${path}.png"
+
+        if [[ ! -f "$png_path" ]]; then
+            status_message plain "⚠️ PNG not found for: $model"
+            continue
+        fi
+
+        outdir="${ICON_ROOT}/${namespace}/item/ia_auto"
+        mkdir -p "$outdir"
+
+        filename=$(basename "$png_path")
+
+        mkdir -p tmp
+
+        convert "$png_path" -flop tmp/top.png
+        convert "$png_path" -brightness-contrast -10x0 tmp/north.png
+        convert "$png_path" -brightness-contrast -20x0 tmp/west.png
+
+        convert \
+            \( tmp/top.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
+            \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0 0,0 -34.8,-32 96,96 0,64" \) \
+            \( tmp/west.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,0 0,0 0,96 0,64 96,0 34.8,-32" \) \
+            -background none -compose plus -layers merge +repage \
+            -bordercolor transparent -border 4 \
+            -resize 64x64! -gravity center -crop 64x64+0+0 \
+            PNG8:"${outdir}/${filename}"
+
+        status_message completion "✓ Icon: ${namespace}/${filename}"
+
+    done
+done
+
+rm -rf tmp
+status_message completion "All Block Icons Generated!"
+###############################################################
 
 
 # add icon textures to item atlas
