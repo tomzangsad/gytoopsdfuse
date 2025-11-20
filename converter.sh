@@ -825,26 +825,22 @@ status_message process "Generating Isometric Block Icons (from blockstates)..."
 ICON_ROOT="./target/rp/textures/zicon"
 mkdir -p "$ICON_ROOT"
 
-# ใช้ path เดียวกับ Python
 BLOCKSTATE_DIR="./staging/pack/assets/minecraft/blockstates"
 
-# 🔍 Loop ALL blockstates that Python checks
 for blockstate in ${BLOCKSTATE_DIR}/*.json; do
     [ -f "$blockstate" ] || continue
 
     blockname=$(basename "$blockstate" .json)
     status_message process "🧩 Processing blockstate: $blockname"
 
-    # extract all model paths in variants
     models=$(jq -r '.variants[]?.model // empty' "$blockstate")
 
     for model in $models; do
-
-        # ข้าม model ที่ไม่ต้องการ
+        
         [[ "$model" == block/original* ]] && continue
         [[ "$model" == *tripwire* ]] && continue
 
-        # รองรับ model มี / ไม่มี namespace
+        # parse namespace + path
         if [[ "$model" == *:* ]]; then
             namespace="${model%%:*}"
             path="${model#*:}"
@@ -853,11 +849,28 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
             path="$model"
         fi
 
-        # PNG path แบบเดียวกับ Python
-        png_path="./staging/pack/assets/${namespace}/textures/${path}.png"
+        # 1) หาไฟล์ model JSON เหมือน Python
+        model_json="./staging/temp_models/assets/${namespace}/models/${path}.json"
+
+        if [[ ! -f "$model_json" ]]; then
+            status_message plain "⚠️ Model JSON not found: $model_json"
+            continue
+        fi
+
+        # 2) ดึงค่า texture จาก model JSON
+        texture=$(jq -r '.textures.layer0 // .textures.default // ."minecraft:attachable".description.textures.default // empty' "$model_json")
+
+        if [[ -z "$texture" ]]; then
+            status_message plain "⚠️ No texture found in model: $model_json"
+            continue
+        fi
+
+        # 3) หาไฟล์ PNG จริงเหมือน Python
+        png_texture="${texture#*:}"   # ตัด namespace ออก
+        png_path="./staging/pack/assets/${namespace}/textures/${png_texture}.png"
 
         if [[ ! -f "$png_path" ]]; then
-            status_message plain "⚠️ PNG not found for: $model (→ ${png_path})"
+            status_message plain "⚠️ PNG not found: $png_path"
             continue
         fi
 
@@ -868,12 +881,10 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 
         mkdir -p tmp
 
-        # Generate top + north + west faces
         convert "$png_path" -flop tmp/top.png
         convert "$png_path" -brightness-contrast -10x0 tmp/north.png
         convert "$png_path" -brightness-contrast -20x0 tmp/west.png
 
-        # Merge into isometric icon
         convert \
             \( tmp/top.png   -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "0,96 0,0 0,0 -34.8,-32 96,96 34.8,-32" \) \
             \( tmp/north.png -resize 96x96! -alpha set -virtual-pixel transparent +distort Affine "96,0 0,0 0,0 -34.8,-32 96,96 0,64" \) \
@@ -891,6 +902,7 @@ done
 rm -rf tmp
 status_message completion "All Block Icons Generated!"
 ###############################################################
+
 
 
 
