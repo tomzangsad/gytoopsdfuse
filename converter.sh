@@ -620,7 +620,7 @@ for i in $(find ./assets/**/textures -type f -name "*.mcmeta" | sed 's/\.mcmeta/
 convert ${i} -set option:distort:viewport "%[fx:min(w,h)]x%[fx:min(w,h)]" -distort affine "0,0 0,0" -define png:format=png8 -clamp ${i} 2> /dev/null
 done
 # ============================================================
-#  KAIZERMC — Generate Isometric Block Icons
+#  KAIZERMC — Generate Isometric Block Icons (Fixed Version)
 # ============================================================
 
 generate_isometric_icon() {
@@ -644,6 +644,67 @@ generate_isometric_icon() {
     rm -f tmp/*.png
 }
 
+# ============================================================
+#  Function: Resolve Model Texture
+# ============================================================
+resolve_model_texture() {
+    local namespace="$1"
+    local modelpath="$2"
+
+    local model_json=""
+
+    # item model
+    if [[ -f "./assets/$namespace/models/$modelpath.json" ]]; then
+        model_json="./assets/$namespace/models/$modelpath.json"
+    fi
+
+    # block model
+    if [[ -f "./assets/$namespace/models/block/$(basename "$modelpath").json" ]]; then
+        model_json="./assets/$namespace/models/block/$(basename "$modelpath").json"
+    fi
+
+    if [[ ! -f "$model_json" ]]; then
+        echo ""
+        return
+    fi
+
+    # read textures (priority order)
+    local tex=$(jq -r '
+        .textures.all // .textures.top // .textures.side //
+        .textures.bottom // .textures.front // .textures.back //
+        empty
+    ' "$model_json")
+
+    if [[ "$tex" == "" ]]; then
+        echo ""
+        return
+    fi
+
+    # split namespace:id
+    if [[ "$tex" == *:* ]]; then
+        tex_ns="${tex%%:*}"
+        tex_id="${tex#*:}"
+    else
+        tex_ns="$namespace"
+        tex_id="$tex"
+    fi
+
+    # try possible paths
+    try1="./assets/$tex_ns/textures/$tex_id.png"
+    try2="./assets/$tex_ns/textures/block/$tex_id.png"
+    try3="./assets/$tex_ns/textures/item/$tex_id.png"
+    try4="./assets/$tex_ns/textures/blocks/$tex_id.png"
+
+    if [[ -f "$try1" ]]; then echo "$try1"; return; fi
+    if [[ -f "$try2" ]]; then echo "$try2"; return; fi
+    if [[ -f "$try3" ]]; then echo "$try3"; return; fi
+    if [[ -f "$try4" ]]; then echo "$try4"; return; fi
+
+    echo ""
+}
+
+# ============================================================
+
 status_message process "🟦 Generating Isometric Block Icons from blockstates"
 
 BLOCKSTATE_DIR="./assets/minecraft/blockstates"
@@ -660,6 +721,7 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 
     for model in $models; do
 
+        # split namespace:modelpath
         if [[ "$model" == *:* ]]; then
             namespace="${model%%:*}"
             modelpath="${model#*:}"
@@ -668,14 +730,15 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
             modelpath="$model"
         fi
 
-        # texture path
-        texture_png="./assets/${namespace}/textures/${modelpath}.png"
+        # resolve actual texture
+        texture_png=$(resolve_model_texture "$namespace" "$modelpath")
 
-        if [[ ! -f "$texture_png" ]]; then
-            status_message critical "Texture missing → $texture_png"
+        if [[ "$texture_png" == "" ]]; then
+            status_message critical "❌ Texture missing (resolved failed) → $namespace:$modelpath"
             continue
         fi
 
+        # output path
         out_dir="$ZICON_ROOT/${namespace}/$(dirname "$modelpath")"
         mkdir -p "$out_dir"
 
@@ -684,7 +747,7 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
         generate_isometric_icon "$texture_png" "$out_png"
         status_message completion "🎨 Isometric → $out_png"
 
-        # add icon to icons.csv
+        # add icon to atlas
         hashname=$(echo -n "${namespace}_${modelpath}" | md5sum | head -c 7)
         echo "gmdl_${hashname},textures/zicon/${namespace}/${modelpath}.png" >> scratch_files/icons.csv
 
@@ -692,6 +755,8 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 done
 
 status_message completion "🟩 Finished Isometric Block Icons"
+# ============================================================
+# ============================================================
 # ============================================================
 
 status_message completion "Initial pack setup complete\n"
