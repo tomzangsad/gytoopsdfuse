@@ -337,7 +337,7 @@ def remove_duplicates_with_custom_model_data(file_path):
         with open(file_path, "r") as f:
             data = json.load(f)
 
-        item_type = [
+        item_types = [    # ← ต้องเป็น item_types (เติม s)
             # Leather
             "leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots",
             # Chainmail
@@ -351,6 +351,7 @@ def remove_duplicates_with_custom_model_data(file_path):
             # Netherite
             "netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"
         ]
+
 
 
         for item_type in item_types:
