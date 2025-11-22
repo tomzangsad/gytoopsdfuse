@@ -151,7 +151,11 @@ if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
 optifine = Properties()
-item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
+item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots",
+            "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots",
+            "diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots",
+            "netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots",
+            "chainmail_helmet", "chainmail_chestplate", "chainmail_leggings", "chainmail_boots"]
 
 for i, armor in enumerate(item_type):
 
