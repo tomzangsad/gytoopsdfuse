@@ -337,12 +337,21 @@ def remove_duplicates_with_custom_model_data(file_path):
         with open(file_path, "r") as f:
             data = json.load(f)
 
-        item_types = [
-            "minecraft:leather_helmet",
-            "minecraft:leather_chestplate",
-            "minecraft:leather_leggings",
-            "minecraft:leather_boots",
+        item_type = [
+            # Leather
+            "leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots",
+            # Chainmail
+            "chainmail_helmet", "chainmail_chestplate", "chainmail_leggings", "chainmail_boots",
+            # Iron
+            "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots",
+            # Gold
+            "golden_helmet", "golden_chestplate", "golden_leggings", "golden_boots",
+            # Diamond
+            "diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots",
+            # Netherite
+            "netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"
         ]
+
 
         for item_type in item_types:
             if item_type not in data:
@@ -367,6 +376,11 @@ def write_armor(file, gmdl, layer, i):
     type_map = ["helmet", "chestplate", "leggings", "boots"]
     armor_type = type_map[i]
 
+    # 🧩 ดึงวัสดุจากชื่อ เช่น leather / chainmail / iron / golden / diamond / netherite
+    material = gmdl.split("_")[0]
+    if material == "golden":
+        material = "gold"
+
     ajson = {
         "format_version": "1.10.0",
         "minecraft:attachable": {
@@ -374,8 +388,8 @@ def write_armor(file, gmdl, layer, i):
                 "identifier": f"geyser_custom:{gmdl}.player",
                 "item": {f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"},
                 "materials": {
-                    "default": "armor_leather",
-                    "enchanted": "armor_leather_enchanted",
+                    "default": f"armor_{material}",
+                    "enchanted": f"armor_{material}_enchanted",
                 },
                 "textures": {
                     "default": f"textures/armor_layer/{layer}",
@@ -391,8 +405,8 @@ def write_armor(file, gmdl, layer, i):
     os.makedirs(os.path.dirname(file), exist_ok=True)
     with open(file, "w") as f:
         json.dump(ajson, f, indent=4)
-
     print(f"✅ Generated {file}")
+
 
 
 # ===============================
