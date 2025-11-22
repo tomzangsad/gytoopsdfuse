@@ -534,8 +534,13 @@ for i, armor in enumerate(item_type):
                 f.write(f"{gmdl},{atlas_texture_path}\n")
             print(f"📌 Added icon to atlas: {gmdl} → {atlas_texture_path}")
 
-            pfile = afile.replace(".json", ".player.json")
+            # 🔧 สร้างชื่อไฟล์ตามระบบเก่าของโบ
+            afile_name = os.path.basename(afile[0]) if afile else f"{item}.json"
+            base_name = afile_name.replace(".json", f".{gmdl}.attachable.player.json")
+            
+            pfile = os.path.join(os.path.dirname(afile[0]), base_name)
             write_armor(pfile, gmdl, layer, i)
+
 
         except Exception as e:
             print(f"❌ Error while processing {model}: {e}")
