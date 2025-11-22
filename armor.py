@@ -339,17 +339,35 @@ def remove_duplicates_with_custom_model_data(file_path):
 
         item_types = [    # ← ต้องเป็น item_types (เติม s)
             # Leather
-            "leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots",
+            "minecraft:leather_helmet", 
+            "minecraft:leather_chestplate", 
+            "minecraft:leather_leggings", 
+            "minecraft:leather_boots",
             # Chainmail
-            "chainmail_helmet", "chainmail_chestplate", "chainmail_leggings", "chainmail_boots",
+            "minecraft:chainmail_helmet", 
+            "minecraft:chainmail_chestplate", 
+            "minecraft:chainmail_leggings", 
+            "minecraft:chainmail_boots",
             # Iron
-            "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots",
+            "minecraft:iron_helmet", 
+            "minecraft:iron_chestplate", 
+            "minecraft:iron_leggings", 
+            "minecraft:iron_boots",
             # Gold
-            "golden_helmet", "golden_chestplate", "golden_leggings", "golden_boots",
+            "minecraft:golden_helmet", 
+            "minecraft:golden_chestplate", 
+            "minecraft:golden_leggings", 
+            "minecraft:golden_boots",
             # Diamond
-            "diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots",
+            "minecraft:diamond_helmet", 
+            "minecraft:diamond_chestplate", 
+            "minecraft:diamond_leggings", 
+            "minecraft:diamond_boots",
             # Netherite
-            "netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"
+            "minecraft:netherite_helmet", 
+            "minecraft:netherite_chestplate", 
+            "minecraft:netherite_leggings", 
+            "minecraft:netherite_boots"
         ]
 
 
