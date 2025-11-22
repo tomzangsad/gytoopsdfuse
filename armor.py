@@ -78,6 +78,18 @@ def remove_duplicates_with_custom_model_data(file_path):
             "minecraft:leather_chestplate",
             "minecraft:leather_leggings",
             "minecraft:leather_boots",
+            "minecraft:iron_helmet",
+            "minecraft:iron_chestplate",
+            "minecraft:iron_leggings",
+            "minecraft:iron_boots",
+            "minecraft:diamond_helmet",
+            "minecraft:diamond_chestplate",
+            "minecraft:diamond_leggings",
+            "minecraft:diamond_boots",
+            "minecraft:netherite_helmet",
+            "minecraft:netherite_chestplate",
+            "minecraft:netherite_leggings",
+            "minecraft:netherite_boots"
         ]
 
         for item_type in item_types:
