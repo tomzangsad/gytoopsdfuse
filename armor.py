@@ -455,7 +455,7 @@ if os.path.exists(geyser_mappings_file):
 optifine = Properties()
 item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
 
-PACK_PATH = "staging/pack"
+PACK_PATH = f"pack/assets"
 
 armor_layers = find_armor_layers(PACK_PATH)
 print(f"🧭 พบ armor layer sets: {len(armor_layers)} เซ็ต (fallback ready)\n")
