@@ -41,9 +41,9 @@ jobs:
             ${{ steps.parse.outputs.data }}
             EOF
             jq '{
-              pack_url: (.["java-pack-direct-download-url"].text | gsub("[<>]"; "")),
-              default_pack_url: (.["default-pack-direct-download-url"].text | gsub("[<>]"; "")),
-              merge_pack_url: (.["bedrock-merge-pack-direct-download-url"].text | gsub("[<>]"; "")),
+              pack_url: (.["java-pack-direct-download-url"].text | gsub("[<>\" ]"; "")),
+              default_pack_url: (.["default-pack-direct-download-url"].text | gsub("[<>\" ]"; "")),
+              merge_pack_url: (.["bedrock-merge-pack-direct-download-url"].text | gsub("[<>\" ]"; "")),
               default_assets_version: (.["default-assets-version"].text // "1.19.3"),
               block_material: (.["block-material"].text // "alpha_test"),
               attachable_material: (.["attachable-material"].text // "entity_alphatest_one_sided"),
@@ -57,6 +57,7 @@ jobs:
               shield_conversion: (.["shield-conversion"].text // "true"),
               block_conversion: (.["block-conversion"].text // "true")
             }' raw.json > inputs.json
+
 
 
             for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
