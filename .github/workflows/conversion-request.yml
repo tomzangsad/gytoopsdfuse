@@ -41,9 +41,9 @@ jobs:
             ${{ steps.parse.outputs.data }}
             EOF
             jq '{
-              pack_url: .["java-pack-direct-download-url"].text,
-              default_pack_url: (.["default-pack-direct-download-url"].text // "null"),
-              merge_pack_url: (.["bedrock-merge-pack-direct-download-url"].text // "null"),
+              pack_url: (.["java-pack-direct-download-url"].text | gsub("[<>]"; "")),
+              default_pack_url: (.["default-pack-direct-download-url"].text | gsub("[<>]"; "")),
+              merge_pack_url: (.["bedrock-merge-pack-direct-download-url"].text | gsub("[<>]"; "")),
               default_assets_version: (.["default-assets-version"].text // "1.19.3"),
               block_material: (.["block-material"].text // "alpha_test"),
               attachable_material: (.["attachable-material"].text // "entity_alphatest_one_sided"),
