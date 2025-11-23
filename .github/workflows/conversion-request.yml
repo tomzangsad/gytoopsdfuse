@@ -98,12 +98,11 @@ jobs:
             staging/default_assets.zip
           key: default-assets-${{ needs.get-pack-info.outputs.default_assets_version }}
 
-      # Install Runtimes
       - name: Install NodeJS
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+
 
       - name: Install Python
         uses: actions/setup-python@v5
