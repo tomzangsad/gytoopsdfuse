@@ -34,27 +34,30 @@ jobs:
         id: parse
         uses: zentered/issue-forms-body-parser@v2.2.0
 
-      - name: Organize
+      - name: Organize Inputs
         id: organize
         run: |
-          echo '${{ steps.parse.outputs.data }}' > raw.json
-          jq '{
-            pack_url: .["java-pack-direct-download-url"].text,
-            default_pack_url: (.["default-pack-direct-download-url"].text // "null"),
-            merge_pack_url: (.["bedrock-merge-pack-direct-download-url"].text // "null"),
-            default_assets_version: (.["default-assets-version"].text // "1.19.3"),
-            block_material: (.["block-material"].text // "alpha_test"),
-            attachable_material: (.["attachable-material"].text // "entity_alphatest_one_sided"),
-            archive_scratch: (.["archive-scratch-files"].text // "false"),
-            rename_model_files: (.["rename-model-files"].text // "false"),
-            font_conversion: (.["font-conversion"].text // "true"),
-            armor_conversion: (.["armor-conversion"].text // "true"),
-            meg3_fix: (.["meg3-fix"].text // "false"),
-            sounds_conversion: (.["sounds-conversion"].text // "true"),
-            bow_conversion: (.["bow-conversion"].text // "true"),
-            shield_conversion: (.["shield-conversion"].text // "true"),
-            block_conversion: (.["block-conversion"].text // "true")
-          }' raw.json > inputs.json
+            cat << 'EOF' > raw.json
+            ${{ steps.parse.outputs.data }}
+            EOF
+            jq '{
+              pack_url: .["java-pack-direct-download-url"].text,
+              default_pack_url: (.["default-pack-direct-download-url"].text // "null"),
+              merge_pack_url: (.["bedrock-merge-pack-direct-download-url"].text // "null"),
+              default_assets_version: (.["default-assets-version"].text // "1.19.3"),
+              block_material: (.["block-material"].text // "alpha_test"),
+              attachable_material: (.["attachable-material"].text // "entity_alphatest_one_sided"),
+              archive_scratch: (.["archive-scratch-files"].text // "false"),
+              rename_model_files: (.["rename-model-files"].text // "false"),
+              font_conversion: (.["font-conversion"].text // "true"),
+              armor_conversion: (.["armor-conversion"].text // "true"),
+              meg3_fix: (.["meg3-fix"].text // "false"),
+              sounds_conversion: (.["sounds-conversion"].text // "true"),
+              bow_conversion: (.["bow-conversion"].text // "true"),
+              shield_conversion: (.["shield-conversion"].text // "true"),
+              block_conversion: (.["block-conversion"].text // "true")
+            }' raw.json > inputs.json
+
 
           for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
             echo "$key=$(jq -r .$key inputs.json)" >> $GITHUB_OUTPUT
