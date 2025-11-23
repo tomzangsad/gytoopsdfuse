@@ -59,9 +59,9 @@ jobs:
             }' raw.json > inputs.json
 
 
-          for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
-            echo "$key=$(jq -r .$key inputs.json)" >> $GITHUB_OUTPUT
-          done
+            for key in pack_url default_pack_url merge_pack_url default_assets_version block_material attachable_material archive_scratch rename_model_files font_conversion armor_conversion meg3_fix sounds_conversion bow_conversion shield_conversion block_conversion; do
+              echo "$key=$(jq -r .$key inputs.json)" >> $GITHUB_OUTPUT
+            done
 
 
   convert-pack:
