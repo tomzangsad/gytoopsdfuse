@@ -176,7 +176,7 @@ jobs:
   post-result:
     runs-on: ubuntu-latest
     needs: convert-pack
-    timeout-minutes: 2
+    timeout-minutes: 20
     permissions:
       issues: write
 
@@ -208,6 +208,8 @@ jobs:
 
 
       - name: Send Pack to Controller
+        id: upload
+        continue-on-error: true  # ไม่ให้ fail ทันที
         run: |
           curl --max-time 1800 --retry 5 --retry-delay 10 \
             -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
