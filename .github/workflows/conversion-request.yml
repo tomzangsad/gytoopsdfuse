@@ -209,7 +209,8 @@ jobs:
 
       - name: Send Pack to Controller
         run: |
-          curl --max-time 600 -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
+          curl --max-time 1800 --retry 5 --retry-delay 10 \
+            -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
             -F "pack=@packdata/PackFiles.zip"
 
 
