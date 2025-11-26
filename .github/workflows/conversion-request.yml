@@ -120,37 +120,58 @@ jobs:
           yarn global add spritesheet-js
 
       - name: Convert Pack
-        env:
-          PACK_URL: ${{ needs.get-pack-info.outputs.pack_url }}
-          DEFAULT_PACK_URL: ${{ needs.get-pack-info.outputs.default_pack_url }}
-          MERGE_PACK_URL: ${{ needs.get-pack-info.outputs.merge_pack_url }}
-          DEFAULT_ASSETS_VERSION: ${{ needs.get-pack-info.outputs.default_assets_version }}
-          BLOCK_MATERIAL: ${{ needs.get-pack-info.outputs.block_material }}
-          ATTACHABLE_MATERIAL: ${{ needs.get-pack-info.outputs.attachable_material }}
-          ARCHIVE_SCRATCH: ${{ needs.get-pack-info.outputs.archive_scratch }}
-          RENAME_MODEL_FILES: ${{ needs.get-pack-info.outputs.rename_model_files }}
-          FONT_CONVERSION: ${{ needs.get-pack-info.outputs.font_conversion }}
-          ARMOR_CONVERSION: ${{ needs.get-pack-info.outputs.armor_conversion }}
-          MEG3_FIX: ${{ needs.get-pack-info.outputs.meg3_fix }}
-          SOUNDS_CONVERSION: ${{ needs.get-pack-info.outputs.sounds_conversion }}
-          BOW_CONVERSION: ${{ needs.get-pack-info.outputs.bow_conversion }}
-          SHIELD_CONVERSION: ${{ needs.get-pack-info.outputs.shield_conversion }}
-          BLOCK_CONVERSION: ${{ needs.get-pack-info.outputs.block_conversion }}
         run: |
           mkdir -p staging
           cp converter.sh staging/
           cd staging
           chmod +x converter.sh
-
+      
           echo "⬇️ Downloading Java pack…"
-          curl -#L -o input_pack.zip "$PACK_URL"
-
+          curl -fSL -o input_pack.zip "$PACK_URL"
+      
+          if [ ! -s input_pack.zip ]; then
+            echo "❌ ERROR: Java pack file is empty or corrupted!"
+            exit 1
+          fi
+      
+          echo "📦 Extracting ZIP…"
+          unzip -qq input_pack.zip -d extracted || {
+            echo "❌ ERROR: Cannot extract ZIP"
+            exit 1
+          }
+      
+          # 🟦🟦🟦🟦🟦 CHECK FILES INSIDE ZIP HERE 🟦🟦🟦🟦🟦
+          echo "🔍 Checking for protected/corrupted textures…"
+      
+          BAD_COUNT=0
+          find extracted -type f \( -iname "*.png" -o -iname "*.jpg" \) | while read f; do
+            if ! identify -quiet "$f" >/dev/null 2>&1; then
+              echo "❌ Bad texture detected: $f"
+              BAD_COUNT=$((BAD_COUNT+1))
+            fi
+          done
+      
+          if [ "$BAD_COUNT" -gt 0 ]; then
+            echo "❌ ERROR: Found $BAD_COUNT corrupted/protected texture files!"
+            exit 1
+          fi
+          # 🟦 END OF INSERTED CHECK 🟦
+      
           MERGE_FILE="null"
           if [ "$MERGE_PACK_URL" != "null" ]; then
-            curl -#L -o merge_pack.zip "$MERGE_PACK_URL"
+            echo "⬇️ Downloading merge pack…"
+            curl -fSL -o merge_pack.zip "$MERGE_PACK_URL"
+      
+            if [ ! -s merge_pack.zip ]; then
+              echo "❌ ERROR: Merge pack file is empty or corrupted!"
+              exit 1
+            fi
+      
             MERGE_FILE="merge_pack.zip"
           fi
-
+      
+          echo "🚀 All good! Starting conversion…"
+      
           ./converter.sh input_pack.zip \
             -w "false" \
             -m ${MERGE_FILE} \
@@ -161,6 +182,7 @@ jobs:
             -r ${RENAME_MODEL_FILES} \
             -s ${ARCHIVE_SCRATCH} \
             -u "true"
+
 
       # Upload
       - uses: actions/upload-artifact@v4
