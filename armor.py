@@ -359,7 +359,14 @@ def process_equipment_armor():
             leggings_texture = None
             
             # --- CASE 1: New IA format (list inside keys) ---
+            layers = model_data.get("layers", {})
+
+            humanoid_texture = None
+            leggings_texture = None
+            
             if isinstance(layers, dict):
+            
+                # humanoid
                 if isinstance(layers.get("humanoid"), list):
                     for entry in layers["humanoid"]:
                         if isinstance(entry, dict) and entry.get("texture"):
@@ -368,6 +375,7 @@ def process_equipment_armor():
                 else:
                     humanoid_texture = layers.get("humanoid", {}).get("texture")
             
+                # leggings
                 if isinstance(layers.get("humanoid_leggings"), list):
                     for entry in layers["humanoid_leggings"]:
                         if isinstance(entry, dict) and entry.get("texture"):
@@ -376,15 +384,15 @@ def process_equipment_armor():
                 else:
                     leggings_texture = layers.get("humanoid_leggings", {}).get("texture")
             
-            # --- CASE 2: Worst case - the entire layers is list ---
             elif isinstance(layers, list):
                 for entry in layers:
                     if not isinstance(entry, dict):
                         continue
-                    if entry.get("type") == "humanoid" or "humanoid" in str(entry):
+                    if "humanoid" in str(entry):
                         humanoid_texture = entry.get("texture")
-                    if entry.get("type") == "humanoid_leggings" or "leggings" in str(entry):
+                    if "leggings" in str(entry):
                         leggings_texture = entry.get("texture")
+
 
             
             if not humanoid_texture:
@@ -395,8 +403,21 @@ def process_equipment_armor():
             textures_base = namespace_path  # เช่น pack/ia_overlay_1_21_2_plus/assets/3b_soul_skull
             
             # Humanoid texture
-            src_humanoid = os.path.join(textures_base, "textures", humanoid_texture.replace(":", "/") + ".png")
-            dest_humanoid = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_humanoid.png"
+            # Extract filename from namespace:texture
+            tex_name = humanoid_texture.split(":")[1]
+            
+            # IA Overlay 1.21.2+ path
+            src_humanoid = os.path.join(
+                textures_base,
+                "textures", "entity", "equipment", "humanoid",
+                tex_name + ".png"
+            )
+
+            dest_humanoid = os.path.join(
+                "staging/target/rp/textures/equipment",
+                f"{namespace}_{armor_name}_humanoid.png"
+            )
+
             
             os.makedirs(os.path.dirname(dest_humanoid), exist_ok=True)
             
@@ -409,16 +430,15 @@ def process_equipment_armor():
             
             # Leggings texture
             if leggings_texture:
-                src_leggings = os.path.join(textures_base, "textures", leggings_texture.replace(":", "/") + ".png")
-                dest_leggings = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_leggings.png"
-                
-                if os.path.exists(src_leggings):
-                    shutil.copy(src_leggings, dest_leggings)
-                    print(f"🧩 Copied leggings texture → {dest_leggings}")
-                else:
-                    dest_leggings = dest_humanoid
+                tex_name = leggings_texture.split(":")[1]
+                src_leggings = os.path.join(
+                    textures_base,
+                    "textures", "entity", "equipment", "humanoid_leggings",
+                    tex_name + ".png"
+                )
             else:
-                dest_leggings = dest_humanoid
+                src_leggings = src_humanoid
+
             
             # ประมวลผลแต่ละชิ้นส่วนเกราะ
             armor_types = ["netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"]
@@ -495,8 +515,9 @@ def process_equipment_armor():
                             # สร้าง attachable
                             attachable_path = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.player.json"
                             
-                            humanoid_rel = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_humanoid"
-                            leggings_rel = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_leggings"
+                            humanoid_rel = f"textures/equipment/{namespace}_{armor_name}_humanoid"
+                            leggings_rel = f"textures/equipment/{namespace}_{armor_name}_leggings"
+
                             
                             write_equipment_armor(
                                 attachable_path,
