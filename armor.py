@@ -354,22 +354,38 @@ def process_equipment_armor():
             
             # หา texture paths
             layers = model_data.get("layers", {})
+
+            humanoid_texture = None
+            leggings_texture = None
             
-            # เช็คว่า layers เป็น dict หรือ list
-            if isinstance(layers, list):
-                # ถ้าเป็น list ให้หา humanoid จากแต่ละ layer
-                humanoid_texture = None
-                leggings_texture = None
-                for layer in layers:
-                    if isinstance(layer, dict):
-                        if layer.get("type") == "humanoid" or "humanoid" in str(layer):
-                            humanoid_texture = layer.get("texture")
-                        if layer.get("type") == "humanoid_leggings" or "leggings" in str(layer):
-                            leggings_texture = layer.get("texture")
-            else:
-                # ถ้าเป็น dict (แบบเดิม)
-                humanoid_texture = layers.get("humanoid", {}).get("texture")
-                leggings_texture = layers.get("humanoid_leggings", {}).get("texture")
+            # --- CASE 1: New IA format (list inside keys) ---
+            if isinstance(layers, dict):
+                if isinstance(layers.get("humanoid"), list):
+                    for entry in layers["humanoid"]:
+                        if isinstance(entry, dict) and entry.get("texture"):
+                            humanoid_texture = entry["texture"]
+                            break
+                else:
+                    humanoid_texture = layers.get("humanoid", {}).get("texture")
+            
+                if isinstance(layers.get("humanoid_leggings"), list):
+                    for entry in layers["humanoid_leggings"]:
+                        if isinstance(entry, dict) and entry.get("texture"):
+                            leggings_texture = entry["texture"]
+                            break
+                else:
+                    leggings_texture = layers.get("humanoid_leggings", {}).get("texture")
+            
+            # --- CASE 2: Worst case - the entire layers is list ---
+            elif isinstance(layers, list):
+                for entry in layers:
+                    if not isinstance(entry, dict):
+                        continue
+                    if entry.get("type") == "humanoid" or "humanoid" in str(entry):
+                        humanoid_texture = entry.get("texture")
+                    if entry.get("type") == "humanoid_leggings" or "leggings" in str(entry):
+                        leggings_texture = entry.get("texture")
+
             
             if not humanoid_texture:
                 print(f"⚠️ No humanoid texture found")
