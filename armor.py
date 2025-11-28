@@ -314,6 +314,28 @@ def write_equipment_base(file, gmdl, texture_path, i):
         json.dump(ajson, f, indent=4)
 
     print(f"🟦 Generated base attachable: {file}")
+def find_existing_gmdl(namespace, armor_name, armor_piece):
+    """
+    ค้นหาไฟล์ attachable เดิมที่ IA auto-gen ไว้ในโฟลเดอร์ namespace ทั้งหมด
+    และดึง gmdl จริงออกมา เช่น elder_boots.gmdl_0e76107
+    """
+    base_path = f"staging/target/rp/attachables/{namespace}"
+
+    # ค้นทุกไฟล์ json ใน namespace และโฟลเดอร์ย่อย เช่น ia_auto_gen/*
+    for file in glob.glob(base_path + "/**/*.json", recursive=True):
+        if ".player" in file:
+            continue
+
+        # มักอยู่ในรูป items เช่น:
+        # japan_armor_basickimono_helmet.gmdl_xxxxx.json
+        filename = os.path.basename(file)
+
+        if armor_name in filename and armor_piece in filename:
+            with open(file, "r", encoding="utf-8") as f:
+                data = json.load(f)["minecraft:attachable"]
+                return data["description"]["identifier"].split(":")[1]
+
+    return None
 
 # ===============================
 # 🛡️ ประมวลผล Netherite/Equipment Armor
@@ -541,45 +563,39 @@ def process_equipment_armor():
                             
                             # สร้าง gmdl ID
                             armor_piece = armor_type.split("_")[1]  # helmet, chestplate, etc.
+                            # หา gmdl จากไฟล์ attachable เดิม
                             gmdl = find_existing_gmdl(namespace, armor_name, armor_piece)
                             if not gmdl:
                                 print(f"⚠️ Cannot find existing gmdl for {armor_name} {armor_piece}")
                                 continue
-
                             
                             # อัปเดต item_texture.json
                             atlas_path = f"textures/{icon_ns}/{icon_path}.png"
                             update_item_texture_json(gmdl, atlas_path)
                             
-                            # เพิ่มใน icons.csv
+                            # icons.csv
                             icons_csv = "scratch_files/icons.csv"
                             os.makedirs("scratch_files", exist_ok=True)
                             with open(icons_csv, "a", encoding="utf-8") as f:
                                 f.write(f"{gmdl},{atlas_path}\n")
                             print(f"📌 Added to atlas: {gmdl}")
                             
-                            # เลือก texture ให้ถูกต้องตามชิ้น
+                            # เลือก texture humanoid/leggings
                             if armor_piece == "leggings":
                                 final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings"
                             else:
                                 final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid"
-                        
-                            # สร้าง attachables/<namespace> ถ้ายังไม่มี
-                            os.makedirs(f"staging/target/rp/attachables/{namespace}", exist_ok=True)
                             
-                            attachable_path = f"staging/target/rp/attachables/{namespace}/{gmdl}.player.json"
-                            base_attachable = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.json"
+                            # path base และ player
+                            base_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.json"
+                            player_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.player.json"
                             
-                            # base attachable
+                            # generate base attachable
                             write_equipment_base(base_attachable, gmdl, final_texture, i)
                             
-                            # player attachable
-                            write_equipment_armor(
-                                attachable_path,
-                                gmdl,
-                                final_texture,
-                                i
-                            )
+                            # generate player attachable
+                            write_equipment_armor(player_attachable, gmdl, final_texture, i)
+
 
                                                     
                         else:
