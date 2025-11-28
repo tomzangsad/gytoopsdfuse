@@ -1046,17 +1046,7 @@ do
     local model_name="${6}"
     local path_hash="${7}"
     local geometry="${8}"
-# ตรวจสอบว่าเป็น wearable item หรือไม่
-    local is_wearable="false"
-    if [[ "${file}" == *"/armor/"* ]] || \
-       [[ "${file}" == *"/elytra"* ]] || \
-       [[ "${model_name}" == *"wing"* ]] || \
-       [[ "${model_name}" == *"helmet"* ]] || \
-       [[ "${model_name}" == *"chestplate"* ]] || \
-       [[ "${model_name}" == *"leggings"* ]] || \
-       [[ "${model_name}" == *"boots"* ]]; then
-        is_wearable="true"
-    fi
+
     # find which texture atlas we will be using if not generated
     if [[ ${generated} = "false" ]]
     then
@@ -1067,7 +1057,7 @@ do
 
     status_message process "Starting conversion of model with GeyserID ${gid}"
     mkdir -p ./target/rp/models/blocks/${namespace}/${model_path}
-    jq --slurpfile atlas scratch_files/spritesheet/${atlas_index}.json --arg generated "${generated}" --arg binding "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)" --arg geometry "${geometry}" --arg is_wearable "${is_wearable}" -c '
+    jq --slurpfile atlas scratch_files/spritesheet/${atlas_index}.json --arg generated "${generated}" --arg binding "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)" --arg geometry "${geometry}" -c '
     .textures as $texture_list |
     def namespace: if contains(":") then sub("\\:(.+)"; "") else "minecraft" end;
     def tobool: if .=="true" then true elif .=="false" then false else null end;
@@ -1077,13 +1067,7 @@ do
     def roundit: (.*10000 | round) / 10000;
     def element_array:
         if .elements then (.elements | map({
-        "origin": (
-		    if ($is_wearable == "true") then 
-		        [((8 - .to[0]) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)]
-		    else 
-		        [((-.to[0] + 8) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)]
-		    end
-		),
+        "origin": [((-.to[0] + 8) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)],
         "size": [((.to[0] - .from[0]) | roundit), ((.to[1] - .from[1]) | roundit), ((.to[2] - .from[2]) | roundit)],
         "rotation": (if (.rotation.axis) == "x" then [(.rotation.angle | tonumber * -1), 0, 0] elif (.rotation.axis) == "y" then [0, (.rotation.angle | tonumber * -1), 0] elif (.rotation.axis) == "z" then [0, 0, (.rotation.angle | tonumber)] else null end),
         "pivot": (if .rotation.origin then [((- .rotation.origin[0] + 8) | roundit), (.rotation.origin[1] | roundit), ((.rotation.origin[2] - 8) | roundit)] else null end),
@@ -1114,15 +1098,11 @@ do
           })
       }) | walk( if type == "object" then with_entries(select(.value != null)) else . end)) else {} end
       ;
-		def pivot_groups:
-		if .elements then ((element_array) as $element_array |
-		[[.elements[].rotation] | unique | .[] | select (.!=null)]
-		| map((
-		(if ($is_wearable == "true") then 
-			[((8 - .origin[0]) | roundit), (.origin[1] | roundit), ((.origin[2] - 8) | roundit)]
-		else 
-			[((- .origin[0] + 8) | roundit), (.origin[1] | roundit), ((.origin[2] - 8) | roundit)]
-		end) as $i_piv |
+      def pivot_groups:
+      if .elements then ((element_array) as $element_array |
+      [[.elements[].rotation] | unique | .[] | select (.!=null)]
+      | map((
+      [((- .origin[0] + 8) | roundit), (.origin[1] | roundit), ((.origin[2] - 8) | roundit)] as $i_piv |
       (if (.axis) == "x" then [(.angle | tonumber * -1), 0, 0] elif (.axis) == "y" then [0, (.angle | tonumber * -1), 0] else [0, 0, (.angle | tonumber)] end) as $i_rot |
       {
         "parent": "geyser_custom_z",
@@ -1177,12 +1157,12 @@ do
       {
         "format_version": "1.8.0",
         "animations": {
-		("animation.geyser_custom." + ($geometry) + ".thirdperson_main_hand"): {
-		    "loop": true,
-		    "bones": {
-		      "geyser_custom_x": (if .display.thirdperson_righthand then {
-		        "rotation": (if .display.thirdperson_righthand.rotation then [(- .display.thirdperson_righthand.rotation[0]), 0, 0] else [0, 0, 0] end),
-		        "position": (if .display.thirdperson_righthand.translation then [(.display.thirdperson_righthand.translation[0]), (.display.thirdperson_righthand.translation[1]), (.display.thirdperson_righthand.translation[2])] else [0, 0, 0] end),
+          ("animation.geyser_custom." + ($geometry) + ".thirdperson_main_hand"): {
+            "loop": true,
+            "bones": {
+              "geyser_custom_x": (if .display.thirdperson_righthand then {
+                "rotation": (if .display.thirdperson_righthand.rotation then [(- .display.thirdperson_righthand.rotation[0]), 0, 0] else null end),
+                "position": (if .display.thirdperson_righthand.translation then [(- .display.thirdperson_righthand.translation[0]), (.display.thirdperson_righthand.translation[1]), (.display.thirdperson_righthand.translation[2])] else null end),
                 "scale": (if .display.thirdperson_righthand.scale then [(.display.thirdperson_righthand.scale[0]), (.display.thirdperson_righthand.scale[1]), (.display.thirdperson_righthand.scale[2])] else null end)
               } else null end),
               "geyser_custom_y": (if .display.thirdperson_righthand.rotation then {
@@ -1217,14 +1197,14 @@ do
               }
             }
           },
-		("animation.geyser_custom." + ($geometry) + ".head"): {
-		    "loop": true,
-		    "bones": {
-		      "geyser_custom_x": {
-		        "rotation": (if .display.head.rotation then [(- .display.head.rotation[0]), 0, 0] else [0, 0, 0] end),
-		        "position": (if .display.head.translation then [(.display.head.translation[0] * 0.625), (.display.head.translation[1] * 0.625), (.display.head.translation[2] * 0.625)] else [0, 0, 0] end),
-		        "scale": (if .display.head.scale then (.display.head.scale | map(. * 0.625)) else 0.625 end)
-		      },
+          ("animation.geyser_custom." + ($geometry) + ".head"): {
+            "loop": true,
+            "bones": {
+              "geyser_custom_x": {
+                "rotation": (if .display.head.rotation then [(- .display.head.rotation[0]), 0, 0] else null end),
+                "position": (if .display.head.translation then [(- .display.head.translation[0] * 0.625), (.display.head.translation[1] * 0.625), (.display.head.translation[2] * 0.625)] else null end),
+                "scale": (if .display.head.scale then (.display.head.scale | map(. * 0.625)) else 0.625 end)
+              },
               "geyser_custom_y": (if .display.head.rotation then {
                 "rotation": [0, (- .display.head.rotation[1]), 0]
               } else null end),
@@ -1232,8 +1212,7 @@ do
                 "rotation": [0, 0, (.display.head.rotation[2])]
               } else null end),
               "geyser_custom": {
-                "position": [0, 19.9, 0],
-       			"rotation": [0, 0, 0]
+                "position": [0, 19.9, 0]
               }
             }
           },
