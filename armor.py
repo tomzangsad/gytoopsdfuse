@@ -136,13 +136,9 @@ def write_armor(file, gmdl, layer, i):
     print(f"✅ Generated {file}")
 
 
-def write_equipment_armor(file, gmdl, humanoid_texture, leggings_texture, i):
-    """สร้าง attachable สำหรับ equipment model (Netherite, etc.)"""
+def write_equipment_armor(file, gmdl, texture_path, i):
     type_map = ["helmet", "chestplate", "leggings", "boots"]
     armor_type = type_map[i]
-    
-    # เลือก texture ตามชิ้นส่วน
-    texture_path = leggings_texture if armor_type == "leggings" else humanoid_texture
 
     ajson = {
         "format_version": "1.10.0",
@@ -152,17 +148,17 @@ def write_equipment_armor(file, gmdl, humanoid_texture, leggings_texture, i):
                 "item": {f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"},
                 "materials": {
                     "default": "armor",
-                    "enchanted": "armor_enchanted",
+                    "enchanted": "armor_enchanted"
                 },
                 "textures": {
                     "default": texture_path,
-                    "enchanted": "textures/misc/enchanted_item_glint",
+                    "enchanted": "textures/misc/enchanted_item_glint"
                 },
                 "geometry": {"default": f"geometry.player.armor.{armor_type}"},
                 "scripts": {"parent_setup": "variable.helmet_layer_visible = 0.0;"},
-                "render_controllers": ["controller.render.armor"],
-            },
-        },
+                "render_controllers": ["controller.render.armor"]
+            }
+        }
     }
 
     os.makedirs(os.path.dirname(file), exist_ok=True)
@@ -170,6 +166,7 @@ def write_equipment_armor(file, gmdl, humanoid_texture, leggings_texture, i):
         json.dump(ajson, f, indent=4)
 
     print(f"✅ Generated equipment attachable: {file}")
+
 
 
 # ===============================
@@ -429,6 +426,7 @@ def process_equipment_armor():
                 continue
             
             # Leggings texture
+            # Leggings texture
             if leggings_texture:
                 tex_name = leggings_texture.split(":")[1]
                 src_leggings = os.path.join(
@@ -438,6 +436,22 @@ def process_equipment_armor():
                 )
             else:
                 src_leggings = src_humanoid
+            
+            dest_leggings = os.path.join(
+                "staging/target/rp/textures/equipment",
+                f"{namespace}_{armor_name}_leggings.png"
+            )
+            
+            # copy leggings texture
+            os.makedirs(os.path.dirname(dest_leggings), exist_ok=True)
+            
+            if os.path.exists(src_leggings):
+                shutil.copy(src_leggings, dest_leggings)
+                print(f"🧩 Copied leggings texture → {dest_leggings}")
+            else:
+                print(f"⚠ leggings texture not found: {src_leggings}")
+                dest_leggings = dest_humanoid
+
 
             
             # ประมวลผลแต่ละชิ้นส่วนเกราะ
@@ -512,24 +526,27 @@ def process_equipment_armor():
                                 f.write(f"{gmdl},{atlas_path}\n")
                             print(f"📌 Added to atlas: {gmdl}")
                             
-                            # สร้าง attachable
-                            attachable_path = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.player.json"
+                            # เลือก texture ให้ถูกต้องตามชิ้น
+                            if armor_piece == "leggings":
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings"
+                            else:
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid"
+                        
+                            # สร้าง attachables/<namespace> ถ้ายังไม่มี
+                            os.makedirs(f"staging/target/rp/attachables/{namespace}", exist_ok=True)
                             
-                            humanoid_rel = f"textures/equipment/{namespace}_{armor_name}_humanoid"
-                            leggings_rel = f"textures/equipment/{namespace}_{armor_name}_leggings"
-
+                            attachable_path = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.player.json"
                             
                             write_equipment_armor(
                                 attachable_path,
                                 gmdl,
-                                humanoid_rel,
-                                leggings_rel,
+                                final_texture,
                                 i
                             )
+                        
                         else:
                             print(f"⚠️ Icon not found: {src_icon}")
-                        
-                        break
+
 
 
 # ===============================
