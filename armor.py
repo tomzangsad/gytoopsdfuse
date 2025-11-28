@@ -606,10 +606,12 @@ def process_equipment_armor():
 # ===============================
 def auto_generate_player_attachables():
     print("\n" + "="*60)
-    print("🛠️ Auto-generating .player.json for equipment armor")
+    print("🛠️ Auto-generating .player.json for ARMOR ONLY")
     print("="*60)
 
     base_path = "staging/target/rp/attachables"
+
+    ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
     # เดินทุก namespace + subfolder
     for namespace in os.listdir(base_path):
@@ -617,12 +619,19 @@ def auto_generate_player_attachables():
         if not os.path.isdir(ns_path):
             continue
 
-        # ค้นทุกไฟล์ที่ลงท้ายด้วย .attachable.json
+        # ค้นหาเฉพาะไฟล์ attachable.json ที่เป็นเกราะเท่านั้น
         attachable_files = glob.glob(ns_path + "/**/*.attachable.json", recursive=True)
 
         for file in attachable_files:
+            lower_name = file.lower()
+
+            # ❌ ถ้าไม่ใช่ของเกราะ → ข้าม
+            if not any(key in lower_name for key in ARMOR_KEYWORDS):
+                continue
+
             player_file = file.replace(".attachable.json", ".attachable.player.json")
 
+            # ถ้ามีอยู่แล้วก็ข้าม
             if os.path.exists(player_file):
                 print(f"⏩ Skip (already exists): {player_file}")
                 continue
@@ -632,22 +641,21 @@ def auto_generate_player_attachables():
                 data = json.load(f)["minecraft:attachable"]
 
             gmdl = data["description"]["identifier"].split(":")[1]
-            filename = os.path.basename(file).lower()
 
-            # หา armor part
-            if "leggings" in filename:
+            # หา armor type จากชื่อไฟล์
+            if "leggings" in lower_name:
                 armor_type = "leggings"
-            elif "boots" in filename:
+            elif "boots" in lower_name:
                 armor_type = "boots"
-            elif "chest" in filename or "chestplate" in filename:
+            elif "chest" in lower_name:
                 armor_type = "chestplate"
             else:
                 armor_type = "helmet"
 
-            # หา texture base name
-            # ตัวอย่างไฟล์: aetherburnboots.gmdl_xxxxx.attachable.json
-            base_name = gmdl.split("gmdl")[0].rstrip("_")
+            # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
+            base_name = gmdl.split(".")[0]
 
+            # เลือก texture ที่ต้องใช้
             if armor_type == "leggings":
                 final_texture = f"textures/equipment/{namespace}_{base_name}_leggings"
             else:
@@ -679,7 +687,7 @@ def auto_generate_player_attachables():
             with open(player_file, "w", encoding="utf-8") as f:
                 json.dump(player_json, f, indent=4)
 
-            print(f"🧩 Generated: {player_file}")
+            print(f"🧩 Generated ARMOR ONLY: {player_file}")
 
 
 # ===============================
