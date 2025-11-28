@@ -460,10 +460,23 @@ def process_equipment_armor():
                 tex_name + ".png"
             )
 
+            # หาไฟล์ png จริงในโฟลเดอร์ overlay
+            real_tex = glob.glob(os.path.join(
+                textures_base,
+                "textures", "entity", "equipment", "humanoid",
+                "*.png"
+            ))
+            
+            if real_tex:
+                real_name = os.path.basename(real_tex[0])  # ใช้ชื่อไฟล์จริง
+            else:
+                real_name = f"{namespace}_{armor_name}_humanoid.png"  # fallback เดิม
+            
             dest_humanoid = os.path.join(
                 "staging/target/rp/textures/equipment",
-                f"{namespace}_{armor_name}_humanoid.png"
+                real_name
             )
+
 
             
             os.makedirs(os.path.dirname(dest_humanoid), exist_ok=True)
@@ -487,10 +500,22 @@ def process_equipment_armor():
             else:
                 src_leggings = src_humanoid
             
+            real_leggings = glob.glob(os.path.join(
+                textures_base,
+                "textures", "entity", "equipment", "humanoid_leggings",
+                "*.png"
+            ))
+            
+            if real_leggings:
+                leggings_name = os.path.basename(real_leggings[0])
+            else:
+                leggings_name = real_name  # fallback
+            
             dest_leggings = os.path.join(
                 "staging/target/rp/textures/equipment",
-                f"{namespace}_{armor_name}_leggings.png"
+                leggings_name
             )
+
             
             # copy leggings texture
             os.makedirs(os.path.dirname(dest_leggings), exist_ok=True)
@@ -581,10 +606,14 @@ def process_equipment_armor():
                             print(f"📌 Added to atlas: {gmdl}")
                             
                             # เลือก texture humanoid/leggings
+                            real_tex_name = real_name.replace(".png", "")
+                            real_leggings_name = leggings_name.replace(".png", "")
+                            
                             if armor_piece == "leggings":
-                                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings"
+                                final_texture = f"textures/equipment/{real_leggings_name}"
                             else:
-                                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid"
+                                final_texture = f"textures/equipment/{real_tex_name}"
+
                             
                             # path base และ player
                             base_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.json"
@@ -656,9 +685,11 @@ def auto_generate_player_attachables():
             armor_name_clean = gmdl.split(".gmdl")[0]
             
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings"
+                final_texture = f"textures/equipment/{armor_name_clean}"
+
             else:
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid"
+                final_texture = f"textures/equipment/{armor_name_clean}"
+
 
 
             # JSON player attachable
