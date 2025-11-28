@@ -286,6 +286,34 @@ def process_leather_armor():
                 print(f"❌ Error while processing {model}: {e}")
                 continue
 
+def write_equipment_base(file, gmdl, texture_path, i):
+    type_map = ["helmet", "chestplate", "leggings", "boots"]
+    armor_type = type_map[i]
+
+    ajson = {
+        "format_version": "1.10.0",
+        "minecraft:attachable": {
+            "description": {
+                "identifier": f"geyser_custom:{gmdl}",
+                "materials": {
+                    "default": "armor",
+                    "enchanted": "armor_enchanted"
+                },
+                "textures": {
+                    "default": texture_path,
+                    "enchanted": "textures/misc/enchanted_item_glint"
+                },
+                "geometry": { "default": f"geometry.player.armor.{armor_type}" },
+                "render_controllers": [ "controller.render.armor" ]
+            }
+        }
+    }
+
+    os.makedirs(os.path.dirname(file), exist_ok=True)
+    with open(file, "w") as f:
+        json.dump(ajson, f, indent=4)
+
+    print(f"🟦 Generated base attachable: {file}")
 
 # ===============================
 # 🛡️ ประมวลผล Netherite/Equipment Armor
@@ -513,7 +541,11 @@ def process_equipment_armor():
                             
                             # สร้าง gmdl ID
                             armor_piece = armor_type.split("_")[1]  # helmet, chestplate, etc.
-                            gmdl = f"{namespace}_{armor_name}_{armor_piece}"
+                            gmdl = find_existing_gmdl(namespace, armor_name, armor_piece)
+                            if not gmdl:
+                                print(f"⚠️ Cannot find existing gmdl for {armor_name} {armor_piece}")
+                                continue
+
                             
                             # อัปเดต item_texture.json
                             atlas_path = f"textures/{icon_ns}/{icon_path}.png"
@@ -535,15 +567,21 @@ def process_equipment_armor():
                             # สร้าง attachables/<namespace> ถ้ายังไม่มี
                             os.makedirs(f"staging/target/rp/attachables/{namespace}", exist_ok=True)
                             
-                            attachable_path = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.player.json"
+                            attachable_path = f"staging/target/rp/attachables/{namespace}/{gmdl}.player.json"
+                            base_attachable = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.json"
                             
+                            # base attachable
+                            write_equipment_base(base_attachable, gmdl, final_texture, i)
+                            
+                            # player attachable
                             write_equipment_armor(
                                 attachable_path,
                                 gmdl,
                                 final_texture,
                                 i
                             )
-                        
+
+                                                    
                         else:
                             print(f"⚠️ Icon not found: {src_icon}")
 
