@@ -653,13 +653,13 @@ def auto_generate_player_attachables():
                 armor_type = "helmet"
 
             # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
-            base_name = gmdl.split(".")[0]
-
-            # เลือก texture ที่ต้องใช้
+            armor_name_clean = gmdl.split(".gmdl")[0]
+            
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{base_name}_leggings"
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings"
             else:
-                final_texture = f"textures/equipment/{namespace}_{base_name}_humanoid"
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid"
+
 
             # JSON player attachable
             player_json = {
