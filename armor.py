@@ -299,7 +299,7 @@ def process_equipment_armor():
     print("⚔️ Processing Equipment Armor (Netherite, etc.)")
     print("="*60)
     
-    overlay_path = "ia_overlay_1_21_2_plus/assets"
+    overlay_path = "pack/ia_overlay_1_21_2_plus/assets"
     
     if not os.path.exists(overlay_path):
         print(f"⚠️ Overlay path not found: {overlay_path}")
