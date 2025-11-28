@@ -308,7 +308,24 @@ def process_equipment_armor():
     print(f"📁 Found overlay path: {overlay_path}")
     
     # วนหา namespace folders
+    namespaces_found = []
     for namespace in os.listdir(overlay_path):
+        namespace_path = os.path.join(overlay_path, namespace)
+        if not os.path.isdir(namespace_path):
+            continue
+        
+        models_path = os.path.join(namespace_path, "models", "equipment")
+        if os.path.exists(models_path):
+            namespaces_found.append(namespace)
+    
+    print(f"🔍 Found {len(namespaces_found)} namespaces with equipment models: {namespaces_found}")
+    
+    if not namespaces_found:
+        print("⚠️ No equipment models found!")
+        return
+    
+    # วนหา namespace folders
+    for namespace in namespaces_found:
         namespace_path = os.path.join(overlay_path, namespace)
         if not os.path.isdir(namespace_path):
             continue
@@ -329,14 +346,30 @@ def process_equipment_armor():
             try:
                 with open(armor_file, "r", encoding="utf-8") as f:
                     model_data = json.load(f)
+                    
+                print(f"📄 Model structure: {json.dumps(model_data, indent=2)[:500]}...")  # แสดง 500 ตัวอักษรแรก
             except Exception as e:
                 print(f"❌ Failed to read model file: {e}")
                 continue
             
             # หา texture paths
             layers = model_data.get("layers", {})
-            humanoid_texture = layers.get("humanoid", {}).get("texture")
-            leggings_texture = layers.get("humanoid_leggings", {}).get("texture")
+            
+            # เช็คว่า layers เป็น dict หรือ list
+            if isinstance(layers, list):
+                # ถ้าเป็น list ให้หา humanoid จากแต่ละ layer
+                humanoid_texture = None
+                leggings_texture = None
+                for layer in layers:
+                    if isinstance(layer, dict):
+                        if layer.get("type") == "humanoid" or "humanoid" in str(layer):
+                            humanoid_texture = layer.get("texture")
+                        if layer.get("type") == "humanoid_leggings" or "leggings" in str(layer):
+                            leggings_texture = layer.get("texture")
+            else:
+                # ถ้าเป็น dict (แบบเดิม)
+                humanoid_texture = layers.get("humanoid", {}).get("texture")
+                leggings_texture = layers.get("humanoid_leggings", {}).get("texture")
             
             if not humanoid_texture:
                 print(f"⚠️ No humanoid texture found")
