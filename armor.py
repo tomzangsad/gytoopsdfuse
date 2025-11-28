@@ -37,7 +37,7 @@ def process_json_file(file_path):
         print(f"❌ File not found: {file_path}")
         return []
 
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     overrides = data.get("overrides", [])
@@ -305,6 +305,8 @@ def process_equipment_armor():
         print(f"⚠️ Overlay path not found: {overlay_path}")
         return
     
+    print(f"📁 Found overlay path: {overlay_path}")
+    
     # วนหา namespace folders
     for namespace in os.listdir(overlay_path):
         namespace_path = os.path.join(overlay_path, namespace)
@@ -340,11 +342,11 @@ def process_equipment_armor():
                 print(f"⚠️ No humanoid texture found")
                 continue
             
-            # Copy textures
-            textures_path = os.path.join(namespace_path, "textures")
+            # Copy textures (ใช้ path จาก namespace_path ที่มี pack/ อยู่แล้ว)
+            textures_base = namespace_path  # เช่น pack/ia_overlay_1_21_2_plus/assets/3b_soul_skull
             
             # Humanoid texture
-            src_humanoid = os.path.join(textures_path, humanoid_texture.replace(":", "/") + ".png")
+            src_humanoid = os.path.join(textures_base, "textures", humanoid_texture.replace(":", "/") + ".png")
             dest_humanoid = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_humanoid.png"
             
             os.makedirs(os.path.dirname(dest_humanoid), exist_ok=True)
@@ -358,7 +360,7 @@ def process_equipment_armor():
             
             # Leggings texture
             if leggings_texture:
-                src_leggings = os.path.join(textures_path, leggings_texture.replace(":", "/") + ".png")
+                src_leggings = os.path.join(textures_base, "textures", leggings_texture.replace(":", "/") + ".png")
                 dest_leggings = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_leggings.png"
                 
                 if os.path.exists(src_leggings):
