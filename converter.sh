@@ -1046,7 +1046,17 @@ do
     local model_name="${6}"
     local path_hash="${7}"
     local geometry="${8}"
-
+# ตรวจสอบว่าเป็น wearable item หรือไม่
+    local is_wearable="false"
+    if [[ "${file}" == *"/armor/"* ]] || \
+       [[ "${file}" == *"/elytra"* ]] || \
+       [[ "${model_name}" == *"wing"* ]] || \
+       [[ "${model_name}" == *"helmet"* ]] || \
+       [[ "${model_name}" == *"chestplate"* ]] || \
+       [[ "${model_name}" == *"leggings"* ]] || \
+       [[ "${model_name}" == *"boots"* ]]; then
+        is_wearable="true"
+    fi
     # find which texture atlas we will be using if not generated
     if [[ ${generated} = "false" ]]
     then
@@ -1057,7 +1067,7 @@ do
 
     status_message process "Starting conversion of model with GeyserID ${gid}"
     mkdir -p ./target/rp/models/blocks/${namespace}/${model_path}
-    jq --slurpfile atlas scratch_files/spritesheet/${atlas_index}.json --arg generated "${generated}" --arg binding "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)" --arg geometry "${geometry}" -c '
+    jq --slurpfile atlas scratch_files/spritesheet/${atlas_index}.json --arg generated "${generated}" --arg binding "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)" --arg geometry "${geometry}" --arg is_wearable "${is_wearable}" -c '
     .textures as $texture_list |
     def namespace: if contains(":") then sub("\\:(.+)"; "") else "minecraft" end;
     def tobool: if .=="true" then true elif .=="false" then false else null end;
@@ -1067,7 +1077,13 @@ do
     def roundit: (.*10000 | round) / 10000;
     def element_array:
         if .elements then (.elements | map({
-        "origin": [((-.to[0] + 8) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)],
+        "origin": (
+		    if ($is_wearable == "true") then 
+		        [((8 - .to[0]) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)]
+		    else 
+		        [((-.to[0] + 8) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)]
+		    end
+		),
         "size": [((.to[0] - .from[0]) | roundit), ((.to[1] - .from[1]) | roundit), ((.to[2] - .from[2]) | roundit)],
         "rotation": (if (.rotation.axis) == "x" then [(.rotation.angle | tonumber * -1), 0, 0] elif (.rotation.axis) == "y" then [0, (.rotation.angle | tonumber * -1), 0] elif (.rotation.axis) == "z" then [0, 0, (.rotation.angle | tonumber)] else null end),
         "pivot": (if .rotation.origin then [((- .rotation.origin[0] + 8) | roundit), (.rotation.origin[1] | roundit), ((.rotation.origin[2] - 8) | roundit)] else null end),
@@ -1212,7 +1228,8 @@ do
                 "rotation": [0, 0, (.display.head.rotation[2])]
               } else null end),
               "geyser_custom": {
-                "position": [0, 19.9, 0]
+                "position": [0, 19.9, 0],
+       			"rotation": [0, 0, 0]
               }
             }
           },
