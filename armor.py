@@ -582,9 +582,9 @@ def process_equipment_armor():
                             
                             # เลือก texture humanoid/leggings
                             if armor_piece == "leggings":
-                                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings"
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings.png"
                             else:
-                                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid"
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid.png"
                             
                             # path base และ player
                             base_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.json"
@@ -656,9 +656,9 @@ def auto_generate_player_attachables():
             armor_name_clean = gmdl.split(".gmdl")[0]
             
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings"
+                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings.png"
             else:
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid"
+                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid.png"
 
 
             # JSON player attachable
