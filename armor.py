@@ -601,6 +601,85 @@ def process_equipment_armor():
                         else:
                             print(f"⚠️ Icon not found: {src_icon}")
 
+# ===============================
+# 🧩 Auto-generate .player.json for ANY armor attachable
+# ===============================
+def auto_generate_player_attachables():
+    print("\n" + "="*60)
+    print("🛠️ Auto-generating .player.json for equipment armor")
+    print("="*60)
+
+    base_path = "staging/target/rp/attachables"
+
+    # เดินทุก namespace + subfolder
+    for namespace in os.listdir(base_path):
+        ns_path = os.path.join(base_path, namespace)
+        if not os.path.isdir(ns_path):
+            continue
+
+        # ค้นทุกไฟล์ที่ลงท้ายด้วย .attachable.json
+        attachable_files = glob.glob(ns_path + "/**/*.attachable.json", recursive=True)
+
+        for file in attachable_files:
+            player_file = file.replace(".attachable.json", ".attachable.player.json")
+
+            if os.path.exists(player_file):
+                print(f"⏩ Skip (already exists): {player_file}")
+                continue
+
+            # อ่าน attachable เดิม
+            with open(file, "r", encoding="utf-8") as f:
+                data = json.load(f)["minecraft:attachable"]
+
+            gmdl = data["description"]["identifier"].split(":")[1]
+            filename = os.path.basename(file).lower()
+
+            # หา armor part
+            if "leggings" in filename:
+                armor_type = "leggings"
+            elif "boots" in filename:
+                armor_type = "boots"
+            elif "chest" in filename or "chestplate" in filename:
+                armor_type = "chestplate"
+            else:
+                armor_type = "helmet"
+
+            # หา texture base name
+            # ตัวอย่างไฟล์: aetherburnboots.gmdl_xxxxx.attachable.json
+            base_name = gmdl.split("gmdl")[0].rstrip("_")
+
+            if armor_type == "leggings":
+                final_texture = f"textures/equipment/{namespace}_{base_name}_leggings"
+            else:
+                final_texture = f"textures/equipment/{namespace}_{base_name}_humanoid"
+
+            # JSON player attachable
+            player_json = {
+                "format_version": "1.10.0",
+                "minecraft:attachable": {
+                    "description": {
+                        "identifier": f"geyser_custom:{gmdl}.player",
+                        "item": {f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"},
+                        "materials": {
+                            "default": "armor",
+                            "enchanted": "armor_enchanted"
+                        },
+                        "textures": {
+                            "default": final_texture,
+                            "enchanted": "textures/misc/enchanted_item_glint"
+                        },
+                        "geometry": {"default": f"geometry.player.armor.{armor_type}"},
+                        "scripts": {"parent_setup": "variable.helmet_layer_visible = 0.0;"},
+                        "render_controllers": ["controller.render.armor"]
+                    }
+                }
+            }
+
+            os.makedirs(os.path.dirname(player_file), exist_ok=True)
+            with open(player_file, "w", encoding="utf-8") as f:
+                json.dump(player_json, f, indent=4)
+
+            print(f"🧩 Generated: {player_file}")
 
 
 # ===============================
@@ -615,7 +694,7 @@ process_leather_armor()
 
 # ประมวลผล Equipment Armor (Netherite, etc.)
 process_equipment_armor()
-
+auto_generate_player_attachables()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
