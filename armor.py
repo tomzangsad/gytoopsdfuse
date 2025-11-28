@@ -479,8 +479,8 @@ def process_equipment_armor():
                             # สร้าง attachable
                             attachable_path = f"staging/target/rp/attachables/{namespace}/{armor_name}_{armor_piece}.player.json"
                             
-                            humanoid_rel = f"textures/equipment/{namespace}_{armor_name}_humanoid"
-                            leggings_rel = f"textures/equipment/{namespace}_{armor_name}_leggings"
+                            humanoid_rel = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_humanoid"
+                            leggings_rel = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_leggings"
                             
                             write_equipment_armor(
                                 attachable_path,
