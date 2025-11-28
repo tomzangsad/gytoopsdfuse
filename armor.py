@@ -1,15 +1,32 @@
-
 import os
 import json
 import shutil
 import glob
 from jproperties import Properties
 
-# ===============================
+
+# ===========================================
+# 🔍 หาโฟลเดอร์ IA overlay version แบบอัตโนมัติ
+# ===========================================
+def find_ia_overlay_folder():
+    root = "pack"
+    for f in os.listdir(root):
+        if f.startswith("ia_overlay") and os.path.isdir(os.path.join(root, f)):
+            return os.path.join(root, f)
+    return None
+
+
+IA_OVERLAY = find_ia_overlay_folder()
+if IA_OVERLAY:
+    print(f"🟦 Detected IA Overlay Folder: {IA_OVERLAY}")
+else:
+    print("⚠️ No IA overlay folder found!")
+
+
+# ===========================================
 # 🔧 อัปเดต item_texture.json
-# ===============================
+# ===========================================
 def update_item_texture_json(gmdl_id, atlas_path):
-    """อัปเดต path ของไอเท็มใน item_texture.json ให้ตรงกับไฟล์ที่ Python วาง"""
     item_texture_file = "staging/target/rp/textures/item_texture.json"
 
     if not os.path.exists(item_texture_file):
@@ -20,7 +37,7 @@ def update_item_texture_json(gmdl_id, atlas_path):
         data = json.load(f)
 
     tex = data.get("texture_data", {})
-    tex[gmdl_id] = {"textures": atlas_path}   # ⭐ แก้ path ตรงนี้
+    tex[gmdl_id] = {"textures": atlas_path}
 
     data["texture_data"] = tex
 
@@ -30,9 +47,9 @@ def update_item_texture_json(gmdl_id, atlas_path):
     print(f"🔧 Updated item_texture.json: {gmdl_id} → {atlas_path}")
 
 
-# ===============================
-# 🔧 ฟังก์ชันล้าง override
-# ===============================
+# ===========================================
+# 🔧 ล้าง override
+# ===========================================
 def process_json_file(file_path):
     if not os.path.exists(file_path):
         print(f"❌ File not found: {file_path}")
@@ -68,49 +85,88 @@ def process_json_file(file_path):
     return processed_overrides
 
 
+# ===========================================
+# 🔧 ล้าง duplicate armor entries
+# ===========================================
 def remove_duplicates_with_custom_model_data(file_path):
     try:
         with open(file_path, "r") as f:
             data = json.load(f)
 
-        item_types = [
-            "minecraft:leather_helmet",
-            "minecraft:leather_chestplate",
-            "minecraft:leather_leggings",
-            "minecraft:leather_boots",
-            "minecraft:iron_helmet",
-            "minecraft:iron_chestplate",
-            "minecraft:iron_leggings",
-            "minecraft:iron_boots",
-            "minecraft:diamond_helmet",
-            "minecraft:diamond_chestplate",
-            "minecraft:diamond_leggings",
-            "minecraft:diamond_boots",
-            "minecraft:netherite_helmet",
-            "minecraft:netherite_chestplate",
-            "minecraft:netherite_leggings",
-            "minecraft:netherite_boots"
+        armor_types = [
+            "minecraft:leather_helmet", "minecraft:leather_chestplate",
+            "minecraft:leather_leggings", "minecraft:leather_boots",
+            "minecraft:iron_helmet", "minecraft:iron_chestplate",
+            "minecraft:iron_leggings", "minecraft:iron_boots",
+            "minecraft:diamond_helmet", "minecraft:diamond_chestplate",
+            "minecraft:diamond_leggings", "minecraft:diamond_boots",
+            "minecraft:netherite_helmet", "minecraft:netherite_chestplate",
+            "minecraft:netherite_leggings", "minecraft:netherite_boots"
         ]
 
-        for item_type in item_types:
-            if item_type not in data:
+        for armor in armor_types:
+            if armor not in data:
                 continue
 
-            unique_entries = {}
-            for entry in data[item_type]:
+            unique = {}
+            for entry in data[armor]:
                 cmd = entry.get("custom_model_data")
-                if cmd not in unique_entries:
-                    unique_entries[cmd] = entry
+                if cmd not in unique:
+                    unique[cmd] = entry
 
-            data[item_type] = list(unique_entries.values())
+            data[armor] = list(unique.values())
 
         with open(file_path, "w") as f:
             json.dump(data, f, indent=4)
+
         print(f"🧩 Cleaned duplicates in {file_path}")
     except:
         pass
 
 
+# ===========================================
+# 🔥 อ่าน IA model (1.21+)
+# ===========================================
+def process_ia_overlay_model(namespace, item, i):
+    if not IA_OVERLAY:
+        return None
+
+    model_path = f"{IA_OVERLAY}/assets/{namespace}/models/equipment/{item}.json"
+    if not os.path.exists(model_path):
+        return None
+
+    print(f"🟦 IA model detected: {model_path}")
+
+    with open(model_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    tex = data.get("texture")
+    if not tex:
+        print(f"⚠️ No texture in IA model: {model_path}")
+        return None
+
+    if ":" in tex:
+        tex = tex.split(":")[1]
+
+    layer_folder = "humanoid_leggings" if i == 2 else "humanoid"
+
+    src = f"{IA_OVERLAY}/assets/{namespace}/textures/entity/equipment/{layer_folder}/{item}.png"
+    dest = f"staging/target/rp/textures/armor_layer/{item}.png"
+
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+
+    if os.path.exists(src):
+        shutil.copy(src, dest)
+        print(f"🟦 Copied IA armor texture → {dest}")
+        return item
+    else:
+        print(f"⚠️ Missing IA armor texture: {src}")
+        return None
+
+
+# ===========================================
+# 🧱 Generate attachable
+# ===========================================
 def write_armor(file, gmdl, layer, i):
     type_map = ["helmet", "chestplate", "leggings", "boots"]
     armor_type = type_map[i]
@@ -143,23 +199,23 @@ def write_armor(file, gmdl, layer, i):
     print(f"✅ Generated {file}")
 
 
-# ===============================
-# 🚀 MAIN START
-# ===============================
-geyser_mappings_file = "staging/target/geyser_mappings.json"
-if os.path.exists(geyser_mappings_file):
-    remove_duplicates_with_custom_model_data(geyser_mappings_file)
+# ===========================================
+# 🚀 MAIN
+# ===========================================
+geyser_map = "staging/target/geyser_mappings.json"
+if os.path.exists(geyser_map):
+    remove_duplicates_with_custom_model_data(geyser_map)
 
 optifine = Properties()
-item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
+items = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
 
-for i, armor in enumerate(item_type):
+for i, armor in enumerate(items):
 
     item_json = f"pack/assets/minecraft/models/item/{armor}.json"
     overrides = process_json_file(item_json)
 
-    for override in overrides:
-        model = override.get("model")
+    for o in overrides:
+        model = o.get("model")
         if not model:
             continue
 
@@ -168,40 +224,42 @@ for i, armor in enumerate(item_type):
             item = path.split("/")[-1]
 
             # ==========================
-            # โหลด .properties
+            # 🔥 1) ลองใช้ IA overlay (ใหม่)
             # ==========================
-            prop_file = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{namespace}_{item}.properties"
-            if not os.path.exists(prop_file):
-                print(f"⚠️ Missing {prop_file}")
-                continue
-
-            optifine.load(open(prop_file, "rb"))
-
-            layer_key = f"texture.leather_layer_{2 if i == 2 else 1}"
-            layer = None
-
-            if optifine.get(layer_key):
-                layer = optifine.get(layer_key).data.split(".")[0]
-            elif optifine.get(f"{layer_key}_overlay"):
-                layer = optifine.get(f"{layer_key}_overlay").data.split(".")[0]
-            else:
-                print(f"⚠️ No layer info found in {prop_file}")
-                continue
+            layer = process_ia_overlay_model(namespace, item, i)
 
             # ==========================
-            # Copy armor texture
+            # 🔥 2) ถ้าไม่มี → ใช้ CIT เดิม
             # ==========================
-            os.makedirs("staging/target/rp/textures/armor_layer", exist_ok=True)
-            src_texture = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png"
+            if not layer:
+                prop_file = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{namespace}_{item}.properties"
+                if not os.path.exists(prop_file):
+                    print(f"⚠️ Missing {prop_file}")
+                    continue
 
-            if os.path.exists(src_texture):
-                shutil.copy(src_texture, f"staging/target/rp/textures/armor_layer/{layer}.png")
-                print(f"🧩 Copied {layer}.png → armor_layer/")
-            else:
-                print(f"⚠️ Missing armor texture: {src_texture}")
+                optifine.load(open(prop_file, "rb"))
+
+                layer_key = f"texture.leather_layer_{2 if i == 2 else 1}"
+
+                if optifine.get(layer_key):
+                    layer = optifine.get(layer_key).data.split(".")[0]
+                elif optifine.get(f"{layer_key}_overlay"):
+                    layer = optifine.get(f"{layer_key}_overlay").data.split(".")[0]
+                else:
+                    print(f"⚠️ No layer info in {prop_file}")
+                    continue
+
+                src_tex = f"pack/assets/minecraft/optifine/cit/ia_generated_armors/{layer}.png"
+                dst_tex = f"staging/target/rp/textures/armor_layer/{layer}.png"
+
+                if os.path.exists(src_tex):
+                    shutil.copy(src_tex, dst_tex)
+                    print(f"🟩 Copied CIT texture → {dst_tex}")
+                else:
+                    print(f"⚠️ Missing CIT texture: {src_tex}")
 
             # ==========================
-            # Copy 2D icon
+            # Copy 2D Icon (เหมือนเดิม)
             # ==========================
             model_json_path = f"pack/assets/{namespace}/models/{path}.json"
 
@@ -215,9 +273,6 @@ for i, armor in enumerate(item_type):
             textures = model_data.get("textures", {})
             icon_texture = textures.get("layer0") or textures.get("layer1")
 
-            if icon_texture == "item/empty" and textures.get("layer1"):
-                icon_texture = textures["layer1"]
-
             if ":" in icon_texture:
                 icon_texture = icon_texture.split(":")[1]
 
@@ -228,7 +283,7 @@ for i, armor in enumerate(item_type):
 
             if os.path.exists(src_icon):
                 shutil.copy(src_icon, dest_icon)
-                print(f"🖼️ Copied item icon → {dest_icon}")
+                print(f"🖼️ Copied icon → {dest_icon}")
             else:
                 print(f"⚠️ Missing icon texture: {src_icon}")
                 continue
@@ -248,23 +303,21 @@ for i, armor in enumerate(item_type):
             # ==========================
             # Add icon → icons.csv
             # ==========================
-            atlas_texture_path = f"textures/{namespace}/{icon_texture}.png"
+            atlas = f"textures/{namespace}/{icon_texture}.png"
 
-            icons_csv = "scratch_files/icons.csv"
             os.makedirs("scratch_files", exist_ok=True)
+            with open("scratch_files/icons.csv", "a", encoding="utf-8") as f:
+                f.write(f"{gmdl},{atlas}\n")
 
-            with open(icons_csv, "a", encoding="utf-8") as f:
-                f.write(f"{gmdl},{atlas_texture_path}\n")
-
-            print(f"📌 Added icon to atlas: {gmdl} → {atlas_texture_path}")
-
-            # ==========================
-            # ⭐ อัปเดต item_texture.json
-            # ==========================
-            update_item_texture_json(gmdl, atlas_texture_path)
+            print(f"📌 Added icon atlas: {gmdl} → {atlas}")
 
             # ==========================
-            # Generate player attachable
+            # Update item_texture.json
+            # ==========================
+            update_item_texture_json(gmdl, atlas)
+
+            # ==========================
+            # Generate Bedrock armor
             # ==========================
             pfile = afile[0].replace(".json", ".player.json")
             write_armor(pfile, gmdl, layer, i)
