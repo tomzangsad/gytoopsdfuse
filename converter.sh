@@ -1099,17 +1099,26 @@ do
       }) | walk( if type == "object" then with_entries(select(.value != null)) else . end)) else {} end
       ;
 	def pivot_groups:
-		  if .elements then ((element_array) as $element_array |
-		  [[.elements[].rotation] | unique | .[] | select (.!=null)]
-		  | map((
-		  [((- .origin[0] + 8) | roundit), (.origin[1] | roundit), ((.origin[2] - 8) | roundit)] as $i_piv |
-		  (if (.axis) == "x" then [(.angle | tonumber * -1), 0, 0] elif (.axis) == "y" then [0, (.angle | tonumber * -1), 0] else [0, 0, (.angle | tonumber)] end) as $i_rot |
-		  {
-			"parent": "geyser_custom_z",
-			"pivot": ($i_piv),
-			"rotation": ($i_rot),
-			"cubes": [($element_array | .[] | select(.rotation == $i_rot and .pivot == $i_piv))]
-		  }))) else {} end;
+	  if .elements then
+	    (element_array) as $element_array |
+	    # รวม rotation ของแต่ละ element แบบไม่แตกโครงสร้าง
+	    (.elements | map(.rotation) | unique | map(select(. != null))) 
+	    | map(
+	        # ค่า pivot ของกลุ่ม rotation
+	        (
+	          . as $rot |
+	          {
+	            "parent": "geyser_custom_z",
+	            "pivot": [0, 8, 0],
+	            "rotation": $rot,
+	            "cubes": $element_array
+	          }
+	        )
+	      )
+	  else
+	    []
+	  end;
+
 
 
       {
