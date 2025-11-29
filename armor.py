@@ -688,28 +688,27 @@ def auto_generate_player_attachables():
                 json.dump(player_json, f, indent=4)
 
             print(f"🧩 Generated ARMOR ONLY: {player_file}")
-# ===============================
-# 🔧 EXACT FIXER for humanoid + leggings textures
-# ===============================
+
+
 def fix_equipment_texture_paths_exact():
     print("\n" + "="*60)
-    print("🎯 Exact Texture Name Fixer (Humanoid + Leggings)")
+    print("🎯 Exact Texture Name Fixer (Correct Version)")
     print("="*60)
 
-    attach_path = "staging/target/rp/attachables"
     tex_dir = "staging/target/rp/textures/equipment"
+    attach_path = "staging/target/rp/attachables"
 
-    if not os.path.exists(tex_dir):
-        print("⚠ No equipment texture folder!")
-        return
+    # เก็บไฟล์ PNG ต้นฉบับไว้ ไม่ให้ chain rename
+    original_files = glob.glob(os.path.join(tex_dir, "*.png"))
+    original_lookup = {os.path.basename(x): x for x in original_files}
 
-    # loop ทุก namespace
+    # loop namespaces
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
-        # หา player.json ทั้งหมด
+        # .player.json ทั้งหมด
         player_files = glob.glob(ns_path + "/**/*.player.json", recursive=True)
 
         for pf in player_files:
@@ -717,78 +716,49 @@ def fix_equipment_texture_paths_exact():
                 data = json.load(f)["minecraft:attachable"]
 
             tex_path = data["description"]["textures"]["default"]
-
-            # ชื่อไฟล์ที่ player.json ต้องการ
-            required_name = os.path.basename(tex_path)  
+            required_name = os.path.basename(tex_path)
             required_full = os.path.join("staging/target/rp", tex_path)
 
-            # ถ้ามีไฟล์แล้ว → ผ่าน
+            # ถ้ามีแล้ว → โอเค
             if os.path.exists(required_full):
                 print(f"✔ OK: {required_name}")
                 continue
 
             print(f"❌ Missing: {required_name}")
 
-            # ---------------------------------------------------
-            # 🔍 หาไฟล์จริงที่ใกล้เคียงที่สุด
-            # ---------------------------------------------------
-            candidates = glob.glob(os.path.join(tex_dir, "*.png"))
+            # =======================================
+            # 1) แยก armor_name จาก gmdl
+            # =======================================
+            # ตัวอย่าง gmdl: frostveil_genesis_gmdl_e91c2ba
+            base = required_name.replace("_humanoid.png", "").replace("_leggings.png", "")
 
-            # ตัดชื่อก่อน _gmdl เอาไว้เทียบเบื้องต้น
-            # เช่น required_name = 3b_soul_skull_gmdl_968c59c_humanoid.png
-            # cut_base = 3b_soul_skull
-            cut_base = required_name.split("_gmdl_")[0]
+            armor_name = base.split("_gmdl_")[0]
 
-            # leggings หรือ humanoid?
-            is_leggings = "leggings" in required_name.lower()
-            is_humanoid = "humanoid" in required_name.lower()
+            # overlay source pattern:
+            # frostveil_genesis_frostveil_genesisarmor_humanoid.png
+            prefix = f"{namespace}_{armor_name}armor"
 
-            best_match = None
+            # humanoid / leggings?
+            if "leggings" in required_name:
+                src_suffix = "_leggings.png"
+            else:
+                src_suffix = "_humanoid.png"
 
-            for c in candidates:
-                base = os.path.basename(c)
+            # รูปแบบต้นทางที่ถูกต้อง
+            expected_source_name = f"{prefix}{src_suffix}"
 
-                # namespace match แรงสุด
-                if base.startswith(namespace):
-                    best_match = c
-                    break
-
-                # base match เช่น 3b_soul_skull_leggings.png หรือ humanoid.png
-                if base.startswith(cut_base):
-                    # leggings case → ต้องเลือกไฟล์ที่มี leggings ในชื่อ
-                    if is_leggings and "leggings" in base:
-                        best_match = c
-                        break
-
-                    # humanoid case
-                    if is_humanoid and "leggings" not in base:
-                        best_match = c
-                        break
-
-            # ถ้ายังหาไม่ได้ → รองสุดท้าย หาไฟล์ที่มีคำว่า leggings/humanoid
-            if not best_match:
-                for c in candidates:
-                    base = os.path.basename(c)
-                    if is_leggings and "leggings" in base:
-                        best_match = c
-                        break
-                    if is_humanoid and "humanoid" in base and "leggings" not in base:
-                        best_match = c
-                        break
-
-            # ถ้ายังไม่เจอ → ข้าม
-            if not best_match:
-                print("⚠ No close match found, cannot fix.")
+            if expected_source_name not in original_lookup:
+                print(f"⚠ No source: {expected_source_name}")
                 continue
 
-            # ---------------------------------------------------
-            # 🔧 rename → ให้ตรงชื่อที่ player.json ต้องการ
-            # ---------------------------------------------------
+            source_file = original_lookup[expected_source_name]
+
             os.makedirs(os.path.dirname(required_full), exist_ok=True)
 
-            shutil.move(best_match, required_full)
+            shutil.copy(source_file, required_full)
 
-            print(f"🔧 FIXED → '{os.path.basename(best_match)}' → '{required_name}'")
+            print(f"🔧 FIXED → '{expected_source_name}' → '{required_name}' (copied)")
+
 
 
 # ===============================
