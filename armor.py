@@ -713,22 +713,27 @@ def detect_armor_sources(tex_dir, namespace):
 
     return humanoid, leggings
 
-def fix_equipment_texture_paths_exact():
+def fix_player_attachable_texture_paths():
     print("\n" + "="*60)
-    print("🎯 Exact Texture Fixer (2-in → 2-out Only)")
+    print("🎯 Fixing .player.json textures to use REAL source textures")
     print("="*60)
 
     tex_dir = "staging/target/rp/textures/equipment"
     attach_path = "staging/target/rp/attachables"
 
-    # preload ไฟล์ PNG จริงทั้งหมด
+    # โหลดไฟล์ texture ทั้งหมดไว้ก่อน
     all_png = glob.glob(os.path.join(tex_dir, "*.png"))
     all_png_map = {os.path.basename(f): f for f in all_png}
 
-    # ฟังก์ชันหาไฟล์ humanoid/leggings จริงของ namespace
-    def find_sources(namespace):
-        hum = None
-        leg = None
+    # loop ทุก namespace
+    for namespace in os.listdir(attach_path):
+        ns_path = os.path.join(attach_path, namespace)
+        if not os.path.isdir(ns_path):
+            continue
+
+        # หาชื่อ texture จริง (มีแค่ 2 ไฟล์)
+        humanoid_src = None
+        leggings_src = None
 
         for f in all_png:
             base = os.path.basename(f).lower()
@@ -736,61 +741,41 @@ def fix_equipment_texture_paths_exact():
                 continue
 
             if "humanoid" in base:
-                hum = os.path.basename(f)
+                humanoid_src = base
             if "leggings" in base:
-                leg = os.path.basename(f)
+                leggings_src = base
 
-        return hum, leg
-
-    # loop namespace
-    for namespace in os.listdir(attach_path):
-        ns_path = os.path.join(attach_path, namespace)
-        if not os.path.isdir(ns_path):
+        if not humanoid_src:
             continue
-
-        # หา source 2 ตัวจริง
-        hum_src, leg_src = find_sources(namespace)
-
-        if not hum_src and not leg_src:
-            continue
-
-        # เก็บชื่อไฟล์ gmdl ที่ต้องการ (แต่ใช้ไฟล์จริงแค่ 1 ต่อประเภท)
-        required_hum = None
-        required_leg = None
 
         # loop player.json
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
             with open(pf, "r", encoding="utf-8") as f:
-                data = json.load(f)["minecraft:attachable"]
+                data = json.load(f)
 
-            tex_path = data["description"]["textures"]["default"]
-            req_name = os.path.basename(tex_path)
+            desc = data["minecraft:attachable"]["description"]
 
-            if "humanoid" in req_name:
-                required_hum = req_name
-            elif "leggings" in req_name:
-                required_leg = req_name
+            # ดูว่าเป็นหมวก, เสื้อ, รองเท้าหรือกางเกง
+            geom = desc["geometry"]["default"]
 
-        # -------------------------------------------------------------------
-        # COPY 1 : humanoid (ถ้าต้องการ)
-        # -------------------------------------------------------------------
-        if required_hum:
-            dst = os.path.join("staging/target/rp/textures/equipment", required_hum)
-            if not os.path.exists(dst):
-                if hum_src:
-                    shutil.copy(all_png_map[hum_src], dst)
-                    print(f"🔧 humanoid: {hum_src} → {required_hum}")
+            if "leggings" in geom:
+                new_tex = f"textures/equipment/{leggings_src}"
+            else:
+                new_tex = f"textures/equipment/{humanoid_src}"
 
-        # -------------------------------------------------------------------
-        # COPY 2 : leggings (ถ้าต้องการ)
-        # -------------------------------------------------------------------
-        if required_leg:
-            dst = os.path.join("staging/target/rp/textures/equipment", required_leg)
-            if not os.path.exists(dst):
-                if leg_src:
-                    shutil.copy(all_png_map[leg_src], dst)
-                    print(f"🔧 leggings: {leg_src} → {required_leg}")
+            old_tex = desc["textures"]["default"]
 
+            # ถ้าเหมือนเดิมไม่ต้องแก้
+            if old_tex == new_tex:
+                continue
+
+            desc["textures"]["default"] = new_tex
+
+            with open(pf, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+
+            print(f"🔧 Fixed {os.path.basename(pf)}")
+            print(f"    {old_tex}  →  {new_tex}")
 
 
 # ===============================
