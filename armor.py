@@ -776,6 +776,43 @@ def fix_player_attachable_texture_paths():
 
             print(f"🔧 Fixed {os.path.basename(pf)}")
             print(f"    {old_tex}  →  {new_tex}")
+def remove_invalid_player_attachables():
+    print("\n" + "="*60)
+    print("🧹 Cleaning invalid .player.json (missing textures)")
+    print("="*60)
+
+    attach_path = "staging/target/rp/attachables"
+
+    for namespace in os.listdir(attach_path):
+        ns_path = os.path.join(attach_path, namespace)
+        if not os.path.isdir(ns_path):
+            continue
+
+        # หาไฟล์ทุก player.json
+        for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
+
+            with open(pf, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            desc = data["minecraft:attachable"]["description"]
+            tex = desc["textures"]["default"]
+
+            # แปลงจาก "textures/equipment/xxx.png" → path จริง
+            tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
+
+            # ถ้า texture ไม่มี → ลบ player.json ทิ้งเลย
+            if not os.path.exists(tex_path):
+
+                print(f"❌ REMOVE: {pf}")
+                print(f"   Missing texture: {tex_path}")
+
+                try:
+                    os.remove(pf)
+                except:
+                    pass
+
+            else:
+                print(f"✅ OK: {pf}")
 
 
 # ===============================
@@ -792,6 +829,7 @@ process_leather_armor()
 process_equipment_armor()
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
+remove_invalid_player_attachables()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
