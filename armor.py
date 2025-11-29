@@ -776,6 +776,7 @@ def fix_player_attachable_texture_paths():
 
             print(f"🔧 Fixed {os.path.basename(pf)}")
             print(f"    {old_tex}  →  {new_tex}")
+
 def remove_invalid_player_attachables():
     print("\n" + "="*60)
     print("🧹 Cleaning invalid .player.json (missing textures)")
@@ -788,7 +789,6 @@ def remove_invalid_player_attachables():
         if not os.path.isdir(ns_path):
             continue
 
-        # หาไฟล์ทุก player.json
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
 
             with open(pf, "r", encoding="utf-8") as f:
@@ -797,10 +797,24 @@ def remove_invalid_player_attachables():
             desc = data["minecraft:attachable"]["description"]
             tex = desc["textures"]["default"]
 
-            # แปลงจาก "textures/equipment/xxx.png" → path จริง
-            tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
+            # ✅ ตรวจ path ให้ถูก (รองรับมี/ไม่มี .png)
+            if tex.endswith(".png"):
+                tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
+            else:
+                tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep) + ".png")
 
-            # ถ้า texture ไม่มี → ลบ player.json ทิ้งเลย
+            # ✅ CIT = อย่าลบทิ้ง
+            if "textures/armor_layer" in tex:
+
+                if not os.path.exists(tex_path):
+                    print(f"⚠️ WARN (CIT texture missing, NOT removed): {pf}")
+                    print(f"   Missing: {tex_path}")
+                else:
+                    print(f"✅ OK (CIT): {pf}")
+
+                continue
+
+            # ❌ Equipment / Cosmetic → ลบทิ้งได้
             if not os.path.exists(tex_path):
 
                 print(f"❌ REMOVE: {pf}")
@@ -810,10 +824,8 @@ def remove_invalid_player_attachables():
                     os.remove(pf)
                 except:
                     pass
-
             else:
                 print(f"✅ OK: {pf}")
-
 
 # ===============================
 # 🚀 MAIN START
