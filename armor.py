@@ -651,14 +651,14 @@ def auto_generate_player_attachables():
                 armor_type = "chestplate"
             else:
                 armor_type = "helmet"
-            filename = os.path.basename(file)
+            
             # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
             armor_name_clean = gmdl.split(".gmdl")[0]
             
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{filename}_leggings.png"
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
             else:
-                final_texture = f"textures/equipment/{namespace}_{filename}_humanoid.png"
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
 
 
             # JSON player attachable
