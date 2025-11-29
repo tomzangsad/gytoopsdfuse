@@ -643,7 +643,7 @@ def auto_generate_player_attachables():
             geom = data["description"]["geometry"]["default"]
 
             # ⭐ ตรวจเกราะจริงจาก geometry เท่านั้น
-            if not is_real_armor(geom):
+            if not is_real_armor_geometry(geom):
                 print(f"⏩ Skip (not a real armor): {file}")
                 continue
 
