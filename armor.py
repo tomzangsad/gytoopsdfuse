@@ -601,6 +601,13 @@ def process_equipment_armor():
                         else:
                             print(f"⚠️ Icon not found: {src_icon}")
 
+def is_real_armor_geometry(geom):
+    return (
+        "geometry.player.armor.helmet" in geom or
+        "geometry.player.armor.chestplate" in geom or
+        "geometry.player.armor.leggings" in geom or
+        "geometry.player.armor.boots" in geom
+    )
 # ===============================
 # 🧩 Auto-generate .player.json for ANY armor attachable
 # ===============================
@@ -611,23 +618,15 @@ def auto_generate_player_attachables():
 
     base_path = "staging/target/rp/attachables"
 
-    ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
-
     # เดินทุก namespace + subfolder
     for namespace in os.listdir(base_path):
         ns_path = os.path.join(base_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
-        # ค้นหาเฉพาะไฟล์ attachable.json ที่เป็นเกราะเท่านั้น
         attachable_files = glob.glob(ns_path + "/**/*.attachable.json", recursive=True)
 
         for file in attachable_files:
-            lower_name = file.lower()
-
-            # ❌ ถ้าไม่ใช่ของเกราะ → ข้าม
-            if not any(key in lower_name for key in ARMOR_KEYWORDS):
-                continue
 
             player_file = file.replace(".attachable.json", ".attachable.player.json")
 
@@ -636,32 +635,38 @@ def auto_generate_player_attachables():
                 print(f"⏩ Skip (already exists): {player_file}")
                 continue
 
-            # อ่าน attachable เดิม
+            # โหลด attachable เดิม
             with open(file, "r", encoding="utf-8") as f:
-                data = json.load(f)["minecraft:attachable"]
+                root = json.load(f)
+                data = root["minecraft:attachable"]
+
+            geom = data["description"]["geometry"]["default"]
+
+            # ⭐ ตรวจเกราะจริงจาก geometry เท่านั้น
+            if not is_real_armor(geom):
+                print(f"⏩ Skip (not a real armor): {file}")
+                continue
 
             gmdl = data["description"]["identifier"].split(":")[1]
 
-            # หา armor type จากชื่อไฟล์
-            if "leggings" in lower_name:
+            # หา armor type
+            if "leggings" in geom:
                 armor_type = "leggings"
-            elif "boots" in lower_name:
+            elif "boots" in geom:
                 armor_type = "boots"
-            elif "chest" in lower_name:
+            elif "chestplate" in geom:
                 armor_type = "chestplate"
             else:
                 armor_type = "helmet"
-            
-            # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
+
+            # ดึง base_name จาก gmdl
             armor_name_clean = gmdl.split(".gmdl")[0]
-            
+
             if armor_type == "leggings":
                 final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
             else:
                 final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
 
-
-            # JSON player attachable
             player_json = {
                 "format_version": "1.10.0",
                 "minecraft:attachable": {
