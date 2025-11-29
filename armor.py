@@ -689,29 +689,76 @@ def auto_generate_player_attachables():
 
             print(f"🧩 Generated ARMOR ONLY: {player_file}")
 
+def detect_armor_sources(tex_dir, namespace):
+    """
+    คืน mapping:
+    {
+       'humanoid': 'ชื่อไฟล์ต้นฉบับ',
+       'leggings': 'ชื่อไฟล์ต้นฉบับ'
+    }
+    """
+    files = glob.glob(os.path.join(tex_dir, f"{namespace}_*.png"))
+
+    humanoid = None
+    leggings = None
+
+    for f in files:
+        name = os.path.basename(f).lower()
+
+        if "humanoid" in name:
+            humanoid = os.path.basename(f)
+
+        if "leggings" in name:
+            leggings = os.path.basename(f)
+
+    return humanoid, leggings
 
 def fix_equipment_texture_paths_exact():
     print("\n" + "="*60)
-    print("🎯 Exact Texture Name Fixer (Correct Version)")
+    print("🎯 Exact Texture Name Fixer (Pattern-Agnostic)")
     print("="*60)
 
     tex_dir = "staging/target/rp/textures/equipment"
     attach_path = "staging/target/rp/attachables"
 
-    # เก็บไฟล์ PNG ต้นฉบับไว้ ไม่ให้ chain rename
+    # อ่านไฟล์ PNG จริงทั้งหมด
     original_files = glob.glob(os.path.join(tex_dir, "*.png"))
     original_lookup = {os.path.basename(x): x for x in original_files}
 
-    # loop namespaces
+    # ===== ฟังก์ชันค้นหาไฟล์ต้นฉบับแบบ Auto =====
+    def detect_armor_sources(namespace):
+        """
+        หาชุดเกราะของ namespace นั้น โดยไม่พึ่งแพทเทิร์นตายตัว
+        """
+        humanoid = None
+        leggings = None
+
+        for f in original_files:
+            name = os.path.basename(f).lower()
+
+            # ต้องขึ้นต้นด้วย namespace_
+            if not name.startswith(namespace.lower() + "_"):
+                continue
+
+            if "humanoid" in name:
+                humanoid = os.path.basename(f)
+
+            if "leggings" in name:
+                leggings = os.path.basename(f)
+
+        return humanoid, leggings
+
+    # =====================================
+    # loop ทุก namespace
+    # =====================================
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
-        # .player.json ทั้งหมด
-        player_files = glob.glob(ns_path + "/**/*.player.json", recursive=True)
+        humanoid_src, leggings_src = detect_armor_sources(namespace)
 
-        for pf in player_files:
+        for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)["minecraft:attachable"]
 
@@ -719,45 +766,29 @@ def fix_equipment_texture_paths_exact():
             required_name = os.path.basename(tex_path)
             required_full = os.path.join("staging/target/rp", tex_path)
 
-            # ถ้ามีแล้ว → โอเค
+            # มีแล้ว → ไม่ต้องทำอะไร
             if os.path.exists(required_full):
                 print(f"✔ OK: {required_name}")
                 continue
 
             print(f"❌ Missing: {required_name}")
 
-            # =======================================
-            # 1) แยก armor_name จาก gmdl
-            # =======================================
-            # ตัวอย่าง gmdl: frostveil_genesis_gmdl_e91c2ba
-            base = required_name.replace("_humanoid.png", "").replace("_leggings.png", "")
-
-            armor_name = base.split("_gmdl_")[0]
-
-            # overlay source pattern:
-            # frostveil_genesis_frostveil_genesisarmor_humanoid.png
-            prefix = f"{namespace}_{armor_name}armor"
-
-            # humanoid / leggings?
+            # humanoid หรือ leggings?
             if "leggings" in required_name:
-                src_suffix = "_leggings.png"
+                source_name = leggings_src
             else:
-                src_suffix = "_humanoid.png"
+                source_name = humanoid_src
 
-            # รูปแบบต้นทางที่ถูกต้อง
-            expected_source_name = f"{prefix}{src_suffix}"
-
-            if expected_source_name not in original_lookup:
-                print(f"⚠ No source: {expected_source_name}")
+            if not source_name:
+                print(f"⚠ No source armor file for namespace: {namespace}")
                 continue
 
-            source_file = original_lookup[expected_source_name]
+            source_file = original_lookup[source_name]
 
             os.makedirs(os.path.dirname(required_full), exist_ok=True)
-
             shutil.copy(source_file, required_full)
 
-            print(f"🔧 FIXED → '{expected_source_name}' → '{required_name}' (copied)")
+            print(f"🔧 FIXED → '{source_name}' → '{required_name}'")
 
 
 
