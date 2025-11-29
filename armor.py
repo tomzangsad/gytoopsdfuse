@@ -688,6 +688,107 @@ def auto_generate_player_attachables():
                 json.dump(player_json, f, indent=4)
 
             print(f"🧩 Generated ARMOR ONLY: {player_file}")
+# ===============================
+# 🔧 EXACT FIXER for humanoid + leggings textures
+# ===============================
+def fix_equipment_texture_paths_exact():
+    print("\n" + "="*60)
+    print("🎯 Exact Texture Name Fixer (Humanoid + Leggings)")
+    print("="*60)
+
+    attach_path = "staging/target/rp/attachables"
+    tex_dir = "staging/target/rp/textures/equipment"
+
+    if not os.path.exists(tex_dir):
+        print("⚠ No equipment texture folder!")
+        return
+
+    # loop ทุก namespace
+    for namespace in os.listdir(attach_path):
+        ns_path = os.path.join(attach_path, namespace)
+        if not os.path.isdir(ns_path):
+            continue
+
+        # หา player.json ทั้งหมด
+        player_files = glob.glob(ns_path + "/**/*.player.json", recursive=True)
+
+        for pf in player_files:
+            with open(pf, "r", encoding="utf-8") as f:
+                data = json.load(f)["minecraft:attachable"]
+
+            tex_path = data["description"]["textures"]["default"]
+
+            # ชื่อไฟล์ที่ player.json ต้องการ
+            required_name = os.path.basename(tex_path)  
+            required_full = os.path.join("staging/target/rp", tex_path)
+
+            # ถ้ามีไฟล์แล้ว → ผ่าน
+            if os.path.exists(required_full):
+                print(f"✔ OK: {required_name}")
+                continue
+
+            print(f"❌ Missing: {required_name}")
+
+            # ---------------------------------------------------
+            # 🔍 หาไฟล์จริงที่ใกล้เคียงที่สุด
+            # ---------------------------------------------------
+            candidates = glob.glob(os.path.join(tex_dir, "*.png"))
+
+            # ตัดชื่อก่อน _gmdl เอาไว้เทียบเบื้องต้น
+            # เช่น required_name = 3b_soul_skull_gmdl_968c59c_humanoid.png
+            # cut_base = 3b_soul_skull
+            cut_base = required_name.split("_gmdl_")[0]
+
+            # leggings หรือ humanoid?
+            is_leggings = "leggings" in required_name.lower()
+            is_humanoid = "humanoid" in required_name.lower()
+
+            best_match = None
+
+            for c in candidates:
+                base = os.path.basename(c)
+
+                # namespace match แรงสุด
+                if base.startswith(namespace):
+                    best_match = c
+                    break
+
+                # base match เช่น 3b_soul_skull_leggings.png หรือ humanoid.png
+                if base.startswith(cut_base):
+                    # leggings case → ต้องเลือกไฟล์ที่มี leggings ในชื่อ
+                    if is_leggings and "leggings" in base:
+                        best_match = c
+                        break
+
+                    # humanoid case
+                    if is_humanoid and "leggings" not in base:
+                        best_match = c
+                        break
+
+            # ถ้ายังหาไม่ได้ → รองสุดท้าย หาไฟล์ที่มีคำว่า leggings/humanoid
+            if not best_match:
+                for c in candidates:
+                    base = os.path.basename(c)
+                    if is_leggings and "leggings" in base:
+                        best_match = c
+                        break
+                    if is_humanoid and "humanoid" in base and "leggings" not in base:
+                        best_match = c
+                        break
+
+            # ถ้ายังไม่เจอ → ข้าม
+            if not best_match:
+                print("⚠ No close match found, cannot fix.")
+                continue
+
+            # ---------------------------------------------------
+            # 🔧 rename → ให้ตรงชื่อที่ player.json ต้องการ
+            # ---------------------------------------------------
+            os.makedirs(os.path.dirname(required_full), exist_ok=True)
+
+            shutil.move(best_match, required_full)
+
+            print(f"🔧 FIXED → '{os.path.basename(best_match)}' → '{required_name}'")
 
 
 # ===============================
@@ -703,6 +804,7 @@ process_leather_armor()
 # ประมวลผล Equipment Armor (Netherite, etc.)
 process_equipment_armor()
 auto_generate_player_attachables()
+fix_equipment_texture_paths_exact()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
