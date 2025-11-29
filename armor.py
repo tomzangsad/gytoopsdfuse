@@ -715,80 +715,81 @@ def detect_armor_sources(tex_dir, namespace):
 
 def fix_equipment_texture_paths_exact():
     print("\n" + "="*60)
-    print("🎯 Exact Texture Name Fixer (Pattern-Agnostic)")
+    print("🎯 Exact Texture Fixer (2-in → 2-out Only)")
     print("="*60)
 
     tex_dir = "staging/target/rp/textures/equipment"
     attach_path = "staging/target/rp/attachables"
 
-    # อ่านไฟล์ PNG จริงทั้งหมด
-    original_files = glob.glob(os.path.join(tex_dir, "*.png"))
-    original_lookup = {os.path.basename(x): x for x in original_files}
+    # preload ไฟล์ PNG จริงทั้งหมด
+    all_png = glob.glob(os.path.join(tex_dir, "*.png"))
+    all_png_map = {os.path.basename(f): f for f in all_png}
 
-    # ===== ฟังก์ชันค้นหาไฟล์ต้นฉบับแบบ Auto =====
-    def detect_armor_sources(namespace):
-        """
-        หาชุดเกราะของ namespace นั้น โดยไม่พึ่งแพทเทิร์นตายตัว
-        """
-        humanoid = None
-        leggings = None
+    # ฟังก์ชันหาไฟล์ humanoid/leggings จริงของ namespace
+    def find_sources(namespace):
+        hum = None
+        leg = None
 
-        for f in original_files:
-            name = os.path.basename(f).lower()
-
-            # ต้องขึ้นต้นด้วย namespace_
-            if not name.startswith(namespace.lower() + "_"):
+        for f in all_png:
+            base = os.path.basename(f).lower()
+            if not base.startswith(namespace.lower() + "_"):
                 continue
 
-            if "humanoid" in name:
-                humanoid = os.path.basename(f)
+            if "humanoid" in base:
+                hum = os.path.basename(f)
+            if "leggings" in base:
+                leg = os.path.basename(f)
 
-            if "leggings" in name:
-                leggings = os.path.basename(f)
+        return hum, leg
 
-        return humanoid, leggings
-
-    # =====================================
-    # loop ทุก namespace
-    # =====================================
+    # loop namespace
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
-        humanoid_src, leggings_src = detect_armor_sources(namespace)
+        # หา source 2 ตัวจริง
+        hum_src, leg_src = find_sources(namespace)
 
+        if not hum_src and not leg_src:
+            continue
+
+        # เก็บชื่อไฟล์ gmdl ที่ต้องการ (แต่ใช้ไฟล์จริงแค่ 1 ต่อประเภท)
+        required_hum = None
+        required_leg = None
+
+        # loop player.json
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)["minecraft:attachable"]
 
             tex_path = data["description"]["textures"]["default"]
-            required_name = os.path.basename(tex_path)
-            required_full = os.path.join("staging/target/rp", tex_path)
+            req_name = os.path.basename(tex_path)
 
-            # มีแล้ว → ไม่ต้องทำอะไร
-            if os.path.exists(required_full):
-                print(f"✔ OK: {required_name}")
-                continue
+            if "humanoid" in req_name:
+                required_hum = req_name
+            elif "leggings" in req_name:
+                required_leg = req_name
 
-            print(f"❌ Missing: {required_name}")
+        # -------------------------------------------------------------------
+        # COPY 1 : humanoid (ถ้าต้องการ)
+        # -------------------------------------------------------------------
+        if required_hum:
+            dst = os.path.join("staging/target/rp/textures/equipment", required_hum)
+            if not os.path.exists(dst):
+                if hum_src:
+                    shutil.copy(all_png_map[hum_src], dst)
+                    print(f"🔧 humanoid: {hum_src} → {required_hum}")
 
-            # humanoid หรือ leggings?
-            if "leggings" in required_name:
-                source_name = leggings_src
-            else:
-                source_name = humanoid_src
-
-            if not source_name:
-                print(f"⚠ No source armor file for namespace: {namespace}")
-                continue
-
-            source_file = original_lookup[source_name]
-
-            os.makedirs(os.path.dirname(required_full), exist_ok=True)
-            shutil.copy(source_file, required_full)
-
-            print(f"🔧 FIXED → '{source_name}' → '{required_name}'")
+        # -------------------------------------------------------------------
+        # COPY 2 : leggings (ถ้าต้องการ)
+        # -------------------------------------------------------------------
+        if required_leg:
+            dst = os.path.join("staging/target/rp/textures/equipment", required_leg)
+            if not os.path.exists(dst):
+                if leg_src:
+                    shutil.copy(all_png_map[leg_src], dst)
+                    print(f"🔧 leggings: {leg_src} → {required_leg}")
 
 
 
