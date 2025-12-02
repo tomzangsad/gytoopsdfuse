@@ -563,30 +563,6 @@ status_message process "Cropping animated textures"
 for i in $(find ./assets/**/textures -type f -name "*.mcmeta" | sed 's/\.mcmeta//'); do 
 convert ${i} -set option:distort:viewport "%[fx:min(w,h)]x%[fx:min(w,h)]" -distort affine "0,0 0,0" -define png:format=png8 -clamp ${i} 2> /dev/null
 done
-# ============================================================
-#  KAIZERMC — Generate Isometric Block Icons (Fixed Version)
-# ============================================================
-
-generate_isometric_icon() {
-    local base_png="$1"
-    local out_png="$2"
-
-    mkdir -p tmp
-
-    convert "$base_png" -resize 96x96! PNG32:tmp/base.png
-    convert tmp/base.png -flop PNG32:tmp/top.png
-    convert tmp/base.png -brightness-contrast -10 PNG32:tmp/north.png
-    convert tmp/base.png -brightness-contrast -20 PNG32:tmp/west.png
-
-    convert \
-      \( tmp/top.png -virtual-pixel transparent +distort Affine '0,96 0,0   0,0 -34.8,-32  96,96 34.8,-32' \) \
-      \( tmp/north.png -virtual-pixel transparent +distort Affine '96,0 0,0   0,0 -34.8,-32  96,96 0,64' \) \
-      \( tmp/west.png -virtual-pixel transparent +distort Affine '0,0 0,0   0,96 0,64  96,0 34.8,-32' \) \
-      -background none -compose plus -layers merge +repage \
-      -resize 64x64! PNG32:"$out_png"
-
-    rm -f tmp/*.png
-}
 
 # ============================================================
 #  NEW FUNCTION: Resolve 3 block textures (top / side1 / side2)
@@ -596,16 +572,30 @@ resolve_model_textures() {
     local modelpath="$2"
 
     local model_json="./assets/$namespace/models/$modelpath.json"
-    if [[ ! -f "$model_json" ]]; then
-        echo ""
-        return
-    fi
+    [[ ! -f "$model_json" ]] && echo "" && return
 
-    # Read textures for each face
+    # read all textures
+    local tex_all=$(jq -r '.textures.all // empty' "$model_json")
     local tex_top=$(jq -r '.textures.up // .textures.top // .textures.down // empty' "$model_json")
     local tex_side1=$(jq -r '.textures.north // .textures.south // empty' "$model_json")
     local tex_side2=$(jq -r '.textures.west // .textures.east // empty' "$model_json")
 
+    # ----------------------------------------
+    # Fallback 1: cube_all / everything uses .all
+    # ----------------------------------------
+    if [[ "$tex_all" != "" ]]; then
+        tex_top="$tex_all"
+        tex_side1="$tex_all"
+        tex_side2="$tex_all"
+    fi
+
+    # if still all missing → fail
+    if [[ "$tex_top" == "" && "$tex_side1" == "" && "$tex_side2" == "" ]]; then
+        echo ""
+        return
+    fi
+
+    # function to resolve namespaces
     resolve_png() {
         local tex="$1"
         [[ "$tex" == "" ]] && echo "" && return
@@ -626,11 +616,13 @@ resolve_model_textures() {
         do
             [[ -f "$p" ]] && echo "$p" && return
         done
+
         echo ""
     }
 
     echo "$(resolve_png "$tex_top")|$(resolve_png "$tex_side1")|$(resolve_png "$tex_side2")"
 }
+
 
 
 # ============================================================
