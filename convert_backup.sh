@@ -168,11 +168,12 @@ then
 else
   # create our initial directories for bp & rp
   status_message process "Generating initial directory strucutre for our bedrock packs"
-  mkdir -p ./target/rp/models/blocks && mkdir -p ./target/rp/textures && mkdir -p ./target/rp/attachables && mkdir -p ./target/rp/animations && mkdir -p ./target/bp/blocks && mkdir -p ./target/bp/items
+  mkdir -p ./target/rp/models/blocks && mkdir -p ./target/rp/textures && mkdir -p ./target/rp/attachables && mkdir -p ./target/rp/animations
+
 
   # copy over our pack.png if we have one
   if test -f "./pack.png"; then
-      cp ./pack.png ./target/rp/pack_icon.png && cp ./pack.png ./target/bp/pack_icon.png
+      cp ./pack.png ./target/rp/pack_icon.png
   fi
 
   # generate uuids for our manifests
@@ -207,34 +208,7 @@ else
   }
   ' | sponge ./target/rp/manifest.json
 
-  # generate bp manifest.json
-  status_message process "Generating behavior pack manifest"
-  jq -c --arg pack_desc "${pack_desc}" --arg uuid1 "${uuid1}" --arg uuid3 "${uuid3}" --arg uuid4 "${uuid4}" -n '
-  {
-      "format_version": 2,
-      "header": {
-          "description": "Adds 3D items for use with a Geyser proxy",
-          "name": $pack_desc,
-          "uuid": ($uuid3 | ascii_downcase),
-          "version": [1, 0, 0],
-          "min_engine_version": [ 1, 18, 3]
-      },
-      "modules": [
-          {
-              "description": "Adds 3D items for use with a Geyser proxy",
-              "type": "data",
-              "uuid": ($uuid4 | ascii_downcase),
-              "version": [1, 0, 0]
-          }
-      ],
-      "dependencies": [
-          {
-              "uuid": ($uuid1 | ascii_downcase),
-              "version": [1, 0, 0]
-          }
-      ]
-  }
-  ' | sponge ./target/bp/manifest.json
+  
 
   # generate rp terrain_texture.json
   status_message process "Generating resource pack terrain texture definition"
@@ -292,12 +266,10 @@ else
   status_message process "Compressing output packs"
   mkdir ./target/packaged
   cd ./target/rp > /dev/null && zip -rq8 geyser_resources_preview.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/rp/geyser_resources_preview.mcpack ./target/packaged/geyser_resources_preview.mcpack
-  cd ./target/bp > /dev/null && zip -rq8 geyser_behaviors_preview.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/bp/geyser_behaviors_preview.mcpack ./target/packaged/geyser_behaviors_preview.mcpack
-  cd ./target/packaged > /dev/null && zip -rq8 geyser_addon.mcaddon . -i "*_preview.mcpack" && cd ../.. > /dev/null
   jq 'delpaths([paths | select(.[-1] | strings | startswith("gmdl_atlas_"))])' ./target/rp/textures/terrain_texture.json | sponge ./target/rp/textures/terrain_texture.json
   cd ./target/rp > /dev/null && zip -rq8 geyser_resources.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/rp/geyser_resources.mcpack ./target/packaged/geyser_resources.mcpack
   mkdir ./target/unpackaged
-  mv ./target/rp ./target/unpackaged/rp && mv ./target/bp ./target/unpackaged/bp
+  mv ./target/rp ./target/unpackaged/rp
 
   exit
 fi
@@ -458,11 +430,11 @@ jq --slurpfile hashmap scratch_files/hashmap.json '
 
 # create our initial directories for bp & rp
 status_message process "Generating initial directory strucutre for our bedrock packs"
-mkdir -p ./target/rp/models/blocks && mkdir -p ./target/rp/textures && mkdir -p ./target/rp/attachables && mkdir -p ./target/rp/animations && mkdir -p ./target/bp/blocks && mkdir -p ./target/bp/items
+mkdir -p ./target/rp/models/blocks && mkdir -p ./target/rp/textures && mkdir -p ./target/rp/attachables && mkdir -p ./target/rp/animations
 
 # copy over our pack.png if we have one
 if test -f "./pack.png"; then
-    cp ./pack.png ./target/rp/pack_icon.png && cp ./pack.png ./target/bp/pack_icon.png
+    cp ./pack.png ./target/rp/pack_icon.png
 fi
 
 # generate uuids for our manifests
@@ -497,34 +469,6 @@ jq -c --arg pack_desc "${pack_desc}" --arg uuid1 "${uuid1}" --arg uuid2 "${uuid2
 }
 ' | sponge ./target/rp/manifest.json
 
-# generate bp manifest.json
-status_message process "Generating behavior pack manifest"
-jq -c --arg pack_desc "${pack_desc}" --arg uuid1 "${uuid1}" --arg uuid3 "${uuid3}" --arg uuid4 "${uuid4}" -n '
-{
-    "format_version": 2,
-    "header": {
-        "description": "Adds 3D items for use with a Geyser proxy",
-        "name": $pack_desc,
-        "uuid": ($uuid3 | ascii_downcase),
-        "version": [1, 0, 0],
-        "min_engine_version": [ 1, 18, 3]
-    },
-    "modules": [
-        {
-            "description": "Adds 3D items for use with a Geyser proxy",
-            "type": "data",
-            "uuid": ($uuid4 | ascii_downcase),
-            "version": [1, 0, 0]
-        }
-    ],
-    "dependencies": [
-        {
-            "uuid": ($uuid1 | ascii_downcase),
-            "version": [1, 0, 0]
-        }
-    ]
-}
-' | sponge ./target/bp/manifest.json
 
 # generate rp terrain_texture.json
 status_message process "Generating resource pack terrain texture definition"
@@ -1263,61 +1207,7 @@ do
 
       ' ${file} | sponge ./target/rp/animations/${namespace}/${model_path}/animation.${model_name}.json
 
-      # generate our bp block definition if this is a 3D item
-      if [[ ${generated} = false ]]
-      then
-        mkdir -p ./target/bp/blocks/${namespace}/${model_path}
-        jq -c -n --arg atlas_index "${atlas_index}" --arg block_material "${block_material}" --arg path_hash "${path_hash}" --arg geometry "${geometry}" '
-        {
-            "format_version": "1.16.100",
-            "minecraft:block": {
-                "description": {
-                    "identifier": ("geyser_custom:" + $path_hash)
-                },
-                "components": {
-                    "minecraft:material_instances": {
-                        "*": {
-                            "texture": ("gmdl_atlas_" + $atlas_index),
-                            "render_method": $block_material,
-                            "face_dimming": false,
-                            "ambient_occlusion": false
-                        }
-                    },
-                    "minecraft:geometry": ("geometry.geyser_custom." + $geometry),
-                    "minecraft:placement_filter": {
-                      "conditions": [
-                          {
-                              "allowed_faces": [
-                              ],
-                              "block_filter": [
-                              ]
-                          }
-                      ]
-                    }
-                }
-            }
-        }
-        ' | sponge ./target/bp/blocks/${namespace}/${model_path}/${model_name}.json
-      # generate our bp item definition if this is a 2D item
-      else
-        mkdir -p ./target/bp/items/${namespace}/${model_path}
-        jq -c -n --arg path_hash "${path_hash}" '
-        {
-            "format_version": "1.16.100",
-            "minecraft:item": {
-                "description": {
-                    "identifier": ("geyser_custom:" + $path_hash),
-                    "category": "items"
-                },
-                "components": {
-                  "minecraft:icon": {
-                    "texture": $path_hash
-                  }
-                }
-            }
-        }
-        ' | sponge ./target/bp/items/${namespace}/${model_path}/${model_name}.${path_hash}.json
-      fi
+      
 
       # generate our rp attachable definition
       mkdir -p ./target/rp/attachables/${namespace}/${model_path}
@@ -1590,12 +1480,10 @@ fi
 status_message process "Compressing output packs"
 mkdir ./target/packaged
 cd ./target/rp > /dev/null && zip -rq8 geyser_resources_preview.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/rp/geyser_resources_preview.mcpack ./target/packaged/geyser_resources_preview.mcpack
-cd ./target/bp > /dev/null && zip -rq8 geyser_behaviors_preview.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/bp/geyser_behaviors_preview.mcpack ./target/packaged/geyser_behaviors_preview.mcpack
-cd ./target/packaged > /dev/null && zip -rq8 geyser_addon.mcaddon . -i "*_preview.mcpack" && cd ../.. > /dev/null
 jq 'delpaths([paths | select(.[-1] | strings | startswith("gmdl_atlas_"))])' ./target/rp/textures/terrain_texture.json | sponge ./target/rp/textures/terrain_texture.json
 cd ./target/rp > /dev/null && zip -rq8 geyser_resources.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/rp/geyser_resources.mcpack ./target/packaged/geyser_resources.mcpack
 mkdir ./target/unpackaged
-mv ./target/rp ./target/unpackaged/rp && mv ./target/bp ./target/unpackaged/bp
+mv ./target/rp ./target/unpackaged/rp
 
 echo
 printf "\e[32m[+]\e[m \e[1m\e[37mConversion Process Complete\e[m\n\n\e[37mExiting...\e[m\n\n"
