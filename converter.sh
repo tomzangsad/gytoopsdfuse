@@ -1064,18 +1064,49 @@ do
       }) | walk( if type == "object" then with_entries(select(.value != null)) else . end)) else {} end
       ;
       def pivot_groups:
-      if .elements then ((element_array) as $element_array |
-      [[.elements[].rotation] | unique | .[] | select (.!=null)]
-      | map((
-      [((- .origin[0] + 8) | roundit), (.origin[1] | roundit), ((.origin[2] - 8) | roundit)] as $i_piv |
-      (if (.axis) == "x" then [(.angle | tonumber * -1), 0, 0] elif (.axis) == "y" then [0, (.angle | tonumber * -1), 0] else [0, 0, (.angle | tonumber)] end) as $i_rot |
-      {
-        "parent": "geyser_custom_z",
-        "pivot": ($i_piv),
-        "rotation": ($i_rot),
-        "cubes": [($element_array | .[] | select(.rotation == $i_rot and .pivot == $i_piv))]
-      }))) else {} end
-      ;
+		  if .elements then (
+		    (element_array) as $el |
+		    # เก็บ rotation ที่ใช้จริงทั้งหมด
+		    (
+		      .elements
+		      | map(.rotation)
+		      | unique
+		      | map(select(. != null))
+		    ) as $rotlist |
+		
+		    $rotlist
+		    | map(
+		        # คำนวณ pivot ใหม่
+		        ([
+		          ((- .origin[0] + 8) | roundit),
+		          (.origin[1] | roundit),
+		          ((.origin[2] - 8) | roundit)
+		        ]) as $pv |
+		
+		        # คำนวณ rotation ใหม่ (ตามแกนที่แก้ไป)
+		        (if .axis == "x" then
+		            [ (.angle | tonumber * -1), 0, 0 ]
+		         elif .axis == "y" then
+		            [ 0, 0, (.angle | tonumber * -1) ]
+		         elif .axis == "z" then
+		            [ 0, (.angle | tonumber), 0 ]
+		         else
+		            null
+		         end) as $rt |
+		
+		        {
+		          "parent": "geyser_custom_z",
+		          "pivot": $pv,
+		          "rotation": $rt,
+		          "cubes": (
+		            $el
+		            | map(select(.rotation == $rt and .pivot == $pv))
+		          )
+		        }
+		    )
+		  ) else {} end
+		;
+
       {
         "format_version": "1.16.0",
         "minecraft:geometry": [{
