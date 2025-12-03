@@ -1033,18 +1033,7 @@ do
         if .elements then (.elements | map({
         "origin": [((-.to[0] + 8) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)],
         "size": [((.to[0] - .from[0]) | roundit), ((.to[1] - .from[1]) | roundit), ((.to[2] - .from[2]) | roundit)],
-        "rotation": (
-		  if .rotation.axis == "x" then
-		      [ (.rotation.angle | tonumber * -1), 0, 0 ]
-		  elif .rotation.axis == "y" then
-		      [ 0, 0, (.rotation.angle | tonumber * -1) ]
-		  elif .rotation.axis == "z" then
-		      [ 0, (.rotation.angle | tonumber), 0 ]
-		  else
-		      null
-		  end
-		),
-
+        "rotation": (if (.rotation.axis) == "x" then [(.rotation.angle | tonumber * -1), 0, 0] elif (.rotation.axis) == "y" then [0, (.rotation.angle | tonumber * -1), 0] elif (.rotation.axis) == "z" then [0, 0, (.rotation.angle | tonumber)] else null end),
         "pivot": (if .rotation.origin then [((- .rotation.origin[0] + 8) | roundit), (.rotation.origin[1] | roundit), ((.rotation.origin[2] - 8) | roundit)] else null end),
         "uv": (
           def uv_calc($input):
