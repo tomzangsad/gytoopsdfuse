@@ -1077,7 +1077,7 @@ do
       }))) else {} end
       ;
       {
-        "format_version": "1.16.0",
+        "format_version": "1.21.0",
         "minecraft:geometry": [{
           "description": {
             "identifier": ( "geometry.geyser_custom." + ($geometry)),
