@@ -47,7 +47,7 @@ jobs:
             merge_pack_url: (test(.["bedrock-merge-pack-direct-download-url"].text;"null") | gsub("[<>]"; "")),
             default_assets_version: test(.["default-assets-version"].text;"1.19.3"),
             block_material: test(.["block-material"].text;"alpha_test"),
-            attachable_material: test(.["attachable-material"].text;"entity_alphatest_one_sided"),
+            attachable_material: test(.["attachable-material"].text;"entity_alphatest"),
             archive_scratch: test(.["archive-scratch-files"].text;"false"),
             rename_model_files: test(.["rename-model-files"].text;"false"),
             font_conversion: test(.["font-conversion"].text;"true"),
