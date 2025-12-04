@@ -144,11 +144,11 @@ user_input fallback_pack "From what URL should we download the fallback resource
 status_message plain "
 Generating Bedrock 3D resource pack with settings:
 ${C_GRAY}Input pack to merge: ${C_BLUE}${merge_input:=null}
-${C_GRAY}Attachable material: ${C_BLUE}${attachable_material:=entity_alphatest}
+${C_GRAY}Attachable material: ${C_BLUE}${attachable_material:=entity_alphatest_one_sided}
 ${C_GRAY}Block material: ${C_BLUE}${block_material:=alpha_test}
 ${C_GRAY}Fallback pack URL: ${C_BLUE}${fallback_pack:=null}
 "
-#${C_GRAY}Attachable material: ${C_BLUE}${attachable_material:=entity_alphatest_one_sided}
+#${C_GRAY}Attachable material: ${C_BLUE}${attachable_material:=entity_alphatest}
 # decompress our input pack
 status_message process "Decompressing input pack"
 unzip -n -q "${1}"
