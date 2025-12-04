@@ -563,25 +563,102 @@ status_message process "Cropping animated textures"
 for i in $(find ./assets/**/textures -type f -name "*.mcmeta" | sed 's/\.mcmeta//'); do 
 convert ${i} -set option:distort:viewport "%[fx:min(w,h)]x%[fx:min(w,h)]" -distort affine "0,0 0,0" -define png:format=png8 -clamp ${i} 2> /dev/null
 done
-# ============================================================
-#  KAIZERMC — Generate Isometric Block Icons (Fixed Version)
-# ============================================================
 
+# ============================================================
+#  NEW FUNCTION: Resolve 3 block textures (top / side1 / side2)
+# ============================================================
+resolve_model_textures() {
+    local namespace="$1"
+    local modelpath="$2"
+
+    local model_json="./assets/$namespace/models/$modelpath.json"
+    [[ ! -f "$model_json" ]] && echo "" && return
+
+    # read all textures
+    local tex_all=$(jq -r '.textures.all // empty' "$model_json")
+    local tex_top=$(jq -r '.textures.up // .textures.top // .textures.down // empty' "$model_json")
+    local tex_side1=$(jq -r '.textures.north // .textures.south // empty' "$model_json")
+    local tex_side2=$(jq -r '.textures.west // .textures.east // empty' "$model_json")
+
+    # ----------------------------------------
+    # Fallback 1: cube_all / everything uses .all
+    # ----------------------------------------
+    if [[ "$tex_all" != "" ]]; then
+        tex_top="$tex_all"
+        tex_side1="$tex_all"
+        tex_side2="$tex_all"
+    fi
+
+    # if still all missing → fail
+    if [[ "$tex_top" == "" && "$tex_side1" == "" && "$tex_side2" == "" ]]; then
+        echo ""
+        return
+    fi
+
+    # function to resolve namespaces
+    resolve_png() {
+        local tex="$1"
+        [[ "$tex" == "" ]] && echo "" && return
+
+        if [[ "$tex" == *:* ]]; then
+            tns="${tex%%:*}"
+            tid="${tex#*:}"
+        else
+            tns="$namespace"
+            tid="$tex"
+        fi
+
+        for p in \
+            "./assets/$tns/textures/$tid.png" \
+            "./assets/$tns/textures/block/$tid.png" \
+            "./assets/$tns/textures/blocks/$tid.png" \
+            "./assets/$tns/textures/item/$tid.png"
+        do
+            [[ -f "$p" ]] && echo "$p" && return
+        done
+
+        echo ""
+    }
+
+    echo "$(resolve_png "$tex_top")|$(resolve_png "$tex_side1")|$(resolve_png "$tex_side2")"
+}
+
+
+
+# ============================================================
+#  NEW generate_isometric_icon (Top + 2 Sides)
+# ============================================================
 generate_isometric_icon() {
-    local base_png="$1"
-    local out_png="$2"
+    local top="$1"
+    local north="$2"
+    local west="$3"
+    local out_png="$4"
 
     mkdir -p tmp
 
-    convert "$base_png" -resize 96x96! PNG32:tmp/base.png
-    convert tmp/base.png -flop PNG32:tmp/top.png
-    convert tmp/base.png -brightness-contrast -10 PNG32:tmp/north.png
-    convert tmp/base.png -brightness-contrast -20 PNG32:tmp/west.png
+    # top texture is required
+    convert "$top" -resize 96x96! PNG32:tmp/top.png
 
+    # fallback handling for missing textures
+    if [[ -f "$north" ]]; then
+        convert "$north" -resize 96x96! PNG32:tmp/north.png
+    else
+        convert "$top" -resize 96x96! PNG32:tmp/north.png
+    fi
+
+    if [[ -f "$west" ]]; then
+        convert "$west" -resize 96x96! PNG32:tmp/west.png
+    elif [[ -f "$north" ]]; then
+        convert "$north" -resize 96x96! PNG32:tmp/west.png
+    else
+        convert "$top" -resize 96x96! PNG32:tmp/west.png
+    fi
+
+    # isometric-style compose
     convert \
-      \( tmp/top.png -virtual-pixel transparent +distort Affine '0,96 0,0   0,0 -34.8,-32  96,96 34.8,-32' \) \
+      \( tmp/top.png   -virtual-pixel transparent +distort Affine '0,96 0,0   0,0 -34.8,-32  96,96 34.8,-32' \) \
       \( tmp/north.png -virtual-pixel transparent +distort Affine '96,0 0,0   0,0 -34.8,-32  96,96 0,64' \) \
-      \( tmp/west.png -virtual-pixel transparent +distort Affine '0,0 0,0   0,96 0,64  96,0 34.8,-32' \) \
+      \( tmp/west.png  -virtual-pixel transparent +distort Affine '0,0 0,0   0,96 0,64  96,0 34.8,-32' \) \
       -background none -compose plus -layers merge +repage \
       -resize 64x64! PNG32:"$out_png"
 
@@ -589,66 +666,8 @@ generate_isometric_icon() {
 }
 
 # ============================================================
-#  Function: Resolve Model Texture
+#  BLOCK GEN LOOP (fixed to support multi-texture)
 # ============================================================
-resolve_model_texture() {
-    local namespace="$1"
-    local modelpath="$2"
-
-    local model_json=""
-
-    # item model
-    if [[ -f "./assets/$namespace/models/$modelpath.json" ]]; then
-        model_json="./assets/$namespace/models/$modelpath.json"
-    fi
-
-    # block model
-    if [[ -f "./assets/$namespace/models/block/$(basename "$modelpath").json" ]]; then
-        model_json="./assets/$namespace/models/block/$(basename "$modelpath").json"
-    fi
-
-    if [[ ! -f "$model_json" ]]; then
-        echo ""
-        return
-    fi
-
-    # read textures (priority order)
-    local tex=$(jq -r '
-        .textures.all // .textures.top // .textures.side //
-        .textures.bottom // .textures.front // .textures.back //
-        empty
-    ' "$model_json")
-
-    if [[ "$tex" == "" ]]; then
-        echo ""
-        return
-    fi
-
-    # split namespace:id
-    if [[ "$tex" == *:* ]]; then
-        tex_ns="${tex%%:*}"
-        tex_id="${tex#*:}"
-    else
-        tex_ns="$namespace"
-        tex_id="$tex"
-    fi
-
-    # try possible paths
-    try1="./assets/$tex_ns/textures/$tex_id.png"
-    try2="./assets/$tex_ns/textures/block/$tex_id.png"
-    try3="./assets/$tex_ns/textures/item/$tex_id.png"
-    try4="./assets/$tex_ns/textures/blocks/$tex_id.png"
-
-    if [[ -f "$try1" ]]; then echo "$try1"; return; fi
-    if [[ -f "$try2" ]]; then echo "$try2"; return; fi
-    if [[ -f "$try3" ]]; then echo "$try3"; return; fi
-    if [[ -f "$try4" ]]; then echo "$try4"; return; fi
-
-    echo ""
-}
-
-# ============================================================
-
 status_message process "🟦 Generating Isometric Block Icons from blockstates"
 
 BLOCKSTATE_DIR="./assets/minecraft/blockstates"
@@ -665,7 +684,6 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 
     for model in $models; do
 
-        # split namespace:modelpath
         if [[ "$model" == *:* ]]; then
             namespace="${model%%:*}"
             modelpath="${model#*:}"
@@ -674,24 +692,25 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
             modelpath="$model"
         fi
 
-        # resolve actual texture
-        texture_png=$(resolve_model_texture "$namespace" "$modelpath")
+        # NEW MULTI-TEXTURE EXTRACTION
+        tex_pack=$(resolve_model_textures "$namespace" "$modelpath")
+        top_png=$(echo "$tex_pack" | cut -d '|' -f 1)
+        side1_png=$(echo "$tex_pack" | cut -d '|' -f 2)
+        side2_png=$(echo "$tex_pack" | cut -d '|' -f 3)
 
-        if [[ "$texture_png" == "" ]]; then
-            status_message critical "❌ Texture missing (resolved failed) → $namespace:$modelpath"
+        if [[ "$top_png" == "" ]]; then
+            status_message critical "❌ Missing top texture → $namespace:$modelpath"
             continue
         fi
 
-        # output path
         out_dir="$ZICON_ROOT/${namespace}/$(dirname "$modelpath")"
         mkdir -p "$out_dir"
 
         out_png="${out_dir}/$(basename "$modelpath").png"
 
-        generate_isometric_icon "$texture_png" "$out_png"
+        generate_isometric_icon "$top_png" "$side1_png" "$side2_png" "$out_png"
         status_message completion "🎨 Isometric → $out_png"
 
-        # add icon to atlas
         hashname=$(echo -n "${namespace}_${modelpath}" | md5sum | head -c 7)
         echo "gmdl_${hashname},textures/zicon/${namespace}/${modelpath}.png" >> scratch_files/icons.csv
 
@@ -699,6 +718,7 @@ for blockstate in ${BLOCKSTATE_DIR}/*.json; do
 done
 
 status_message completion "🟩 Finished Isometric Block Icons"
+
 # ============================================================
 # ============================================================
 # ============================================================
@@ -1023,8 +1043,9 @@ do
             | ( (((((.faces | .[$input].uv[1]) * (texturedata($input_n) | .frame.h) * 0.0625) + (texturedata($input_n) | .frame.y)) * (16 / ($atlas[] | .meta.size.h))) ) ) as $fn1
             | ( (((((.faces | .[$input].uv[2]) * (texturedata($input_n) | .frame.w) * 0.0625) + (texturedata($input_n) | .frame.x)) * (16 / ($atlas[] | .meta.size.w))) ) ) as $fn2
             | ( (((((.faces | .[$input].uv[3]) * (texturedata($input_n) | .frame.h) * 0.0625) + (texturedata($input_n) | .frame.y)) * (16 / ($atlas[] | .meta.size.h))) ) ) as $fn3 
-            | (($fn2 - $fn0) as $num | [([-1, $num] | max), 1] | min) as $x_sign
-            | (($fn3 - $fn1) as $num | [([-1, $num] | max), 1] | min) as $y_sign |
+            | 1 as $x_sign
+			| 1 as $y_sign |
+
             (if ($input == "up" or $input == "down") then {
               "uv": [(($fn2 - (0.016 * $x_sign)) | roundit), (($fn3 - (0.016 * $y_sign)) | roundit)],
               "uv_size": [((($fn0 - $fn2) + (0.016 * $x_sign)) | roundit), ((($fn1 - $fn3) + (0.016 * $y_sign)) | roundit)]
@@ -1056,7 +1077,7 @@ do
       }))) else {} end
       ;
       {
-        "format_version": "1.16.0",
+        "format_version": "1.21.0",
         "minecraft:geometry": [{
           "description": {
             "identifier": ( "geometry.geyser_custom." + ($geometry)),
