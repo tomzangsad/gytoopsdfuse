@@ -1043,8 +1043,8 @@ do
             | ( (((((.faces | .[$input].uv[1]) * (texturedata($input_n) | .frame.h) * 0.0625) + (texturedata($input_n) | .frame.y)) * (16 / ($atlas[] | .meta.size.h))) ) ) as $fn1
             | ( (((((.faces | .[$input].uv[2]) * (texturedata($input_n) | .frame.w) * 0.0625) + (texturedata($input_n) | .frame.x)) * (16 / ($atlas[] | .meta.size.w))) ) ) as $fn2
             | ( (((((.faces | .[$input].uv[3]) * (texturedata($input_n) | .frame.h) * 0.0625) + (texturedata($input_n) | .frame.y)) * (16 / ($atlas[] | .meta.size.h))) ) ) as $fn3 
-            | 1 as $x_sign
-			| 1 as $y_sign |
+            | (($fn2 - $fn0) as $num | [([-1, $num] | max), 1] | min) as $x_sign
+            | (($fn3 - $fn1) as $num | [([-1, $num] | max), 1] | min) as $y_sign |
 
             (if ($input == "up" or $input == "down") then {
               "uv": [(($fn2 - (0.016 * $x_sign)) | roundit), (($fn3 - (0.016 * $y_sign)) | roundit)],
