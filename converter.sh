@@ -515,17 +515,19 @@ jq -nc '
 
 
 
-##เพิ่มตรงนี้
+# Ensure animation_controllers directory exists
+mkdir -p ./target/rp/animation_controllers
+
 # generate player animation controller with custom items
 status_message process "Generating player animation controller with custom items"
 
-# สร้างอาร์เรย์ของ geyserID ทั้งหมดแยกตามประเภท
-bow_items=$(jq -r '[.[] | select(.item | contains("bow")) | "geyser_custom:" + .path_hash] | join("\", \"")' config.json)
-shield_items=$(jq -r '[.[] | select(.item | contains("shield")) | "geyser_custom:" + .path_hash] | join("\", \"")' config.json)
-crossbow_items=$(jq -r '[.[] | select(.item | contains("crossbow")) | "geyser_custom:" + .path_hash] | join("\", \"")' config.json)
+# สร้างอาร์เรย์ของ geyserID ทั้งหมดแยกตามประเภท (กรองเฉพาะ bow ไม่รวม crossbow)
+bow_items=$(jq -r '[.[] | select(.item | test("bow") and (test("crossbow") | not)) | "'\''geyser_custom:" + .path_hash + "'\''"] | join(", ")' config.json)
+shield_items=$(jq -r '[.[] | select(.item | contains("shield")) | "'\''geyser_custom:" + .path_hash + "'\''"] | join(", ")' config.json)
+crossbow_items=$(jq -r '[.[] | select(.item | contains("crossbow")) | "'\''geyser_custom:" + .path_hash + "'\''"] | join(", ")' config.json)
 
 # สร้างไฟล์ player.animation_controllers.json
-jq -n --arg bow_list "$bow_items" --arg shield_list "$shield_items" --arg crossbow_list "$crossbow_items" '
+cat > ./target/rp/animation_controllers/player.animation_controllers.json << 'EOF'
 {
   "format_version": "1.10.0",
   "animation_controllers": {
@@ -536,32 +538,24 @@ jq -n --arg bow_list "$bow_items" --arg shield_list "$shield_items" --arg crossb
           "animations": ["third_person_crossbow_equipped"],
           "transitions": [
             {
-              "default": ("!query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:crossbow'\''" + (if $crossbow_list != "" then ", " + $crossbow_list else "" end) + ") || (!query.is_using_item && query.item_remaining_use_duration <= 0.0 && !query.item_is_charged)")
+              "default": "!query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:crossbow'CROSSBOW_ITEMS_PLACEHOLDER) || (!query.is_using_item && query.item_remaining_use_duration <= 0.0 && !query.item_is_charged)"
             },
-            {
-              "hold": "query.item_is_charged"
-            }
+            {"hold": "query.item_is_charged"}
           ]
         },
         "default": {
           "transitions": [
-            {
-              "hold": "query.item_is_charged"
-            },
-            {
-              "charge": "query.is_using_item && query.item_remaining_use_duration > 0.0 && !query.item_is_charged"
-            }
+            {"hold": "query.item_is_charged"},
+            {"charge": "query.is_using_item && query.item_remaining_use_duration > 0.0 && !query.item_is_charged"}
           ]
         },
         "hold": {
           "animations": ["crossbow_hold"],
           "transitions": [
             {
-              "default": ("!query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:crossbow'\''" + (if $crossbow_list != "" then ", " + $crossbow_list else "" end) + ") || (!query.is_using_item && query.item_remaining_use_duration <= 0.0 && !query.item_is_charged)")
+              "default": "!query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:crossbow'CROSSBOW_ITEMS_PLACEHOLDER) || (!query.is_using_item && query.item_remaining_use_duration <= 0.0 && !query.item_is_charged)"
             },
-            {
-              "charge": "query.is_using_item && query.item_remaining_use_duration > 0.0 && !query.item_is_charged"
-            }
+            {"charge": "query.is_using_item && query.item_remaining_use_duration > 0.0 && !query.item_is_charged"}
           ]
         }
       }
@@ -573,14 +567,12 @@ jq -n --arg bow_list "$bow_items" --arg shield_list "$shield_items" --arg crossb
           "animations": [
             {"first_person_swap_item": "!query.blocking"},
             {"first_person_shield_block": "query.blocking"},
-            {"first_person_attack_controller": "variable.attack_time > 0.0f && query.get_equipped_item_name != '\''filled_map'\''"},
+            {"first_person_attack_controller": "variable.attack_time > 0.0f && query.get_equipped_item_name != 'filled_map'"},
             "first_person_base_pose",
-            {"first_person_empty_hand": "query.get_equipped_item_name(0, 1) != '\''filled_map'\''"},
+            {"first_person_empty_hand": "query.get_equipped_item_name(0, 1) != 'filled_map'"},
             {"first_person_walk": "variable.bob_animation"},
-            {"first_person_map_controller": "(query.get_equipped_item_name(0, 1) == '\''filled_map'\'' || query.get_equipped_item_name('\''off_hand'\'') == '\''filled_map'\'')"},
-            {
-              "first_person_crossbow_equipped": ("query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:crossbow'\''" + (if $crossbow_list != "" then ", " + $crossbow_list else "" end) + ") && (variable.item_use_normalized > 0 && variable.item_use_normalized < 1.0)")
-            },
+            {"first_person_map_controller": "(query.get_equipped_item_name(0, 1) == 'filled_map' || query.get_equipped_item_name('off_hand') == 'filled_map')"},
+            {"first_person_crossbow_equipped": "query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:crossbow'CROSSBOW_ITEMS_PLACEHOLDER) && (variable.item_use_normalized > 0 && variable.item_use_normalized < 1.0)"},
             {"first_person_breathing_bob": "variable.attack_time <= 0.0"}
           ],
           "transitions": [
@@ -622,24 +614,14 @@ jq -n --arg bow_list "$bow_items" --arg shield_list "$shield_items" --arg crossb
             {"damage_nearby_mobs": "variable.damage_nearby_mobs"},
             {"swimming": "variable.swim_amount > 0.0"},
             {"swimming.legs": "variable.swim_amount > 0.0"},
-            {
-              "use_item_progress": ("( variable.use_item_interval_progress > 0.0 ) || ( variable.use_item_startup_progress > 0.0 ) && !variable.is_brandishing_spear && !variable.is_holding_spyglass && !variable.is_tooting_goat_horn && !query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:bow'\''" + (if $bow_list != "" then ", " + $bow_list else "" end) + ")")
-            },
+            {"use_item_progress": "( variable.use_item_interval_progress > 0.0 ) || ( variable.use_item_startup_progress > 0.0 ) && !variable.is_brandishing_spear && !variable.is_holding_spyglass && !variable.is_tooting_goat_horn && !query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:bow'BOW_ITEMS_PLACEHOLDER)"},
             {"sleeping": "query.is_sleeping && query.is_alive"},
             {"attack.positions": "variable.attack_time >= 0.0"},
             {"attack.rotations": "variable.attack_time >= 0.0"},
-            {
-              "shield_block_main_hand": ("query.blocking && query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:shield'\''" + (if $shield_list != "" then ", " + $shield_list else "" end) + ")")
-            },
-            {
-              "shield_block_off_hand": ("query.blocking && query.is_item_name_any('\''slot.weapon.offhand'\'', 0, '\''minecraft:shield'\''" + (if $shield_list != "" then ", " + $shield_list else "" end) + ")")
-            },
-            {
-              "crossbow_controller": ("query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:crossbow'\''" + (if $crossbow_list != "" then ", " + $crossbow_list else "" end) + ")")
-            },
-            {
-              "third_person_bow_equipped": ("query.is_item_name_any('\''slot.weapon.mainhand'\'', 0, '\''minecraft:bow'\''" + (if $bow_list != "" then ", " + $bow_list else "" end) + ") && (q.is_using_item)")
-            },
+            {"shield_block_main_hand": "query.blocking && query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:shield'SHIELD_ITEMS_PLACEHOLDER)"},
+            {"shield_block_off_hand": "query.blocking && query.is_item_name_any('slot.weapon.offhand', 0, 'minecraft:shield'SHIELD_ITEMS_PLACEHOLDER)"},
+            {"crossbow_controller": "query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:crossbow'CROSSBOW_ITEMS_PLACEHOLDER)"},
+            {"third_person_bow_equipped": "query.is_item_name_any('slot.weapon.mainhand', 0, 'minecraft:bow'BOW_ITEMS_PLACEHOLDER) && (q.is_using_item)"},
             {"tooting_goat_horn": "variable.is_tooting_goat_horn"}
           ],
           "transitions": [
@@ -652,7 +634,26 @@ jq -n --arg bow_list "$bow_items" --arg shield_list "$shield_items" --arg crossb
     }
   }
 }
-' | sponge ./target/rp/animation_controllers/player.animation_controllers.json
+EOF
+
+# แทนที่ placeholder ด้วย item IDs จริง
+if [[ -n "$bow_items" ]]; then
+    sed -i "s/BOW_ITEMS_PLACEHOLDER/, $bow_items/g" ./target/rp/animation_controllers/player.animation_controllers.json
+else
+    sed -i "s/BOW_ITEMS_PLACEHOLDER//g" ./target/rp/animation_controllers/player.animation_controllers.json
+fi
+
+if [[ -n "$shield_items" ]]; then
+    sed -i "s/SHIELD_ITEMS_PLACEHOLDER/, $shield_items/g" ./target/rp/animation_controllers/player.animation_controllers.json
+else
+    sed -i "s/SHIELD_ITEMS_PLACEHOLDER//g" ./target/rp/animation_controllers/player.animation_controllers.json
+fi
+
+if [[ -n "$crossbow_items" ]]; then
+    sed -i "s/CROSSBOW_ITEMS_PLACEHOLDER/, $crossbow_items/g" ./target/rp/animation_controllers/player.animation_controllers.json
+else
+    sed -i "s/CROSSBOW_ITEMS_PLACEHOLDER//g" ./target/rp/animation_controllers/player.animation_controllers.json
+fi
 
 status_message completion "Player animation controller generated with custom item support"
 ##เพิ่มตรงนี้
