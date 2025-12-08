@@ -4,27 +4,6 @@ import shutil
 import glob
 from jproperties import Properties
 
-
-
-def load_gmdl_mapping():
-    mapping_file = "staging/target/geyser_mappings.json"
-    if not os.path.exists(mapping_file):
-        print("❌ geyser_mappings.json not found")
-        return {}
-
-    with open(mapping_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    cmd_to_gmdl = {}
-
-    for item, entries in data.items():
-        for e in entries:
-            if "custom_model_data" in e and "name" in e:
-                cmd_to_gmdl[str(e["custom_model_data"])] = e["name"]
-
-    print(f"✅ Loaded gmdl mapping: {len(cmd_to_gmdl)} items")
-    return cmd_to_gmdl
-
 # ===============================
 # 🔧 อัปเดต item_texture.json
 # ===============================
@@ -275,32 +254,23 @@ def process_leather_armor():
                     print(f"⚠️ Missing icon texture: {src_icon}")
                     continue
 
-                # ===== PATCH: gmdl จาก mapping =====
-                cmd = override.get("predicate", {}).get("custom_model_data")
-                if not cmd:
-                    print("⚠️ No custom_model_data for leather item")
+                # หา gmdl จาก attachable
+                afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
+                if not afile:
+                    print(f"⚠️ No attachable found for {model}")
                     continue
 
-                gmdl = CMD_TO_GMDL.get(str(cmd))
-                if not gmdl:
-                    print(f"❌ gmdl not found for CMD {cmd}")
-                    continue
-
-                # ✅ base attachable path
-                base_attach = f"staging/target/rp/attachables/{namespace}/{gmdl}.json"
-
-                # ✅ ถ้ายังไม่มี base → สร้าง
-                if not os.path.exists(base_attach):
-                    write_equipment_armor(base_attach, gmdl, f"textures/armor_layer/{layer}", i)
-
-                # ✅ player attachable
-                pfile = f"staging/target/rp/attachables/{namespace}/{gmdl}.player.json"
+                with open(afile[0], "r") as f:
+                    da = json.load(f)["minecraft:attachable"]
+                    gmdl = da["description"]["identifier"].split(":")[1]
 
                 # Add icon → icons.csv
                 atlas_texture_path = f"textures/{namespace}/{icon_texture}.png"
 
+                icons_csv = "scratch_files/icons.csv"
                 os.makedirs("scratch_files", exist_ok=True)
-                with open("scratch_files/icons.csv", "a", encoding="utf-8") as f:
+
+                with open(icons_csv, "a", encoding="utf-8") as f:
                     f.write(f"{gmdl},{atlas_texture_path}\n")
 
                 print(f"📌 Added icon to atlas: {gmdl} → {atlas_texture_path}")
@@ -309,6 +279,7 @@ def process_leather_armor():
                 update_item_texture_json(gmdl, atlas_texture_path)
 
                 # Generate player attachable
+                pfile = afile[0].replace(".json", ".player.json")
                 write_armor(pfile, gmdl, layer, i)
 
             except Exception as e:
@@ -345,236 +316,290 @@ def write_equipment_base(file, gmdl, texture_path, i):
     print(f"🟦 Generated base attachable: {file}")
 def find_existing_gmdl(namespace, armor_name, armor_piece):
     """
-    ⚠ deprecated
+    ค้นหาไฟล์ attachable เดิมที่ IA auto-gen ไว้ในโฟลเดอร์ namespace ทั้งหมด
+    และดึง gmdl จริงออกมา เช่น elder_boots.gmdl_0e76107
     """
-    return None
-    
-def detect_equipment_texture_root(namespace):
-    """
-    ตรวจว่ามาจาก:
-    - IA overlay
-    - nexo
-    คืน path root ของ textures
-    """
+    base_path = f"staging/target/rp/attachables/{namespace}"
 
-    ia_path = f"pack/ia_overlay_1_21_2_plus/assets/{namespace}/textures/entity/equipment"
-    nexo_path = f"pack/assets/{namespace}/textures/entity/equipment"
+    # ค้นทุกไฟล์ json ใน namespace และโฟลเดอร์ย่อย เช่น ia_auto_gen/*
+    for file in glob.glob(base_path + "/**/*.json", recursive=True):
+        if ".player" in file:
+            continue
 
-    if os.path.exists(ia_path):
-        print(f"✅ Detected IA overlay equipment path: {ia_path}")
-        return ia_path
+        # มักอยู่ในรูป items เช่น:
+        # japan_armor_basickimono_helmet.gmdl_xxxxx.json
+        filename = os.path.basename(file)
 
-    if os.path.exists(nexo_path):
-        print(f"✅ Detected NEXO equipment path: {nexo_path}")
-        return nexo_path
+        if armor_name in filename and armor_piece in filename:
+            with open(file, "r", encoding="utf-8") as f:
+                data = json.load(f)["minecraft:attachable"]
+                return data["description"]["identifier"].split(":")[1]
 
-    print(f"❌ No equipment texture root found for {namespace}")
     return None
 
 # ===============================
 # 🛡️ ประมวลผล Netherite/Equipment Armor
 # ===============================
 def process_equipment_armor():
+    """ประมวลผล Netherite และ armor อื่นๆ ที่ใช้ equipment model"""
     print("\n" + "="*60)
-    print("⚔️ FINAL Equipment Armor Processor (IA + NEXO)")
+    print("⚔️ Processing Equipment Armor (Netherite, etc.)")
     print("="*60)
-
-    ia_root = "pack/ia_overlay_1_21_2_plus/assets"
-    nexo_root = "pack/assets"
-
-    namespaces = set()
-
-    # ===== scan IA =====
-    if os.path.exists(ia_root):
-        for ns in os.listdir(ia_root):
-            if os.path.exists(os.path.join(ia_root, ns, "models", "equipment")):
-                namespaces.add(ns)
-
-    # ===== scan NEXO =====
-    if os.path.exists(nexo_root):
-        for ns in os.listdir(nexo_root):
-            if os.path.exists(os.path.join(nexo_root, ns, "models", "equipment")):
-                namespaces.add(ns)
-
-    namespaces = list(namespaces)
-    print(f"✅ Namespaces: {namespaces}")
-
-    if not namespaces:
-        print("❌ No equipment models found")
+    
+    overlay_path = "pack/ia_overlay_1_21_2_plus/assets"
+    
+    if not os.path.exists(overlay_path):
+        print(f"⚠️ Overlay path not found: {overlay_path}")
         return
-
-    # ====================
-    # LOOP namespace
-    # ====================
-    for namespace in namespaces:
-
-        # detect source pack
-        if os.path.exists(f"{ia_root}/{namespace}"):
-            root = f"{ia_root}/{namespace}"
-        elif os.path.exists(f"{nexo_root}/{namespace}"):
-            root = f"{nexo_root}/{namespace}"
-        else:
+    
+    print(f"📁 Found overlay path: {overlay_path}")
+    
+    # วนหา namespace folders
+    namespaces_found = []
+    for namespace in os.listdir(overlay_path):
+        namespace_path = os.path.join(overlay_path, namespace)
+        if not os.path.isdir(namespace_path):
             continue
-
-        models_dir = os.path.join(root, "models", "equipment")
-        if not os.path.exists(models_dir):
+        
+        models_path = os.path.join(namespace_path, "models", "equipment")
+        if os.path.exists(models_path):
+            namespaces_found.append(namespace)
+    
+    print(f"🔍 Found {len(namespaces_found)} namespaces with equipment models: {namespaces_found}")
+    
+    if not namespaces_found:
+        print("⚠️ No equipment models found!")
+        return
+    
+    # วนหา namespace folders
+    for namespace in namespaces_found:
+        namespace_path = os.path.join(overlay_path, namespace)
+        if not os.path.isdir(namespace_path):
             continue
-
-        print(f"\n📦 {namespace}")
-
-        # ====================
-        # LOOP armor model
-        # ====================
-        for model_file in glob.glob(os.path.join(models_dir, "*.json")):
-            armor_name = os.path.basename(model_file).replace(".json", "")
-            print(f"\n🛡️ {namespace}:{armor_name}")
-
+            
+        models_path = os.path.join(namespace_path, "models", "equipment")
+        if not os.path.exists(models_path):
+            continue
+            
+        # หาไฟล์ .json ทั้งหมด
+        for armor_file in glob.glob(os.path.join(models_path, "*.json")):
+            armor_name = os.path.basename(armor_file).replace(".json", "")
+            
+            print(f"\n{'='*60}")
+            print(f"🛡️ Processing: {namespace}:{armor_name}")
+            print(f"{'='*60}")
+            
+            # อ่านไฟล์ model
             try:
-                with open(model_file, "r", encoding="utf-8") as f:
-                    model = json.load(f)
-            except:
-                print("❌ Model load error")
+                with open(armor_file, "r", encoding="utf-8") as f:
+                    model_data = json.load(f)
+                    
+                print(f"📄 Model structure: {json.dumps(model_data, indent=2)[:500]}...")  # แสดง 500 ตัวอักษรแรก
+            except Exception as e:
+                print(f"❌ Failed to read model file: {e}")
                 continue
+            
+            # หา texture paths
+            layers = model_data.get("layers", {})
 
-            # ====================
-            # READ textures
-            # ====================
-            layers = model.get("layers", {})
-            humanoid = None
-            leggings = None
+            humanoid_texture = None
+            leggings_texture = None
+            
+            # --- CASE 1: New IA format (list inside keys) ---
+            layers = model_data.get("layers", {})
+
+            humanoid_texture = None
+            leggings_texture = None
             
             if isinstance(layers, dict):
-                h = layers.get("humanoid")
-                if isinstance(h, list) and h and isinstance(h[0], dict):
-                    humanoid = h[0].get("texture")
-                elif isinstance(h, dict):
-                    humanoid = h.get("texture")
-
-                l = layers.get("humanoid_leggings")
-                if isinstance(l, list) and l and isinstance(l[0], dict):
-                    leggings = l[0].get("texture")
-                elif isinstance(l, dict):
-                    leggings = l.get("texture")
-
+            
+                # humanoid
+                if isinstance(layers.get("humanoid"), list):
+                    for entry in layers["humanoid"]:
+                        if isinstance(entry, dict) and entry.get("texture"):
+                            humanoid_texture = entry["texture"]
+                            break
+                else:
+                    humanoid_texture = layers.get("humanoid", {}).get("texture")
+            
+                # leggings
+                if isinstance(layers.get("humanoid_leggings"), list):
+                    for entry in layers["humanoid_leggings"]:
+                        if isinstance(entry, dict) and entry.get("texture"):
+                            leggings_texture = entry["texture"]
+                            break
+                else:
+                    leggings_texture = layers.get("humanoid_leggings", {}).get("texture")
+            
             elif isinstance(layers, list):
                 for entry in layers:
                     if not isinstance(entry, dict):
                         continue
-                    if entry.get("type") == "humanoid":
-                        humanoid = entry.get("texture")
-                    elif entry.get("type") in ("humanoid_leggings", "leggings"):
-                        leggings = entry.get("texture")
+                    if "humanoid" in str(entry):
+                        humanoid_texture = entry.get("texture")
+                    if "leggings" in str(entry):
+                        leggings_texture = entry.get("texture")
 
-            # ====================
-            # COPY textures
-            # ====================
-            tex_root = detect_equipment_texture_root(namespace)
-            if not tex_root:
+
+            
+            if not humanoid_texture:
+                print(f"⚠️ No humanoid texture found")
                 continue
+            
+            # Copy textures (ใช้ path จาก namespace_path ที่มี pack/ อยู่แล้ว)
+            textures_base = namespace_path  # เช่น pack/ia_overlay_1_21_2_plus/assets/3b_soul_skull
+            
+            # Humanoid texture
+            # Extract filename from namespace:texture
+            tex_name = humanoid_texture.split(":")[1]
+            
+            # IA Overlay 1.21.2+ path
+            src_humanoid = os.path.join(
+                textures_base,
+                "textures", "entity", "equipment", "humanoid",
+                tex_name + ".png"
+            )
 
-            def copy(tex, folder):
-                if not tex:
-                    return None
-                if ":" not in tex:
-                    return None
+            dest_humanoid = os.path.join(
+                "staging/target/rp/textures/equipment",
+                f"{namespace}_{armor_name}_humanoid.png"
+            )
 
-                name = tex.split(":")[1] + ".png"
-                src = os.path.join(tex_root, folder, name)
-                dst = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_{folder}.png"
-                os.makedirs(os.path.dirname(dst), exist_ok=True)
-
-                if os.path.exists(src):
-                    shutil.copy(src, dst)
-                    print(f"🧩 Copied {dst}")
-                    return dst
-                return None
-
-            humanoid_dst = copy(humanoid, "humanoid")
-            leggings_dst = copy(leggings, "humanoid_leggings") if leggings else humanoid_dst
-
-            if not humanoid_dst:
-                print("❌ Skip armor, humanoid texture missing")
+            
+            os.makedirs(os.path.dirname(dest_humanoid), exist_ok=True)
+            
+            if os.path.exists(src_humanoid):
+                shutil.copy(src_humanoid, dest_humanoid)
+                print(f"🧩 Copied humanoid texture → {dest_humanoid}")
+            else:
+                print(f"⚠️ Humanoid texture not found: {src_humanoid}")
                 continue
+            
+            # Leggings texture
+            # Leggings texture
+            if leggings_texture:
+                tex_name = leggings_texture.split(":")[1]
+                src_leggings = os.path.join(
+                    textures_base,
+                    "textures", "entity", "equipment", "humanoid_leggings",
+                    tex_name + ".png"
+                )
+            else:
+                src_leggings = src_humanoid
+            
+            dest_leggings = os.path.join(
+                "staging/target/rp/textures/equipment",
+                f"{namespace}_{armor_name}_leggings.png"
+            )
+            
+            # copy leggings texture
+            os.makedirs(os.path.dirname(dest_leggings), exist_ok=True)
+            
+            if os.path.exists(src_leggings):
+                shutil.copy(src_leggings, dest_leggings)
+                print(f"🧩 Copied leggings texture → {dest_leggings}")
+            else:
+                print(f"⚠ leggings texture not found: {src_leggings}")
+                dest_leggings = dest_humanoid
 
-            # ====================
-            # APPLY to items
-            # ====================
-            armor_map = [
-                ("netherite_helmet", "helmet"),
-                ("netherite_chestplate", "chestplate"),
-                ("netherite_leggings", "leggings"),
-                ("netherite_boots", "boots")
-            ]
 
-            for i, (item_name, piece) in enumerate(armor_map):
-
-                item_json = f"pack/assets/minecraft/models/item/{item_name}.json"
+            
+            # ประมวลผลแต่ละชิ้นส่วนเกราะ
+            armor_types = ["netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"]
+            
+            for i, armor_type in enumerate(armor_types):
+                item_json = f"pack/assets/minecraft/models/item/{armor_type}.json"
+                
                 if not os.path.exists(item_json):
                     continue
-
+                
+                # อ่าน overrides
                 with open(item_json, "r", encoding="utf-8") as f:
-                    item = json.load(f)
+                    item_data = json.load(f)
+                
+                overrides = item_data.get("overrides", [])
+                
+                # หา override ที่ตรงกับ armor นี้
+                for override in overrides:
+                    model = override.get("model", "")
+                    
+                    # ตรวจสอบว่า model ตรงกับ armor นี้หรือไม่
+                    if namespace in model and armor_name in model:
+                        print(f"✅ Found matching override: {model}")
+                        
+                        # หา icon texture
+                        model_path = model.replace(":", "/")
+                        model_json_path = f"pack/assets/{model_path}.json"
+                        
+                        if not os.path.exists(model_json_path):
+                            print(f"⚠️ Model file not found: {model_json_path}")
+                            continue
+                        
+                        with open(model_json_path, "r", encoding="utf-8") as f:
+                            item_model = json.load(f)
+                        
+                        textures = item_model.get("textures", {})
+                        icon_texture = textures.get("layer0") or textures.get("layer1")
+                        
+                        if not icon_texture:
+                            print(f"⚠️ No icon texture found")
+                            continue
+                        
+                        # Copy icon
+                        if ":" in icon_texture:
+                            icon_ns, icon_path = icon_texture.split(":", 1)
+                        else:
+                            icon_ns = namespace
+                            icon_path = icon_texture
+                        
+                        src_icon = f"pack/assets/{icon_ns}/textures/{icon_path}.png"
+                        dest_icon = f"staging/target/rp/textures/{icon_ns}/{icon_path}.png"
+                        
+                        os.makedirs(os.path.dirname(dest_icon), exist_ok=True)
+                        
+                        if os.path.exists(src_icon):
+                            shutil.copy(src_icon, dest_icon)
+                            print(f"🖼️ Copied icon → {dest_icon}")
+                            
+                            # สร้าง gmdl ID
+                            armor_piece = armor_type.split("_")[1]  # helmet, chestplate, etc.
+                            # หา gmdl จากไฟล์ attachable เดิม
+                            gmdl = find_existing_gmdl(namespace, armor_name, armor_piece)
+                            if not gmdl:
+                                print(f"⚠️ Cannot find existing gmdl for {armor_name} {armor_piece}")
+                                continue
+                            
+                            # อัปเดต item_texture.json
+                            atlas_path = f"textures/{icon_ns}/{icon_path}.png"
+                            update_item_texture_json(gmdl, atlas_path)
+                            
+                            # icons.csv
+                            icons_csv = "scratch_files/icons.csv"
+                            os.makedirs("scratch_files", exist_ok=True)
+                            with open(icons_csv, "a", encoding="utf-8") as f:
+                                f.write(f"{gmdl},{atlas_path}\n")
+                            print(f"📌 Added to atlas: {gmdl}")
+                            
+                            # เลือก texture humanoid/leggings
+                            if armor_piece == "leggings":
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings.png"
+                            else:
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid.png"
+                            
+                            # path base และ player
+                            base_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.json"
+                            player_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.player.json"
+                            
+                            # generate base attachable
+                            write_equipment_base(base_attachable, gmdl, final_texture, i)
+                            
+                            # generate player attachable
+                            write_equipment_armor(player_attachable, gmdl, final_texture, i)
 
-                for o in item.get("overrides", []):
-                    model_ref = o.get("model", "")
 
-                    if namespace not in model_ref or armor_name not in model_ref:
-                        continue
-
-                    print(f"✅ Match: {model_ref}")
-
-                    model_file = f"pack/assets/{model_ref.replace(':','/')}.json"
-                    if not os.path.exists(model_file):
-                        continue
-
-                    with open(model_file, "r", encoding="utf-8") as f:
-                        m = json.load(f)
-
-                    icon = m.get("textures", {}).get("layer0") or m.get("textures", {}).get("layer1")
-                    if not icon:
-                        continue
-
-                    icon_ns, icon_path = icon.split(":")
-                    src = f"pack/assets/{icon_ns}/textures/{icon_path}.png"
-                    dst = f"staging/target/rp/textures/{icon_ns}/{icon_path}.png"
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-
-                    if os.path.exists(src):
-                        shutil.copy(src, dst)
-
-                    # ===== PATCH: gmdl จาก mapping =====
-                    cmd = o.get("predicate", {}).get("custom_model_data")
-                    if not cmd:
-                        continue
-
-                    gmdl = CMD_TO_GMDL.get(str(cmd))
-                    if not gmdl:
-                        print(f"❌ gmdl not found for CMD {cmd}")
-                        continue
-
-                    atlas = f"textures/{icon_ns}/{icon_path}.png"
-                    update_item_texture_json(gmdl, atlas)
-
-                    os.makedirs("scratch_files", exist_ok=True)
-                    with open("scratch_files/icons.csv", "a", encoding="utf-8") as f:
-                        f.write(f"{gmdl},{atlas}\n")
-
-                    # ----- texture path -----
-                    if piece == "leggings":
-                        final = f"textures/equipment/{namespace}_{armor_name}_humanoid_leggings.png"
-                    else:
-                        final = f"textures/equipment/{namespace}_{armor_name}_humanoid.png"
-
-                    write_equipment_base(
-                        f"staging/target/rp/attachables/{namespace}/{gmdl}.json",
-                        gmdl, final, i
-                    )
-
-                    write_equipment_armor(
-                        f"staging/target/rp/attachables/{namespace}/{gmdl}.player.json",
-                        gmdl, final, i
-                    )
-
+                                                    
+                        else:
+                            print(f"⚠️ Icon not found: {src_icon}")
 
 # ===============================
 # 🧩 Auto-generate .player.json for ANY armor attachable
@@ -585,50 +610,72 @@ def auto_generate_player_attachables():
     print("="*60)
 
     base_path = "staging/target/rp/attachables"
+
     ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
+    # เดินทุก namespace + subfolder
     for namespace in os.listdir(base_path):
         ns_path = os.path.join(base_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
+        # ค้นหาเฉพาะไฟล์ attachable.json ที่เป็นเกราะเท่านั้น
         attachable_files = glob.glob(ns_path + "/**/*.attachable.json", recursive=True)
 
         for file in attachable_files:
-            lower = file.lower()
-            if not any(k in lower for k in ARMOR_KEYWORDS):
+            lower_name = file.lower()
+
+            # ❌ ถ้าไม่ใช่ของเกราะ → ข้าม
+            if not any(key in lower_name for key in ARMOR_KEYWORDS):
                 continue
 
             player_file = file.replace(".attachable.json", ".attachable.player.json")
+
+            # ถ้ามีอยู่แล้วก็ข้าม
             if os.path.exists(player_file):
+                print(f"⏩ Skip (already exists): {player_file}")
                 continue
 
+            # อ่าน attachable เดิม
             with open(file, "r", encoding="utf-8") as f:
                 data = json.load(f)["minecraft:attachable"]
 
             gmdl = data["description"]["identifier"].split(":")[1]
 
-            if "leggings" in lower:
+            # หา armor type จากชื่อไฟล์
+            if "leggings" in lower_name:
                 armor_type = "leggings"
-            elif "boots" in lower:
+            elif "boots" in lower_name:
                 armor_type = "boots"
-            elif "chest" in lower:
+            elif "chest" in lower_name:
                 armor_type = "chestplate"
             else:
                 armor_type = "helmet"
+            
+            # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
+            armor_name_clean = gmdl.split(".gmdl")[0]
+            
+            if armor_type == "leggings":
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+            else:
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
 
-            name_clean = gmdl.split(".gmdl")[0]
 
-            tex = f"textures/equipment/{namespace}_{name_clean}_{'humanoid_leggings' if armor_type=='leggings' else 'humanoid'}.png"
-
+            # JSON player attachable
             player_json = {
                 "format_version": "1.10.0",
                 "minecraft:attachable": {
                     "description": {
                         "identifier": f"geyser_custom:{gmdl}.player",
                         "item": {f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"},
-                        "materials": {"default": "armor", "enchanted": "armor_enchanted"},
-                        "textures": {"default": tex, "enchanted": "textures/misc/enchanted_item_glint"},
+                        "materials": {
+                            "default": "armor",
+                            "enchanted": "armor_enchanted"
+                        },
+                        "textures": {
+                            "default": final_texture,
+                            "enchanted": "textures/misc/enchanted_item_glint"
+                        },
                         "geometry": {"default": f"geometry.player.armor.{armor_type}"},
                         "scripts": {"parent_setup": "variable.helmet_layer_visible = 0.0;"},
                         "render_controllers": ["controller.render.armor"]
@@ -640,57 +687,99 @@ def auto_generate_player_attachables():
             with open(player_file, "w", encoding="utf-8") as f:
                 json.dump(player_json, f, indent=4)
 
-            print(f"🧩 Generated {player_file}")
+            print(f"🧩 Generated ARMOR ONLY: {player_file}")
 
+def detect_armor_sources(tex_dir, namespace):
+    """
+    คืน mapping:
+    {
+       'humanoid': 'ชื่อไฟล์ต้นฉบับ',
+       'leggings': 'ชื่อไฟล์ต้นฉบับ'
+    }
+    """
+    files = glob.glob(os.path.join(tex_dir, f"{namespace}_*.png"))
+
+    humanoid = None
+    leggings = None
+
+    for f in files:
+        name = os.path.basename(f).lower()
+
+        if "humanoid" in name:
+            humanoid = os.path.basename(f)
+
+        if "leggings" in name:
+            leggings = os.path.basename(f)
+
+    return humanoid, leggings
 
 def fix_player_attachable_texture_paths():
     print("\n" + "="*60)
-    print("🎯 Fixing .player.json textures")
+    print("🎯 Fixing .player.json textures to use REAL source textures")
     print("="*60)
 
     tex_dir = "staging/target/rp/textures/equipment"
     attach_path = "staging/target/rp/attachables"
 
-    all_png = [os.path.basename(p) for p in glob.glob(os.path.join(tex_dir, "*.png"))]
+    # โหลดไฟล์ texture ทั้งหมดไว้ก่อน
+    all_png = glob.glob(os.path.join(tex_dir, "*.png"))
+    all_png_map = {os.path.basename(f): f for f in all_png}
 
+    # loop ทุก namespace
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
-        humanoid = None
-        leggings = None
+        # หาชื่อ texture จริง (มีแค่ 2 ไฟล์)
+        humanoid_src = None
+        leggings_src = None
 
-        for n in all_png:
-            if not n.startswith(namespace + "_"):
+        for f in all_png:
+            base = os.path.basename(f).lower()
+            if not base.startswith(namespace.lower() + "_"):
                 continue
-            if "humanoid_leggings" in n:
-                leggings = n
-            elif "humanoid" in n:
-                humanoid = n
 
-        if not humanoid:
+            if "humanoid" in base:
+                humanoid_src = base
+            if "leggings" in base:
+                leggings_src = base
+
+        if not humanoid_src:
             continue
 
-        for file in glob.glob(ns_path + "/**/*.player.json", recursive=True):
-            with open(file, "r", encoding="utf-8") as f:
+        # loop player.json
+        for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
+            with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            geom = data["minecraft:attachable"]["description"]["geometry"]["default"]
+            desc = data["minecraft:attachable"]["description"]
 
-            new = f"textures/equipment/{leggings if 'leggings' in geom else humanoid}"
-            old = data["minecraft:attachable"]["description"]["textures"]["default"]
+            # ดูว่าเป็นหมวก, เสื้อ, รองเท้าหรือกางเกง
+            geom = desc["geometry"]["default"]
 
-            if old != new:
-                data["minecraft:attachable"]["description"]["textures"]["default"] = new
-                with open(file, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=4)
-                print(f"🔧 Fixed {file}")
+            if "leggings" in geom:
+                new_tex = f"textures/equipment/{leggings_src}"
+            else:
+                new_tex = f"textures/equipment/{humanoid_src}"
 
+            old_tex = desc["textures"]["default"]
+
+            # ถ้าเหมือนเดิมไม่ต้องแก้
+            if old_tex == new_tex:
+                continue
+
+            desc["textures"]["default"] = new_tex
+
+            with open(pf, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+
+            print(f"🔧 Fixed {os.path.basename(pf)}")
+            print(f"    {old_tex}  →  {new_tex}")
 
 def remove_invalid_player_attachables():
     print("\n" + "="*60)
-    print("🧹 Cleaning invalid player attachables")
+    print("🧹 Cleaning invalid .player.json (missing textures)")
     print("="*60)
 
     attach_path = "staging/target/rp/attachables"
@@ -701,21 +790,42 @@ def remove_invalid_player_attachables():
             continue
 
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
+
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            tex = data["minecraft:attachable"]["description"]["textures"]["default"]
-            tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
-            if not tex_path.endswith(".png"):
-                tex_path += ".png"
+            desc = data["minecraft:attachable"]["description"]
+            tex = desc["textures"]["default"]
 
-            if "armor_layer" in tex:
+            # ✅ ตรวจ path ให้ถูก (รองรับมี/ไม่มี .png)
+            if tex.endswith(".png"):
+                tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
+            else:
+                tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep) + ".png")
+
+            # ✅ CIT = อย่าลบทิ้ง
+            if "textures/armor_layer" in tex:
+
+                if not os.path.exists(tex_path):
+                    print(f"⚠️ WARN (CIT texture missing, NOT removed): {pf}")
+                    print(f"   Missing: {tex_path}")
+                else:
+                    print(f"✅ OK (CIT): {pf}")
+
                 continue
 
+            # ❌ Equipment / Cosmetic → ลบทิ้งได้
             if not os.path.exists(tex_path):
-                print(f"❌ REMOVE {pf}")
-                os.remove(pf)
 
+                print(f"❌ REMOVE: {pf}")
+                print(f"   Missing texture: {tex_path}")
+
+                try:
+                    os.remove(pf)
+                except:
+                    pass
+            else:
+                print(f"✅ OK: {pf}")
 
 # ===============================
 # 🚀 MAIN START
@@ -724,14 +834,14 @@ geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
-CMD_TO_GMDL = load_gmdl_mapping()
-
+# ประมวลผล Leather Armor
 process_leather_armor()
+
+# ประมวลผล Equipment Armor (Netherite, etc.)
 process_equipment_armor()
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
-
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
