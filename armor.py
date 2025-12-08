@@ -430,14 +430,33 @@ def process_equipment_armor():
             layers = model.get("layers", {})
             humanoid = None
             leggings = None
-
+            
+            # ✅ รองรับ layers แบบ dict (IA)
             if isinstance(layers, dict):
-                humanoid = layers.get("humanoid", {}).get("texture")
-                leggings = layers.get("humanoid_leggings", {}).get("texture")
+            
+                # humanoid
+                if isinstance(layers.get("humanoid"), dict):
+                    humanoid = layers["humanoid"].get("texture")
+            
+                # leggings
+                if isinstance(layers.get("humanoid_leggings"), dict):
+                    leggings = layers["humanoid_leggings"].get("texture")
+            
+            # ✅ รองรับ layers แบบ list (NEXO)
+            elif isinstance(layers, list):
+                for entry in layers:
+                    if not isinstance(entry, dict):
+                        continue
+            
+                    t = entry.get("type", "")
+                    tex = entry.get("texture")
+            
+                    if t == "humanoid" and tex:
+                        humanoid = tex
+            
+                    if t in ("humanoid_leggings", "leggings") and tex:
+                        leggings = tex
 
-            if not humanoid:
-                print("⚠️ No humanoid texture")
-                continue
 
             # ====================
             # COPY textures
