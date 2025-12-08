@@ -431,31 +431,33 @@ def process_equipment_armor():
             humanoid = None
             leggings = None
             
-            # ✅ รองรับ layers แบบ dict (IA)
+            # ✅ รองรับ layers ทุกรูปแบบ (dict / list / dict of list)
             if isinstance(layers, dict):
             
                 # humanoid
-                if isinstance(layers.get("humanoid"), dict):
-                    humanoid = layers["humanoid"].get("texture")
+                h = layers.get("humanoid")
+                if isinstance(h, list) and h and isinstance(h[0], dict):
+                    humanoid = h[0].get("texture")
+                elif isinstance(h, dict):
+                    humanoid = h.get("texture")
             
                 # leggings
-                if isinstance(layers.get("humanoid_leggings"), dict):
-                    leggings = layers["humanoid_leggings"].get("texture")
+                l = layers.get("humanoid_leggings")
+                if isinstance(l, list) and l and isinstance(l[0], dict):
+                    leggings = l[0].get("texture")
+                elif isinstance(l, dict):
+                    leggings = l.get("texture")
             
-            # ✅ รองรับ layers แบบ list (NEXO)
+            # ✅ layers เป็น list
             elif isinstance(layers, list):
                 for entry in layers:
                     if not isinstance(entry, dict):
                         continue
-            
-                    t = entry.get("type", "")
-                    tex = entry.get("texture")
-            
-                    if t == "humanoid" and tex:
-                        humanoid = tex
-            
-                    if t in ("humanoid_leggings", "leggings") and tex:
-                        leggings = tex
+                    if entry.get("type") == "humanoid":
+                        humanoid = entry.get("texture")
+                    elif entry.get("type") in ("humanoid_leggings", "leggings"):
+                        leggings = entry.get("texture")
+
 
 
             # ====================
