@@ -336,6 +336,28 @@ def find_existing_gmdl(namespace, armor_name, armor_piece):
                 return data["description"]["identifier"].split(":")[1]
 
     return None
+    
+def detect_equipment_texture_root(namespace):
+    """
+    ตรวจว่ามาจาก:
+    - IA overlay
+    - nexo
+    คืน path root ของ textures
+    """
+
+    ia_path = f"pack/ia_overlay_1_21_2_plus/assets/{namespace}/textures/entity/equipment"
+    nexo_path = f"pack/assets/{namespace}/textures/entity/equipment"
+
+    if os.path.exists(ia_path):
+        print(f"✅ Detected IA overlay equipment path: {ia_path}")
+        return ia_path
+
+    if os.path.exists(nexo_path):
+        print(f"✅ Detected NEXO equipment path: {nexo_path}")
+        return nexo_path
+
+    print(f"❌ No equipment texture root found for {namespace}")
+    return None
 
 # ===============================
 # 🛡️ ประมวลผล Netherite/Equipment Armor
@@ -447,7 +469,10 @@ def process_equipment_armor():
                 continue
             
             # Copy textures (ใช้ path จาก namespace_path ที่มี pack/ อยู่แล้ว)
-            textures_base = namespace_path  # เช่น pack/ia_overlay_1_21_2_plus/assets/3b_soul_skull
+            texture_root = detect_equipment_texture_root(namespace)
+            if not texture_root:
+                continue
+
             
             # Humanoid texture
             # Extract filename from namespace:texture
@@ -455,10 +480,11 @@ def process_equipment_armor():
             
             # IA Overlay 1.21.2+ path
             src_humanoid = os.path.join(
-                textures_base,
-                "textures", "entity", "equipment", "humanoid",
+                texture_root,
+                "humanoid",
                 tex_name + ".png"
             )
+
 
             dest_humanoid = os.path.join(
                 "staging/target/rp/textures/equipment",
@@ -480,8 +506,8 @@ def process_equipment_armor():
             if leggings_texture:
                 tex_name = leggings_texture.split(":")[1]
                 src_leggings = os.path.join(
-                    textures_base,
-                    "textures", "entity", "equipment", "humanoid_leggings",
+                    texture_root,
+                    "humanoid_leggings",
                     tex_name + ".png"
                 )
             else:
