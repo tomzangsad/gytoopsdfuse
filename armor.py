@@ -468,24 +468,43 @@ def process_equipment_armor():
                 continue
 
             def copy(tex, folder):
+                # ✅ กัน tex = None
+                if not tex:
+                    print(f"⚠️ No texture for folder '{folder}', skip")
+                    return None
+            
+                # ✅ กันชื่อไม่ใช่ namespace:texture
+                if ":" not in tex:
+                    print(f"⚠️ Invalid texture format: {tex}")
+                    return None
+            
                 name = tex.split(":")[1] + ".png"
+            
                 src = os.path.join(tex_root, folder, name)
                 dst = f"staging/target/rp/textures/equipment/{namespace}_{armor_name}_{folder}.png"
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
-
+            
                 if os.path.exists(src):
                     shutil.copy(src, dst)
                     print(f"🧩 Copied {folder}: {dst}")
                     return dst
                 else:
-                    print(f"❌ Missing: {src}")
+                    print(f"⚠️ Texture not found: {src}")
                     return None
 
-            humanoid_dst = copy(humanoid, "humanoid")
-            leggings_dst = copy(leggings, "humanoid_leggings") if leggings else humanoid_dst
 
+            humanoid_dst = copy(humanoid, "humanoid")
+
+            if leggings:
+                leggings_dst = copy(leggings, "humanoid_leggings")
+            else:
+                leggings_dst = humanoid_dst
+            
+            # ✅ ถ้า humanoid ยังไม่มี -> ข้ามทั้งชุด
             if not humanoid_dst:
+                print("❌ Skip armor, humanoid texture missing")
                 continue
+
 
             # ====================
             # APPLY to items
