@@ -1193,10 +1193,10 @@ do
                 "scale": 1.5
               },
               "geyser_custom_x": {
-                "position": (if .display.firstperson_righthand.translation then [(- .display.firstperson_righthand.translation[0]), (.display.firstperson_righthand.translation[1]), (- .display.firstperson_righthand.translation[2])] else null end),
-                "rotation": (if .display.firstperson_righthand.rotation then [(- .display.firstperson_righthand.rotation[0]), 0, 0] else [0.1, 0.1, 0.1] end),
-                "scale": (if .display.firstperson_righthand.scale then (.display.firstperson_righthand.scale) else null end)
-              },
+			    "position": [3.25, 4.75, 0],
+			    "rotation": [-9, 0, 0],
+			    "scale": [0.35, 0.35, 0.35]
+			  },
               "geyser_custom_y": (if .display.firstperson_righthand.rotation then {
                 "rotation": [0, (- .display.firstperson_righthand.rotation[1]), 0]
               } else null end),
