@@ -1209,14 +1209,14 @@ do
             "loop": true,
             "bones": {
               "geyser_custom": {
-                "rotation": [90, 60, -40],
-                "position": [4, 10, 4],
-                "scale": 1.5
+                "rotation": [0, 180, 0],
+				"position": [-16, 24, 14],
+				"scale": 0.8
               },
               "geyser_custom_x": {
-                "position": (if .display.firstperson_lefthand.translation then [(.display.firstperson_lefthand.translation[0]), (.display.firstperson_lefthand.translation[1]), (- .display.firstperson_lefthand.translation[2])] else null end),
-                "rotation": (if .display.firstperson_lefthand.rotation then [(- .display.firstperson_lefthand.rotation[0]), 0, 0] else [0.1, 0.1, 0.1] end),
-                "scale": (if .display.firstperson_lefthand.scale then (.display.firstperson_lefthand.scale) else null end)
+                "rotation": [9.47, 0, 0],
+      			"position": [5.5, 10.0, -3.75],
+      			"scale": [1.0, 1.0, 1.0]
               },
               "geyser_custom_y": (if .display.firstperson_lefthand.rotation then {
                 "rotation": [0, (- .display.firstperson_lefthand.rotation[1]), 0]
