@@ -172,8 +172,6 @@ jobs:
             staging/target/*.json
             staging/target/scratch_files.zip
             staging/config.json
-            staging/gui.json
-            pack/gui.json
 
   post-result:
     runs-on: ubuntu-latest
