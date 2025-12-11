@@ -830,7 +830,7 @@ def remove_invalid_player_attachables():
 # 📥 โหลด GUI config หากมีใน ./pack/gui.json
 # ===============================
 def import_gui_config():
-    src_gui = "pack/gui.json"
+    src_gui = "..pack/gui.json"
     dest1 = "staging/gui.json"
 
     if not os.path.exists(src_gui):
