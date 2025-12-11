@@ -826,6 +826,23 @@ def remove_invalid_player_attachables():
                     pass
             else:
                 print(f"✅ OK: {pf}")
+# ===============================
+# 📥 โหลด GUI config หากมีใน ./pack/gui.json
+# ===============================
+def import_gui_config():
+    src_gui = "pack/gui.json"
+    dest1 = "staging/gui.json"
+
+    if not os.path.exists(src_gui):
+        print("⚠️ No gui.json found in ./pack/")
+        return
+
+    os.makedirs("staging", exist_ok=True)
+
+    # คัดลอกสองตำแหน่ง
+    shutil.copy(src_gui, dest1)
+
+    print("🎉 Imported gui.json → staging/gui.json")
 
 # ===============================
 # 🚀 MAIN START
@@ -842,6 +859,7 @@ process_equipment_armor()
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
+import_gui_config()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
