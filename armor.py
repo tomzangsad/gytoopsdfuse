@@ -827,22 +827,32 @@ def remove_invalid_player_attachables():
             else:
                 print(f"✅ OK: {pf}")
 # ===============================
-# 📥 โหลด GUI config หากมีใน ./pack/gui.json
+# 📥 โหลด GUI config + คัดลอก PNG ไป staging
 # ===============================
 def import_gui_config():
     src_gui = "pack/guis.json"
-    dest1 = "staging/guis.json"
+    dest_gui = "staging/guis.json"
 
+    # path ต้นทางของโฟลเดอร์ PNG
+    src_texture_folder = "pack/textures/zgui/ui/gui"
+    dest_texture_folder = "staging/textures/zgui/ui/gui"
+
+    # เอา guis.json
     if not os.path.exists(src_gui):
-        print("⚠️ No gui.json found in ./pack/")
+        print("⚠️ No guis.json found in ./pack/")
         return
 
     os.makedirs("staging", exist_ok=True)
 
-    # คัดลอกสองตำแหน่ง
-    shutil.copy(src_gui, dest1)
+    shutil.copy(src_gui, dest_gui)
+    print("🎉 Imported guis.json → staging/guis.json")
 
-    print("🎉 Imported gui.json → staging/gui.json")
+    # เอา PNG ทั้งหมดใน textures/zgui/ui/gui/
+    if os.path.exists(src_texture_folder):
+        shutil.copytree(src_texture_folder, dest_texture_folder, dirs_exist_ok=True)
+        print(f"🖼️ Imported PNGs → {dest_texture_folder}")
+    else:
+        print("⚠️ No PNG texture folder found:", src_texture_folder)
 
 # ===============================
 # 🚀 MAIN START
