@@ -173,6 +173,7 @@ jobs:
             staging/target/scratch_files.zip
             staging/config.json
             staging/guis.json
+            staging/textures/zgui/ui/gui/*.png
 
   post-result:
     runs-on: ubuntu-latest
