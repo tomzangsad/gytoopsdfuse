@@ -1209,13 +1209,12 @@ do
             "bones": {
               "geyser_custom": {
                 "rotation": [0, 180, 0],
-				"position": [-16, 24, 14],
-				"scale": 0.8
+				"position": [-16, 14, 14],
+				"scale": 1.2
               },
               "geyser_custom_x": {
                 "rotation": [9.47, 0, 0],
-      			"position": [5.5, 10.0, -3.75],
-      			"scale": [1.0, 1.0, 1.0]
+      			"position": [5.5, 10.0, -3.75]
               },
               "geyser_custom_y": (if .display.firstperson_lefthand.rotation then {
                 "rotation": [0, (- .display.firstperson_lefthand.rotation[1]), 0]
