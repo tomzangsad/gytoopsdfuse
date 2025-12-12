@@ -606,92 +606,63 @@ def process_equipment_armor():
 # ===============================
 def auto_generate_player_attachables():
     print("\n" + "="*60)
-    print("🛠️ Auto-generating .player.json (ARMOR ONLY)")
+    print("🛠️ Auto-generating .player.json for ARMOR ONLY")
     print("="*60)
 
     base_path = "staging/target/rp/attachables"
-    tex_dir = "staging/target/rp/textures/equipment"
 
-    # โหลดรายชื่อ texture จริง
-    real_textures = {}
-    for f in glob.glob(tex_dir + "/*.png"):
-        name = os.path.basename(f)
+    ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
-        if name.endswith("_humanoid.png"):
-            base = name.replace("_humanoid.png", "")
-            real_textures.setdefault(base, {})["humanoid"] = f"textures/equipment/{name}"
-
-        if name.endswith("_leggings.png"):
-            base = name.replace("_leggings.png", "")
-            real_textures.setdefault(base, {})["leggings"] = f"textures/equipment/{name}"
-
-    ARMOR_KEYS = ["helmet", "chestplate", "leggings", "boots"]
-
-    # หา attachable ที่เป็นของเกราะจริง
+    # เดินทุก namespace + subfolder
     for namespace in os.listdir(base_path):
         ns_path = os.path.join(base_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
-        # ✔ มองเฉพาะ .attachable.json
-        for file in glob.glob(ns_path + "/**/*.attachable.json", recursive=True):
+        # ค้นหาเฉพาะไฟล์ attachable.json ที่เป็นเกราะเท่านั้น
+        attachable_files = glob.glob(ns_path + "/**/*.attachable.json", recursive=True)
 
-            fname = os.path.basename(file).lower()
+        for file in attachable_files:
+            lower_name = file.lower()
 
-            # ข้าม player files
-            if fname.endswith(".player.attachable.json") or fname.endswith(".player.json"):
+            # ❌ ถ้าไม่ใช่ของเกราะ → ข้าม
+            if not any(key in lower_name for key in ARMOR_KEYWORDS):
                 continue
 
-            # เฉพาะไฟล์เกราะ
-            if not any(k in fname for k in ARMOR_KEYS):
-                continue
+            player_file = file.replace(".attachable.json", ".attachable.player.json")
 
-            # ต้องมี gmdl
-            if ".gmdl_" not in fname:
-                continue
-
-            # path player file
-            player_file = file.replace(".attachable.json", ".player.attachable.json")
-
+            # ถ้ามีอยู่แล้วก็ข้าม
             if os.path.exists(player_file):
+                print(f"⏩ Skip (already exists): {player_file}")
                 continue
 
-            # อ่าน base attachable
+            # อ่าน attachable เดิม
             with open(file, "r", encoding="utf-8") as f:
                 data = json.load(f)["minecraft:attachable"]
 
             gmdl = data["description"]["identifier"].split(":")[1]
 
-            # ดึงชนิด armor
-            if "leggings" in fname:
-                part = "leggings"
-            elif "boots" in fname:
-                part = "boots"
-            elif "chestplate" in fname or "chest" in fname:
-                part = "chestplate"
+            # หา armor type จากชื่อไฟล์
+            if "leggings" in lower_name:
+                armor_type = "leggings"
+            elif "boots" in lower_name:
+                armor_type = "boots"
+            elif "chest" in lower_name:
+                armor_type = "chestplate"
             else:
-                part = "helmet"
+                armor_type = "helmet"
+            
+            # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
+            armor_name_clean = gmdl.split(".gmdl")[0]
+            
+            if armor_type == "leggings":
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+            else:
+                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
 
-            # หา base_key เช่น emerald_leggings
-            base_key = None
-            for key in real_textures:
-                if key in fname:
-                    base_key = key
-                    break
 
-            if not base_key:
-                print(f"⚠️ No texture match for: {file}")
-                continue
-
-            # เลือก texture
-            tex = real_textures[base_key].get("leggings" if part=="leggings" else "humanoid")
-
-            if not tex:
-                print(f"⚠️ Missing final texture for {file}")
-                continue
-
-            # สร้าง player.json
-            out = {
+            # JSON player attachable
+            player_json = {
                 "format_version": "1.10.0",
                 "minecraft:attachable": {
                     "description": {
@@ -702,10 +673,10 @@ def auto_generate_player_attachables():
                             "enchanted": "armor_enchanted"
                         },
                         "textures": {
-                            "default": tex,
+                            "default": final_texture,
                             "enchanted": "textures/misc/enchanted_item_glint"
                         },
-                        "geometry": {"default": f"geometry.player.armor.{part}"},
+                        "geometry": {"default": f"geometry.player.armor.{armor_type}"},
                         "scripts": {"parent_setup": "variable.helmet_layer_visible = 0.0;"},
                         "render_controllers": ["controller.render.armor"]
                     }
@@ -714,10 +685,9 @@ def auto_generate_player_attachables():
 
             os.makedirs(os.path.dirname(player_file), exist_ok=True)
             with open(player_file, "w", encoding="utf-8") as f:
-                json.dump(out, f, indent=4)
+                json.dump(player_json, f, indent=4)
 
-            print(f"🧩 FIXED+CREATED: {player_file}")
-
+            print(f"🧩 Generated ARMOR ONLY: {player_file}")
 
 def detect_armor_sources(tex_dir, namespace):
     """
@@ -743,51 +713,69 @@ def detect_armor_sources(tex_dir, namespace):
 
     return humanoid, leggings
 
-def fix_player_attachable_texture_paths(nexo_map=None):
+def fix_player_attachable_texture_paths():
     print("\n" + "="*60)
-    print("🎯 Fixing .player.json textures (CIT / Equipment / NEXO)")
+    print("🎯 Fixing .player.json textures to use REAL source textures")
     print("="*60)
 
+    tex_dir = "staging/target/rp/textures/equipment"
     attach_path = "staging/target/rp/attachables"
 
+    # โหลดไฟล์ texture ทั้งหมดไว้ก่อน
+    all_png = glob.glob(os.path.join(tex_dir, "*.png"))
+    all_png_map = {os.path.basename(f): f for f in all_png}
+
+    # loop ทุก namespace
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
         if not os.path.isdir(ns_path):
             continue
 
+        # หาชื่อ texture จริง (มีแค่ 2 ไฟล์)
+        humanoid_src = None
+        leggings_src = None
+
+        for f in all_png:
+            base = os.path.basename(f).lower()
+            if not base.startswith(namespace.lower() + "_"):
+                continue
+
+            if "humanoid" in base:
+                humanoid_src = base
+            if "leggings" in base:
+                leggings_src = base
+
+        if not humanoid_src:
+            continue
+
+        # loop player.json
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             desc = data["minecraft:attachable"]["description"]
+
+            # ดูว่าเป็นหมวก, เสื้อ, รองเท้าหรือกางเกง
+            geom = desc["geometry"]["default"]
+
+            if "leggings" in geom:
+                new_tex = f"textures/equipment/{leggings_src}"
+            else:
+                new_tex = f"textures/equipment/{humanoid_src}"
+
             old_tex = desc["textures"]["default"]
 
-            # ----------------------
-            # 🟦 CASE 1: NEXO
-            # ----------------------
-            if "nexo" in pf.lower() and nexo_map:
-                filename = os.path.basename(pf)
-                # forest_helmet.gmdl_xxxxx
-                clean = filename.split(".gmdl")[0]  
-
-                if clean in nexo_map:
-                    geom = desc["geometry"]["default"]
-                    if "leggings" in geom:
-                        new_tex = nexo_map[clean]["leggings"]
-                    else:
-                        new_tex = nexo_map[clean]["humanoid"]
-
-                    desc["textures"]["default"] = new_tex
-                    print(f"🔧 NEXO Fix {filename}: {old_tex} → {new_tex}")
-
-                    with open(pf, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=4)
+            # ถ้าเหมือนเดิมไม่ต้องแก้
+            if old_tex == new_tex:
                 continue
 
-            # ----------------------
-            # Normal armor handled later
-            # ----------------------
+            desc["textures"]["default"] = new_tex
 
+            with open(pf, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4)
+
+            print(f"🔧 Fixed {os.path.basename(pf)}")
+            print(f"    {old_tex}  →  {new_tex}")
 
 def remove_invalid_player_attachables():
     print("\n" + "="*60)
@@ -803,36 +791,41 @@ def remove_invalid_player_attachables():
 
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
 
-            # ❗❗❗ ถ้าเป็น NEXO ห้ามลบ ❗❗❗
-            if "nexo" in pf.lower():
-                print(f"⏩ SKIP NEXO FILE (never delete): {pf}")
-                continue
-
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             desc = data["minecraft:attachable"]["description"]
             tex = desc["textures"]["default"]
 
-            # CIT textures never delete
-            if "textures/armor_layer" in tex:
-                print(f"⏩ SKIP CIT FILE: {pf}")
-                continue
-
-            # Build path to file
+            # ✅ ตรวจ path ให้ถูก (รองรับมี/ไม่มี .png)
             if tex.endswith(".png"):
                 tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
             else:
                 tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep) + ".png")
 
-            # Remove only equipment that truly missing texture
+            # ✅ CIT = อย่าลบทิ้ง
+            if "textures/armor_layer" in tex:
+
+                if not os.path.exists(tex_path):
+                    print(f"⚠️ WARN (CIT texture missing, NOT removed): {pf}")
+                    print(f"   Missing: {tex_path}")
+                else:
+                    print(f"✅ OK (CIT): {pf}")
+
+                continue
+
+            # ❌ Equipment / Cosmetic → ลบทิ้งได้
             if not os.path.exists(tex_path):
-                print(f"❌ REMOVE INVALID FILE: {pf}")
+
+                print(f"❌ REMOVE: {pf}")
                 print(f"   Missing texture: {tex_path}")
-                os.remove(pf)
+
+                try:
+                    os.remove(pf)
+                except:
+                    pass
             else:
                 print(f"✅ OK: {pf}")
-
 # ===============================
 # 📥 โหลด GUI config + คัดลอก PNG ไป staging
 # ===============================
@@ -862,124 +855,152 @@ def import_gui_config():
         print("⚠️ No PNG texture folder found:", src_texture_folder)
         
 # ===============================
-# 🔍 ตรวจ NEXO + หา layer_1 / layer_2
+# 🔍 ตรวจว่าเป็น NEXO + ตรวจ layer_1 / layer_2 ใน pack/assets/
 # ===============================
 def check_nexo_and_layers():
-    import os, re
+    import os, re, json
 
     pack_root = "pack"
     assets_path = os.path.join(pack_root, "assets")
 
     print("\n" + "="*60)
-    print("🔍 Checking NEXO pack")
+    print("🔍 Checking NEXO pack + layer textures")
     print("="*60)
 
+    # 1) ตรวจ pack/
     if not os.path.exists(pack_root):
-        return None
+        print("❌ No 'pack/' folder found!")
+        return
 
-    # ตรวจว่าใน pack มีโฟลเดอร์ชื่อ nexo
-    is_nexo = any("nexo" in f.lower() for f in os.listdir(pack_root))
+    is_nexo = any("nexo" in item.lower() for item in os.listdir(pack_root))
 
     if not is_nexo:
-        print("❌ Not a NEXO pack.")
-        return None
+        print("❌ This pack is NOT NEXO.")
+        return
 
+    print("✅ NEXO pack detected.\n")
+
+    # 2) ตรวจ assets/
     if not os.path.exists(assets_path):
-        print("❌ No pack/assets/")
-        return None
+        print("❌ 'pack/assets/' not found!")
+        return
 
+    # 3) สแกน layer_1 / layer_2
     layer1 = {}
     layer2 = {}
 
-    re_l1 = re.compile(r"(.*?)[_\.-]?layer[_\.-]?1(.*)$")
-    re_l2 = re.compile(r"(.*?)[_\.-]?layer[_\.-]?2(.*)$")
+    re_layer1 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?1(.*)$", re.IGNORECASE)
+    re_layer2 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?2(.*)$", re.IGNORECASE)
 
     for root, dirs, files in os.walk(assets_path):
         for filename in files:
-            full = os.path.join(root, filename)
-            rel = os.path.relpath(full, assets_path).replace("\\", "/")
+            full_path = os.path.join(root, filename)
+            rel = os.path.relpath(full_path, assets_path).replace("\\", "/")
 
-            m1 = re_l1.match(filename)
-            m2 = re_l2.match(filename)
-
+            m1 = re_layer1.match(filename)
             if m1:
-                key = os.path.join(os.path.dirname(rel), m1.group(1) + m1.group(2))
-                layer1[key] = full
-            elif m2:
-                key = os.path.join(os.path.dirname(rel), m2.group(1) + m2.group(2))
-                layer2[key] = full
+                key = os.path.join(os.path.dirname(rel), (m1.group(1) + m1.group(2))).replace("\\", "/")
+                layer1[key] = full_path
+                continue
 
-    pairs = [(layer1[k], layer2[k]) for k in layer1 if k in layer2]
+            m2 = re_layer2.match(filename)
+            if m2:
+                key = os.path.join(os.path.dirname(rel), (m2.group(1) + m2.group(2))).replace("\\", "/")
+                layer2[key] = full_path
+                continue
 
-    print(f"Matched pairs: {len(pairs)}")
+    # 4) จับคู่
+    pairs = []
+    for key in layer1:
+        if key in layer2:
+            pairs.append((layer1[key], layer2[key]))
 
-    return {"is_nexo": True, "pairs": pairs}
+    missing_layer2 = [layer1[k] for k in layer1 if k not in layer2]
+    missing_layer1 = [layer2[k] for k in layer2 if k not in layer1]
 
+    # 5) สรุปผล
+    print("=== MATCHED PAIRS ===")
+    for l1, l2 in pairs:
+        print(f"\n[LAYER 1] {l1}")
+        print(f"[LAYER 2] {l2}")
 
-# ===============================
-# 🎨 COPY NEXO LAYERS → equipment folder
-# ===============================
-def copy_nexo_textures(pairs):
-    """
-    คืน mapping:
-        {
-            "<basename>": {
-                "humanoid": "textures/equipment/<file>.png",
-                "leggings": "textures/equipment/<file>.png"
-        }
-    """
-    import shutil, os
+    print("\n=== MISSING layer_2 ===")
+    for f in missing_layer2:
+        print("  ", f)
 
-    outdir = "staging/target/rp/textures/equipment"
-    os.makedirs(outdir, exist_ok=True)
+    print("\n=== MISSING layer_1 ===")
+    for f in missing_layer1:
+        print("  ", f)
 
-    nexo_map = {}
+    print("\n=== SUMMARY ===")
+    print("Total layer_1:", len(layer1))
+    print("Total layer_2:", len(layer2))
+    print("Matched pairs:", len(pairs))
+    print("Missing layer_2:", len(missing_layer2))
+    print("Missing layer_1:", len(missing_layer1))
+
+    # -----------------------------------
+    # 7) COPY MATCHED LAYERS → layer_nexo/
+    # -----------------------------------
+    output_dir = "staging/target/rp/textures/layer_nexo"
+    os.makedirs(output_dir, exist_ok=True)
+
+    print("\n📦 Copying matched layer textures → textures/layer_nexo/")
 
     for l1, l2 in pairs:
-        base = os.path.basename(l1).replace("_layer_1", "").replace(".png", "")
+        relative_key = os.path.relpath(l1, assets_path).replace("\\", "/")
+        base_name = os.path.splitext(os.path.basename(relative_key))[0]
 
-        # เตรียมไฟล์ output
-        humanoid_name = f"{base}_humanoid.png"
-        leggings_name = f"{base}_leggings.png"
+        out_l1 = os.path.join(output_dir, f"{base_name}_layer_1.png")
+        out_l2 = os.path.join(output_dir, f"{base_name}_layer_2.png")
 
-        humanoid_path = os.path.join(outdir, humanoid_name)
-        leggings_path = os.path.join(outdir, leggings_name)
+        try:
+            shutil.copy(l1, out_l1)
+            shutil.copy(l2, out_l2)
+            print(f"  ✔ Copied {base_name} (layer_1 + layer_2)")
+        except Exception as e:
+            print(f"  ❌ Failed to copy {base_name}: {e}")
 
-        # NEXO rule:
-        # humanoid ใช้ layer_1
-        # leggings ใช้ layer_2
-        shutil.copy(l1, humanoid_path)
-        shutil.copy(l2, leggings_path)
+    print("📁 Done copying all matched layer textures!\n")
 
-        nexo_map[base] = {
-            "humanoid": f"textures/equipment/{humanoid_name}",
-            "leggings": f"textures/equipment/{leggings_name}",
-        }
+    # -----------------------------------
+    # 8) เขียนรายงาน JSON
+    # -----------------------------------
+    os.makedirs("staging/reports", exist_ok=True)
+    report = {
+        "is_nexo": True,
+        "layer_1_count": len(layer1),
+        "layer_2_count": len(layer2),
+        "matched_pairs": [{"layer_1": p[0], "layer_2": p[1]} for p in pairs],
+        "missing_layer_2": missing_layer2,
+        "missing_layer_1": missing_layer1,
+    }
 
-        print(f"🧩 NEXO → {base}: humanoid+leggings created.")
+    with open("staging/reports/layer_report.json", "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
 
-    return nexo_map
+    print("\n📄 Wrote: staging/reports/layer_report.json")
+    print("="*60 + "\n")
 
 
 
+# ===============================
+# 🚀 MAIN START
+# ===============================
+check_nexo_and_layers()
+geyser_mappings_file = "staging/target/geyser_mappings.json"
+if os.path.exists(geyser_mappings_file):
+    remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
-# ============ MAIN ============
-
-nexo = check_nexo_and_layers()
-if nexo:
-    print("⚙ Copying NEXO layers...")
-    nexo_map = copy_nexo_textures(nexo["pairs"])
-else:
-    nexo_map = {}
-
+# ประมวลผล Leather Armor
 process_leather_armor()
+
+# ประมวลผล Equipment Armor (Netherite, etc.)
 process_equipment_armor()
 auto_generate_player_attachables()
-fix_player_attachable_texture_paths(nexo_map=nexo_map)
+fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
 import_gui_config()
-
-print("✅ ALL ARMOR DONE!")
-
-
-
+print("\n" + "="*60)
+print("✅ All armor processing complete!")
+print("="*60)
