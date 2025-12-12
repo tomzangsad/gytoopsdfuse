@@ -791,41 +791,36 @@ def remove_invalid_player_attachables():
 
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
 
+            # ❗❗❗ ถ้าเป็น NEXO ห้ามลบ ❗❗❗
+            if "nexo" in pf.lower():
+                print(f"⏩ SKIP NEXO FILE (never delete): {pf}")
+                continue
+
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             desc = data["minecraft:attachable"]["description"]
             tex = desc["textures"]["default"]
 
-            # ✅ ตรวจ path ให้ถูก (รองรับมี/ไม่มี .png)
+            # CIT textures never delete
+            if "textures/armor_layer" in tex:
+                print(f"⏩ SKIP CIT FILE: {pf}")
+                continue
+
+            # Build path to file
             if tex.endswith(".png"):
                 tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep))
             else:
                 tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep) + ".png")
 
-            # ✅ CIT = อย่าลบทิ้ง
-            if "textures/armor_layer" in tex:
-
-                if not os.path.exists(tex_path):
-                    print(f"⚠️ WARN (CIT texture missing, NOT removed): {pf}")
-                    print(f"   Missing: {tex_path}")
-                else:
-                    print(f"✅ OK (CIT): {pf}")
-
-                continue
-
-            # ❌ Equipment / Cosmetic → ลบทิ้งได้
+            # Remove only equipment that truly missing texture
             if not os.path.exists(tex_path):
-
-                print(f"❌ REMOVE: {pf}")
+                print(f"❌ REMOVE INVALID FILE: {pf}")
                 print(f"   Missing texture: {tex_path}")
-
-                try:
-                    os.remove(pf)
-                except:
-                    pass
+                os.remove(pf)
             else:
                 print(f"✅ OK: {pf}")
+
 # ===============================
 # 📥 โหลด GUI config + คัดลอก PNG ไป staging
 # ===============================
