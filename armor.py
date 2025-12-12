@@ -933,45 +933,6 @@ def copy_nexo_textures(pairs):
 
 
 
-
-def copy_nexo_textures(pairs):
-    import shutil, os
-
-    output = "staging/target/rp/textures/equipment"
-    os.makedirs(output, exist_ok=True)
-
-    result = {}
-
-    for l1, l2 in pairs:
-        fname = os.path.basename(l1).replace("_layer_1", "").replace(".png", "")
-
-        if "helmet" in fname:
-            armor = "helmet"
-            src = l1
-        elif "chest" in fname:
-            armor = "chestplate"
-            src = l1
-        elif "leggings" in fname:
-            armor = "leggings"
-            src = l2
-        elif "boots" in fname:
-            armor = "boots"
-            src = l2
-        else:
-            continue
-
-        out_name = f"{fname}_{armor}.png"
-        out_path = os.path.join(output, out_name)
-
-        shutil.copy(src, out_path)
-
-        result[fname] = f"textures/equipment/{out_name}"
-
-    return result
-
-
-
-
 # ============ MAIN ============
 
 nexo = check_nexo_and_layers()
