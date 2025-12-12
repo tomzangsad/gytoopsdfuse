@@ -939,29 +939,62 @@ def check_nexo_and_layers():
     print("Missing layer_2:", len(missing_layer2))
     print("Missing layer_1:", len(missing_layer1))
 
-    # -----------------------------------
-    # 7) COPY MATCHED LAYERS → layer_nexo/
-    # -----------------------------------
-    output_dir = "staging/target/rp/textures/layer_nexo"
-    os.makedirs(output_dir, exist_ok=True)
+        # -----------------------------------
+        # 7) COPY MATCHED LAYERS → layer_nexo/
+        # -----------------------------------
+        output_dir = "staging/target/rp/textures/layer_nexo"
+        os.makedirs(output_dir, exist_ok=True)
+    
+        print("\n📦 Copying matched layer textures → textures/layer_nexo/")
+    
+        for l1, l2 in pairs:
+    
+            # =============================
+            #  แยกชื่อไฟล์ layer_1 / layer_2
+            # =============================
+            name1 = os.path.splitext(os.path.basename(l1))[0]
+            name2 = os.path.splitext(os.path.basename(l2))[0]
+    
+            # ตัวอย่าง: alchemist_armor_layer_1_layer_1
+            #           alchemist_armor_layer_1_layer_2
+    
+            # --------------------------------
+            # ลบส่วน layer_x_layer_y ออกทั้งหมด
+            # --------------------------------
+            def clean(name):
+                return (
+                    name
+                    .replace("_layer_1_layer_1", "")
+                    .replace("_layer_1_layer_2", "")
+                    .replace("_layer_1", "")   # กัน edge cases
+                    .replace("_layer_2", "")
+                    .rstrip("_-")
+                )
+    
+            base_name_1 = clean(name1)
+            base_name_2 = clean(name2)
+    
+            # ถ้าไม่ตรงกัน ให้แจ้งเตือน แต่ใช้ base_name_1 เป็นหลัก
+            if base_name_1 != base_name_2:
+                print(f"⚠️ Name mismatch: {base_name_1} vs {base_name_2}")
+    
+            base = base_name_1
+    
+            # --------------------------
+            # สร้างชื่อไฟล์สุดท้าย
+            # --------------------------
+            out_l1 = os.path.join(output_dir, f"{base}_humanoid.png")
+            out_l2 = os.path.join(output_dir, f"{base}_leggings.png")
+    
+            try:
+                shutil.copy(l1, out_l1)
+                shutil.copy(l2, out_l2)
+                print(f"  ✔ {base} → humanoid + leggings")
+            except Exception as e:
+                print(f"  ❌ Failed to copy {base}: {e}")
+    
+        print("📁 Done copying all matched layer textures!\n")
 
-    print("\n📦 Copying matched layer textures → textures/layer_nexo/")
-
-    for l1, l2 in pairs:
-        relative_key = os.path.relpath(l1, assets_path).replace("\\", "/")
-        base_name = os.path.splitext(os.path.basename(relative_key))[0]
-
-        out_l1 = os.path.join(output_dir, f"{base_name}_layer_1.png")
-        out_l2 = os.path.join(output_dir, f"{base_name}_layer_2.png")
-
-        try:
-            shutil.copy(l1, out_l1)
-            shutil.copy(l2, out_l2)
-            print(f"  ✔ Copied {base_name} (layer_1 + layer_2)")
-        except Exception as e:
-            print(f"  ❌ Failed to copy {base_name}: {e}")
-
-    print("📁 Done copying all matched layer textures!\n")
 
     # -----------------------------------
     # 8) เขียนรายงาน JSON
