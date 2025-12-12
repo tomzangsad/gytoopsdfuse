@@ -853,10 +853,135 @@ def import_gui_config():
         print(f"🖼️ Imported PNGs → {dest_texture_folder}")
     else:
         print("⚠️ No PNG texture folder found:", src_texture_folder)
+        
+# ===============================
+# 🔍 ตรวจว่าเป็น NEXO + ตรวจ layer_1 / layer_2 ใน pack/assets/
+# ===============================
+def check_nexo_and_layers():
+    import os, re, json
+
+    pack_root = "pack"
+    assets_path = os.path.join(pack_root, "assets")
+
+    print("\n" + "="*60)
+    print("🔍 Checking NEXO pack + layer textures")
+    print("="*60)
+
+    # -----------------------------------
+    # 1) ตรวจว่าเป็น NEXO หรือไม่ (ใน pack/)
+    # -----------------------------------
+    if not os.path.exists(pack_root):
+        print("❌ No 'pack/' folder found! Cannot check NEXO.")
+        return
+
+    is_nexo = False
+    for item in os.listdir(pack_root):
+        if "nexo" in item.lower():
+            is_nexo = True
+            break
+
+    if not is_nexo:
+        print("❌ This pack is NOT NEXO (checked inside 'pack/').")
+        print("⚠️ Skipping layer check.\n")
+        return
+
+    print("✅ NEXO pack detected in 'pack/'\n")
+
+    # -----------------------------------
+    # 2) ตรวจว่า pack/assets มีอยู่ไหม
+    # -----------------------------------
+    if not os.path.exists(assets_path):
+        print("❌ 'pack/assets/' not found! Cannot scan layers.")
+        return
+
+    # -----------------------------------
+    # 3) เก็บไฟล์ layer_1 / layer_2
+    # -----------------------------------
+    layer1 = {}
+    layer2 = {}
+
+    re_layer1 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?1(.*)$", re.IGNORECASE)
+    re_layer2 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?2(.*)$", re.IGNORECASE)
+
+    for root, dirs, files in os.walk(assets_path):
+        for filename in files:
+            full_path = os.path.join(root, filename)
+
+            rel = os.path.relpath(full_path, assets_path).replace("\\", "/")
+
+            m1 = re_layer1.match(filename)
+            if m1:
+                key = os.path.join(os.path.dirname(rel), (m1.group(1) + m1.group(2))).replace("\\", "/")
+                layer1[key] = full_path
+                continue
+
+            m2 = re_layer2.match(filename)
+            if m2:
+                key = os.path.join(os.path.dirname(rel), (m2.group(1) + m2.group(2))).replace("\\", "/")
+                layer2[key] = full_path
+                continue
+
+    # -----------------------------------
+    # 4) จับคู่
+    # -----------------------------------
+    pairs = []
+    for key in layer1:
+        if key in layer2:
+            pairs.append((layer1[key], layer2[key]))
+
+    missing_layer2 = [layer1[key] for key in layer1 if key not in layer2]
+    missing_layer1 = [layer2[key] for key in layer2 if key not in layer1]
+
+    # -----------------------------------
+    # 5) แสดงผล
+    # -----------------------------------
+    print("=== MATCHED PAIRS ===")
+    for l1, l2 in pairs:
+        print(f"\n[LAYER 1] {l1}")
+        print(f"[LAYER 2] {l2}")
+
+    print("\n=== MISSING layer_2 ===")
+    for f in missing_layer2:
+        print("  ", f)
+
+    print("\n=== MISSING layer_1 ===")
+    for f in missing_layer1:
+        print("  ", f)
+
+    print("\n=== SUMMARY ===")
+    print("Assets root:", assets_path)
+    print("Total layer_1:", len(layer1))
+    print("Total layer_2:", len(layer2))
+    print("Matched pairs:", len(pairs))
+    print("Missing layer_2:", len(missing_layer2))
+    print("Missing layer_1:", len(missing_layer1))
+
+    # -----------------------------------
+    # 6) เขียนรายงาน JSON
+    # -----------------------------------
+    os.makedirs("staging/reports", exist_ok=True)
+
+    report = {
+        "is_nexo": True,
+        "assets_root": assets_path,
+        "layer_1_count": len(layer1),
+        "layer_2_count": len(layer2),
+        "matched_pairs": [{"layer_1": p[0], "layer_2": p[1]} for p in pairs],
+        "missing_layer_2": missing_layer2,
+        "missing_layer_1": missing_layer1,
+    }
+
+    with open("staging/reports/layer_report.json", "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+
+    print("\n📄 Wrote: staging/reports/layer_report.json")
+    print("="*60 + "\n")
+
 
 # ===============================
 # 🚀 MAIN START
 # ===============================
+check_nexo_and_layers()
 geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
