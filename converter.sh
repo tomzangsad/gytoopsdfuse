@@ -1194,7 +1194,8 @@ do
               },
               "geyser_custom_x": {
 			    "position": [-1.5, 3.25, 0.5],
-			    "rotation": [-9, 0, 0]
+			    "rotation": [-9, 0, 0],
+			    "scale": [0.55, 0.55, 0.55]
 			  },
               "geyser_custom_y": (if .display.firstperson_righthand.rotation then {
                 "rotation": [0, (- .display.firstperson_righthand.rotation[1]), 0]
