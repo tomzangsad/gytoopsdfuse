@@ -867,36 +867,22 @@ def check_nexo_and_layers():
     print("🔍 Checking NEXO pack + layer textures")
     print("="*60)
 
-    # -----------------------------------
-    # 1) ตรวจว่าเป็น NEXO หรือไม่ (ใน pack/)
-    # -----------------------------------
     if not os.path.exists(pack_root):
         print("❌ No 'pack/' folder found! Cannot check NEXO.")
-        return
+        return None
 
-    is_nexo = False
-    for item in os.listdir(pack_root):
-        if "nexo" in item.lower():
-            is_nexo = True
-            break
+    is_nexo = any("nexo" in item.lower() for item in os.listdir(pack_root))
 
     if not is_nexo:
-        print("❌ This pack is NOT NEXO (checked inside 'pack/').")
-        print("⚠️ Skipping layer check.\n")
-        return
+        print("❌ This pack is NOT NEXO.")
+        return None
 
-    print("✅ NEXO pack detected in 'pack/'\n")
+    print("✅ NEXO pack detected!\n")
 
-    # -----------------------------------
-    # 2) ตรวจว่า pack/assets มีอยู่ไหม
-    # -----------------------------------
     if not os.path.exists(assets_path):
-        print("❌ 'pack/assets/' not found! Cannot scan layers.")
-        return
+        print("❌ 'pack/assets/' not found!")
+        return None
 
-    # -----------------------------------
-    # 3) เก็บไฟล์ layer_1 / layer_2
-    # -----------------------------------
     layer1 = {}
     layer2 = {}
 
@@ -905,96 +891,89 @@ def check_nexo_and_layers():
 
     for root, dirs, files in os.walk(assets_path):
         for filename in files:
-            full_path = os.path.join(root, filename)
-
-            rel = os.path.relpath(full_path, assets_path).replace("\\", "/")
+            full = os.path.join(root, filename)
+            rel = os.path.relpath(full, assets_path).replace("\\", "/")
 
             m1 = re_layer1.match(filename)
-            if m1:
-                key = os.path.join(os.path.dirname(rel), (m1.group(1) + m1.group(2))).replace("\\", "/")
-                layer1[key] = full_path
-                continue
-
             m2 = re_layer2.match(filename)
-            if m2:
-                key = os.path.join(os.path.dirname(rel), (m2.group(1) + m2.group(2))).replace("\\", "/")
-                layer2[key] = full_path
-                continue
 
-    # -----------------------------------
-    # 4) จับคู่
-    # -----------------------------------
-    pairs = []
-    for key in layer1:
-        if key in layer2:
-            pairs.append((layer1[key], layer2[key]))
+            if m1:
+                key = os.path.join(os.path.dirname(rel), m1.group(1) + m1.group(2)).replace("\\", "/")
+                layer1[key] = full
+            elif m2:
+                key = os.path.join(os.path.dirname(rel), m2.group(1) + m2.group(2)).replace("\\", "/")
+                layer2[key] = full
 
-    missing_layer2 = [layer1[key] for key in layer1 if key not in layer2]
-    missing_layer1 = [layer2[key] for key in layer2 if key not in layer1]
+    pairs = [(layer1[k], layer2[k]) for k in layer1 if k in layer2]
+    missing_l2 = [layer1[k] for k in layer1 if k not in layer2]
+    missing_l1 = [layer2[k] for k in layer2 if k not in layer1]
 
-    # -----------------------------------
-    # 5) แสดงผล
-    # -----------------------------------
-    print("=== MATCHED PAIRS ===")
-    for l1, l2 in pairs:
-        print(f"\n[LAYER 1] {l1}")
-        print(f"[LAYER 2] {l2}")
-
-    print("\n=== MISSING layer_2 ===")
-    for f in missing_layer2:
-        print("  ", f)
-
-    print("\n=== MISSING layer_1 ===")
-    for f in missing_layer1:
-        print("  ", f)
-
-    print("\n=== SUMMARY ===")
-    print("Assets root:", assets_path)
-    print("Total layer_1:", len(layer1))
-    print("Total layer_2:", len(layer2))
-    print("Matched pairs:", len(pairs))
-    print("Missing layer_2:", len(missing_layer2))
-    print("Missing layer_1:", len(missing_layer1))
-
-    # -----------------------------------
-    # 6) เขียนรายงาน JSON
-    # -----------------------------------
-    os.makedirs("staging/reports", exist_ok=True)
-
-    report = {
+    return {
         "is_nexo": True,
-        "assets_root": assets_path,
-        "layer_1_count": len(layer1),
-        "layer_2_count": len(layer2),
-        "matched_pairs": [{"layer_1": p[0], "layer_2": p[1]} for p in pairs],
-        "missing_layer_2": missing_layer2,
-        "missing_layer_1": missing_layer1,
+        "pairs": pairs,
+        "missing_layer1": missing_l1,
+        "missing_layer2": missing_l2
     }
 
-    with open("staging/reports/layer_report.json", "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=2, ensure_ascii=False)
 
-    print("\n📄 Wrote: staging/reports/layer_report.json")
-    print("="*60 + "\n")
+
+def copy_nexo_textures(pairs):
+    output = "staging/target/rp/textures/equipment"
+    os.makedirs(output, exist_ok=True)
+
+    result = {}
+
+    for l1, l2 in pairs:
+        name = os.path.basename(l1).replace("_layer_1.png", "")
+        
+        if "helmet" in name:
+            t = "helmet"; src = l1
+        elif "chest" in name:
+            t = "chestplate"; src = l1
+        elif "leggings" in name:
+            t = "leggings"; src = l2
+        elif "boots" in name:
+            t = "boots"; src = l2
+        else:
+            continue
+
+        out_name = f"{name}_{t}.png"
+        out_path = os.path.join(output, out_name)
+        shutil.copy(src, out_path)
+
+        result[name] = f"textures/equipment/{out_name}"
+
+    return result
+
 
 
 # ===============================
-# 🚀 MAIN START
+# 🚀 MAIN START (FINAL)
 # ===============================
-check_nexo_and_layers()
+
+nexo = check_nexo_and_layers()
+
+if nexo and nexo["is_nexo"]:
+    print("⚙️ Copying NEKO textures...")
+    nexo_tex = copy_nexo_textures(nexo["pairs"])
+else:
+    nexo_tex = {}
+
 geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
-# ประมวลผล Leather Armor
 process_leather_armor()
-
-# ประมวลผล Equipment Armor (Netherite, etc.)
 process_equipment_armor()
-auto_generate_player_attachables()
+
+auto_generate_player_attachables()  # ตอนนี้ไม่ต้องส่งค่า
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
+
 import_gui_config()
+
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
+
+
