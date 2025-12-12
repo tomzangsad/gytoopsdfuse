@@ -1005,7 +1005,7 @@ def check_nexo_and_layers():
     # ----------------------------------------------------------
     # 5) COPY & RENAME humanoid equipment textures
     # ----------------------------------------------------------
-    out_equip = "staging/target/rp/textures/equipment"
+    out_equip = "staging/target/rp/textures/layer_nexo"
     os.makedirs(out_equip, exist_ok=True)
 
     print("\n📦 Copying & Renaming EQUIPMENT humanoid textures → equipment/")
