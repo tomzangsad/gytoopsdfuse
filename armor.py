@@ -633,45 +633,46 @@ def auto_generate_player_attachables():
         if not os.path.isdir(ns_path):
             continue
 
-        for file in glob.glob(ns_path + "/**/*.json", recursive=True):
-
-            # ❌ ข้าม player.json
-            if file.endswith(".player.json"):
-                continue
+        # ✔ มองเฉพาะ .attachable.json
+        for file in glob.glob(ns_path + "/**/*.attachable.json", recursive=True):
 
             fname = os.path.basename(file).lower()
 
-            # ❌ ไม่ใช่เกราะ ก็ไม่ต้องสร้าง .player.json
+            # ข้าม player files
+            if fname.endswith(".player.attachable.json") or fname.endswith(".player.json"):
+                continue
+
+            # เฉพาะไฟล์เกราะ
             if not any(k in fname for k in ARMOR_KEYS):
                 continue
 
-            # ❌ ต้องเป็นไฟล์ .gmdl_xxxxx.json
+            # ต้องมี gmdl
             if ".gmdl_" not in fname:
                 continue
 
-            # เตรียมไฟล์ player.json
-            player_file = file.replace(".json", ".player.json")
+            # path player file
+            player_file = file.replace(".attachable.json", ".player.attachable.json")
 
             if os.path.exists(player_file):
                 continue
 
-            # อ่าน gmdl
+            # อ่าน base attachable
             with open(file, "r", encoding="utf-8") as f:
                 data = json.load(f)["minecraft:attachable"]
 
             gmdl = data["description"]["identifier"].split(":")[1]
 
-            # ดึงชนิดเกราะ
+            # ดึงชนิด armor
             if "leggings" in fname:
                 part = "leggings"
             elif "boots" in fname:
                 part = "boots"
-            elif "chest" in fname:
+            elif "chestplate" in fname or "chest" in fname:
                 part = "chestplate"
             else:
                 part = "helmet"
 
-            # base name เช่น dragon_armor_humanoid → dragon_armor
+            # หา base_key เช่น emerald_leggings
             base_key = None
             for key in real_textures:
                 if key in fname:
@@ -682,11 +683,11 @@ def auto_generate_player_attachables():
                 print(f"⚠️ No texture match for: {file}")
                 continue
 
-            # correct texture
-            tex = real_textures[base_key].get("leggings" if part == "leggings" else "humanoid")
+            # เลือก texture
+            tex = real_textures[base_key].get("leggings" if part=="leggings" else "humanoid")
 
             if not tex:
-                print(f"⚠️ Missing texture for: {file}")
+                print(f"⚠️ Missing final texture for {file}")
                 continue
 
             # สร้าง player.json
@@ -715,7 +716,7 @@ def auto_generate_player_attachables():
             with open(player_file, "w", encoding="utf-8") as f:
                 json.dump(out, f, indent=4)
 
-            print(f"🧩 FIXED: {player_file}")
+            print(f"🧩 FIXED+CREATED: {player_file}")
 
 
 def detect_armor_sources(tex_dir, namespace):
