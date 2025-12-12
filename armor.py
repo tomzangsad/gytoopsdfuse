@@ -1,4 +1,4 @@
-pimport os
+import os
 import json
 import shutil
 import glob
