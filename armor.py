@@ -1,4 +1,4 @@
-import os
+pimport os
 import json
 import shutil
 import glob
@@ -867,46 +867,55 @@ def check_nexo_and_layers():
     print("🔍 Checking NEXO pack + layer textures")
     print("="*60)
 
+    # ตรวจ NEXO
     if not os.path.exists(pack_root):
-        print("❌ No 'pack/' folder found! Cannot check NEXO.")
+        print("❌ No 'pack/' folder found!")
         return None
 
     is_nexo = any("nexo" in item.lower() for item in os.listdir(pack_root))
 
     if not is_nexo:
-        print("❌ This pack is NOT NEXO.")
+        print("❌ NOT a NEXO pack.")
         return None
 
     print("✅ NEXO pack detected!\n")
 
     if not os.path.exists(assets_path):
-        print("❌ 'pack/assets/' not found!")
+        print("❌ pack/assets/ not found!")
         return None
 
+    # เก็บ layer ไฟล์
     layer1 = {}
     layer2 = {}
 
-    re_layer1 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?1(.*)$", re.IGNORECASE)
-    re_layer2 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?2(.*)$", re.IGNORECASE)
+    re_l1 = re.compile(r"(.*?)[_\.-]?layer[_\.-]?1(.*)$", re.IGNORECASE)
+    re_l2 = re.compile(r"(.*?)[_\.-]?layer[_\.-]?2(.*)$", re.IGNORECASE)
 
     for root, dirs, files in os.walk(assets_path):
         for filename in files:
+
             full = os.path.join(root, filename)
             rel = os.path.relpath(full, assets_path).replace("\\", "/")
 
-            m1 = re_layer1.match(filename)
-            m2 = re_layer2.match(filename)
+            m1 = re_l1.match(filename)
+            m2 = re_l2.match(filename)
 
             if m1:
-                key = os.path.join(os.path.dirname(rel), m1.group(1) + m1.group(2)).replace("\\", "/")
+                key = os.path.join(os.path.dirname(rel), m1.group(1) + m1.group(2))
                 layer1[key] = full
+
             elif m2:
-                key = os.path.join(os.path.dirname(rel), m2.group(1) + m2.group(2)).replace("\\", "/")
+                key = os.path.join(os.path.dirname(rel), m2.group(1) + m2.group(2))
                 layer2[key] = full
 
+    # จับคู่
     pairs = [(layer1[k], layer2[k]) for k in layer1 if k in layer2]
     missing_l2 = [layer1[k] for k in layer1 if k not in layer2]
     missing_l1 = [layer2[k] for k in layer2 if k not in layer1]
+
+    print(f"\nMatched pairs: {len(pairs)}")
+    print(f"Missing layer_2: {len(missing_l2)}")
+    print(f"Missing layer_1: {len(missing_l1)}")
 
     return {
         "is_nexo": True,
@@ -917,33 +926,42 @@ def check_nexo_and_layers():
 
 
 
+
 def copy_nexo_textures(pairs):
+    import shutil, os
+
     output = "staging/target/rp/textures/equipment"
     os.makedirs(output, exist_ok=True)
 
     result = {}
 
     for l1, l2 in pairs:
-        name = os.path.basename(l1).replace("_layer_1.png", "")
-        
-        if "helmet" in name:
-            t = "helmet"; src = l1
-        elif "chest" in name:
-            t = "chestplate"; src = l1
-        elif "leggings" in name:
-            t = "leggings"; src = l2
-        elif "boots" in name:
-            t = "boots"; src = l2
+        fname = os.path.basename(l1).replace("_layer_1", "").replace(".png", "")
+
+        if "helmet" in fname:
+            armor = "helmet"
+            src = l1
+        elif "chest" in fname:
+            armor = "chestplate"
+            src = l1
+        elif "leggings" in fname:
+            armor = "leggings"
+            src = l2
+        elif "boots" in fname:
+            armor = "boots"
+            src = l2
         else:
             continue
 
-        out_name = f"{name}_{t}.png"
+        out_name = f"{fname}_{armor}.png"
         out_path = os.path.join(output, out_name)
+
         shutil.copy(src, out_path)
 
-        result[name] = f"textures/equipment/{out_name}"
+        result[fname] = f"textures/equipment/{out_name}"
 
     return result
+
 
 
 
@@ -951,29 +969,24 @@ def copy_nexo_textures(pairs):
 # 🚀 MAIN START (FINAL)
 # ===============================
 
+# ============ MAIN START =============
+
 nexo = check_nexo_and_layers()
 
 if nexo and nexo["is_nexo"]:
-    print("⚙️ Copying NEKO textures...")
+    print("⚙ Copying NEXO textures...")
     nexo_tex = copy_nexo_textures(nexo["pairs"])
 else:
     nexo_tex = {}
 
-geyser_mappings_file = "staging/target/geyser_mappings.json"
-if os.path.exists(geyser_mappings_file):
-    remove_duplicates_with_custom_model_data(geyser_mappings_file)
-
+# ทำงาน armor อื่น ๆ ต่อ
 process_leather_armor()
 process_equipment_armor()
-
-auto_generate_player_attachables()  # ตอนนี้ไม่ต้องส่งค่า
+auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
-
 import_gui_config()
 
-print("\n" + "="*60)
 print("✅ All armor processing complete!")
-print("="*60)
 
 
