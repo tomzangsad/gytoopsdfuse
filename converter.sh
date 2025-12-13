@@ -1120,7 +1120,8 @@ do
 
         # MULTI KEYWORD CHECK
         #if [[ "$model_lower" =~ (wing|tail|backpack|shield) ]]; then
-		if [[ "${model_name,,}" == *"wing"* ]] || [[ "${model_name,,}" == *"back"* ]] || [[ "${model_name,,}" == *"backpack"* ]] || [[ "${model_name,,}" == *"shield"* ]]; then
+		if [[ "${model_name,,}" =~ (wing|back|backpack|shield) ]]; then
+		#if [[ "${model_name,,}" == *"wing"* ]]; then
         # ------------------------------------------
         #  WING SPECIAL ANIMATION
         # ------------------------------------------
