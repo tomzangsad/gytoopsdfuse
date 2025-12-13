@@ -853,241 +853,83 @@ def import_gui_config():
         print(f"🖼️ Imported PNGs → {dest_texture_folder}")
     else:
         print("⚠️ No PNG texture folder found:", src_texture_folder)
-        
-# ===============================
-# 🔍 ตรวจว่าเป็น NEXO + ตรวจ layer_1 / layer_2 ใน pack/assets/
-# ===============================
-def check_nexo_and_layers():
-    import os, re, json, shutil
 
-    pack_root = "pack"
-    assets_path = os.path.join(pack_root, "assets")
 
+
+# ===================================================
+# 🧩 NEXO TEXTURE SCAN + COPY (FINAL STEP)
+# ===================================================
+def process_nexo_textures():
     print("\n" + "="*60)
-    print("🔍 Checking NEXO pack (layers + equipment humanoid)")
+    print("🟣 Processing NEXO Armor Textures (Scan + Copy)")
     print("="*60)
 
-    # -------------------------------
-    # 1) ตรวจว่าเป็น NEXO pack
-    # -------------------------------
-    if not os.path.exists(pack_root):
-        print("❌ No 'pack/' folder found!")
+    # NEXO pack อยู่ใน pack/assets
+    assets_path = r"pack/assets"
+
+    if not os.path.exists(assets_path):
+        print("❌ pack/assets not found — cannot scan.")
         return
 
-    is_nexo = any("nexo" in item.lower() for item in os.listdir(pack_root))
-    if not is_nexo:
-        print("❌ This pack is NOT NEXO.")
+    # ตรวจพบ NEXO pack
+    nexo_root = os.path.join(assets_path, "nexo")
+    if not os.path.exists(nexo_root):
+        print("❌ No NEXO folder inside pack/assets — skipping.")
         return
 
     print("✅ NEXO pack detected.\n")
 
-    if not os.path.exists(assets_path):
-        print("❌ 'pack/assets/' not found!")
+    # humanoid / leggings paths
+    humanoid_path = os.path.join(nexo_root, "textures/entity/equipment/humanoid")
+    leggings_path = os.path.join(nexo_root, "textures/entity/equipment/humanoid_leggings")
+
+    if not os.path.exists(humanoid_path) or not os.path.exists(leggings_path):
+        print("❌ Missing humanoid or humanoid_leggings folder!")
         return
 
-    # -------------------------------
-    # 2) ตรวจ layer_1 / layer_2
-    # -------------------------------
-    layer1 = {}
-    layer2 = {}
+    # อ่านไฟล์ทั้งหมด
+    humanoid_files = {
+        f.lower(): os.path.join(humanoid_path, f)
+        for f in os.listdir(humanoid_path)
+        if f.endswith(".png")
+    }
 
-    re_layer1 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?1(.*)$", re.IGNORECASE)
-    re_layer2 = re.compile(r"(.*?)[_\.\-]?layer[_\.\-]?2(.*)$", re.IGNORECASE)
+    leggings_files = {
+        f.lower(): os.path.join(leggings_path, f)
+        for f in os.listdir(leggings_path)
+        if f.endswith(".png")
+    }
 
-    for root, dirs, files in os.walk(assets_path):
-        for filename in files:
-            rel = os.path.relpath(os.path.join(root, filename), assets_path).replace("\\", "/")
+    # หาคู่ตรงกัน
+    matched_sets = set(humanoid_files) & set(leggings_files)
 
-            m1 = re_layer1.match(filename)
-            if m1:
-                key = os.path.join(os.path.dirname(rel), m1.group(1) + m1.group(2))
-                layer1[key] = os.path.join(root, filename)
-                continue
+    print(f"🎯 Found {len(matched_sets)} matching NEXO armor sets\n")
 
-            m2 = re_layer2.match(filename)
-            if m2:
-                key = os.path.join(os.path.dirname(rel), m2.group(1) + m2.group(2))
-                layer2[key] = os.path.join(root, filename)
-                continue
-
-    # จับคู่ layer
-    layer_pairs = [(layer1[k], layer2[k]) for k in layer1 if k in layer2]
-    missing_layer2 = [layer1[k] for k in layer1 if k not in layer2]
-    missing_layer1 = [layer2[k] for k in layer2 if k not in layer1]
-
-    print("=== LAYER MATCHED PAIRS ===")
-    for l1, l2 in layer_pairs:
-        print("✔", os.path.basename(l1), "<->", os.path.basename(l2))
-
-    print("\n=== MISSING layer_2 ===")
-    for m in missing_layer2:
-        print("❌", m)
-
-    print("\n=== MISSING layer_1 ===")
-    for m in missing_layer1:
-        print("❌", m)
-
-    print("\n=== LAYER SUMMARY ===")
-    print("Total layer_1:", len(layer1))
-    print("Total layer_2:", len(layer2))
-    print("Matched pairs:", len(layer_pairs))
-    print("Missing layer_2:", len(missing_layer2))
-    print("Missing layer_1:", len(missing_layer1))
-
-    # ----------------------------------------------------------
-    # 3) COPY & RENAME LAYER textures → armor_xxx format
-    # ----------------------------------------------------------
-    out_layer = "staging/target/rp/textures/layer_nexo"
-    os.makedirs(out_layer, exist_ok=True)
-
-    print("\n📦 Copying & Renaming LAYER textures → layer_nexo/")
-
-    def clean(name):
-        return (
-            name.replace("_layer_1", "")
-                .replace("_layer2", "")
-                .replace("_layer_2", "")
-                .replace("_layer1", "")
-                .replace("layer_1", "")
-                .replace("layer_2", "")
-                .rstrip("_-")
-        )
-
-    for l1, l2 in layer_pairs:
-        n1 = clean(os.path.splitext(os.path.basename(l1))[0])
-        base = n1  # ใช้ชื่อนี้เป็น base name
-
-        dst_hum = os.path.join(out_layer, f"{base}_armor_humanoid.png")
-        dst_leg = os.path.join(out_layer, f"{base}_armor_leggings.png")
-
-        shutil.copy(l1, dst_hum)
-        shutil.copy(l2, dst_leg)
-
-        print(f"✔ {base} → {base}_armor_humanoid.png + {base}_armor_leggings.png")
-
-    # ----------------------------------------------------------
-    # 4) ตรวจ humanoid / humanoid_leggings
-    # ----------------------------------------------------------
-    hum_path = os.path.join(assets_path, "nexo/textures/entity/equipment/humanoid")
-    leg_path = os.path.join(assets_path, "nexo/textures/entity/equipment/humanoid_leggings")
-
-    hum_files = set(os.listdir(hum_path)) if os.path.exists(hum_path) else set()
-    leg_files = set(os.listdir(leg_path)) if os.path.exists(leg_path) else set()
-
-    hum_files = {f.lower() for f in hum_files if f.endswith(".png")}
-    leg_files = {f.lower() for f in leg_files if f.endswith(".png")}
-
-    matched_hum = hum_files & leg_files
-    missing_humanoid = leg_files - hum_files
-    missing_leggings = hum_files - leg_files
-
-    print("\n" + "="*60)
-    print("👤 EQUIPMENT HUMANOID CHECK")
-    print("="*60)
-
-    print("\n=== MATCHED ===")
-    for f in matched_hum:
-        print("✔", f)
-
-    print("\n=== MISSING LEGGINGS ===")
-    for m in missing_leggings:
-        print("❌", m)
-
-    print("\n=== MISSING HUMANOID ===")
-    for m in missing_humanoid:
-        print("❌", m)
-
-    print("\n=== HUMANOID SUMMARY ===")
-    print("Humanoid:", len(hum_files))
-    print("Leggings:", len(leg_files))
-    print("Matched:", len(matched_hum))
-
-    # ----------------------------------------------------------
-    # 5) COPY & RENAME humanoid equipment textures
-    # ----------------------------------------------------------
-    out_equip = "staging/target/rp/textures/layer_nexo"
-    os.makedirs(out_equip, exist_ok=True)
-
-    print("\n📦 Copying & Renaming EQUIPMENT humanoid textures → equipment/")
-
-    for f in matched_hum:
-        base = os.path.splitext(f)[0]
-
-        src_hum = os.path.join(hum_path, f)
-        src_leg = os.path.join(leg_path, f)
-
-        dst_hum = os.path.join(out_equip, f"{base}_armor_humanoid.png")
-        dst_leg = os.path.join(out_equip, f"{base}_armor_leggings.png")
-
-        shutil.copy(src_hum, dst_hum)
-        shutil.copy(src_leg, dst_leg)
-
-        print(f"✔ {base} → {base}_armor_humanoid.png + {base}_armor_leggings.png")
-
-    # ----------------------------------------------------------
-    # 6) TOTAL SUMMARY
-    # ----------------------------------------------------------
-    total_files = len(layer1) + len(layer2) + len(hum_files) + len(leg_files)
-    total_matched = len(layer_pairs) + len(matched_hum)
-    total_missing = len(missing_layer1) + len(missing_layer2) + len(missing_humanoid) + len(missing_leggings)
-    print("\n" + "="*60)
-    
-    print("🔁 MERGING TEXTURES WITH SAME NAME")
-    print("="*60)
-    
+    # Output Bedrock RP
     output_dir = "staging/target/rp/textures/layer_nexo"
     os.makedirs(output_dir, exist_ok=True)
-    
-    # 7.1 รวมไฟล์เดิมจาก layer
-    existing_files = {f: os.path.join(output_dir, f) for f in os.listdir(output_dir)}
-    
-    # 7.2 overwrite จาก equipment หากมีชื่อซ้ำ
-    for f in matched_hum:
-        base = os.path.splitext(f)[0]
-    
-        hum = f"{base}_armor_humanoid.png"
-        leg = f"{base}_armor_leggings.png"
-    
-        src_hum = os.path.join(out_equip, hum)
-        src_leg = os.path.join(out_equip, leg)
-    
-        dst_hum = os.path.join(output_dir, hum)
-        dst_leg = os.path.join(output_dir, leg)
-    
-        # humanoid overwrite
-        if os.path.exists(src_hum):
-            if os.path.abspath(src_hum) != os.path.abspath(dst_hum):
-                shutil.copy(src_hum, dst_hum)
-                print(f"✔ Overwrite: {hum}")
-    
-        # leggings overwrite
-        if os.path.exists(src_leg):
-            if os.path.abspath(src_leg) != os.path.abspath(dst_leg):
-                shutil.copy(src_leg, dst_leg)
-                print(f"✔ Overwrite: {leg}")
-    
-    print("\n🔁 Merge textures complete.\n")
 
-    print("\n" + "="*60)
-    print("🧮 TOTAL SUMMARY")
-    print("="*60)
-    print("📦 Total files scanned :", total_files)
-    print("✔ Total matched        :", total_matched)
-    print("❌ Total missing        :", total_missing)
-    print("-------------------------------------------")
-    print("Missing layer_1 :", len(missing_layer1))
-    print("Missing layer_2 :", len(missing_layer2))
-    print("Missing humanoid:", len(missing_humanoid))
-    print("Missing leggings:", len(missing_leggings))
-    print("="*60 + "\n")
+    # คัดลอกไฟล์
+    for name in sorted(matched_sets):
+        base = name[:-4]  # remove .png
 
+        src_h = humanoid_files[name]
+        src_l = leggings_files[name]
 
+        dst_h = os.path.join(output_dir, f"{base}_armor_humanoid.png")
+        dst_l = os.path.join(output_dir, f"{base}_armor_leggings.png")
 
+        shutil.copy2(src_h, dst_h)
+        shutil.copy2(src_l, dst_l)
+
+        print(f"✔ Copied: {dst_h}")
+        print(f"✔ Copied: {dst_l}")
+
+    print("\n🎉 NEXO Texture Processing Finished!\n")
 
 # ===============================
 # 🚀 MAIN START
 # ===============================
-check_nexo_and_layers()
 geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
@@ -1101,6 +943,15 @@ auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
 import_gui_config()
+process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
+
+
+
+
+
+
+
+
