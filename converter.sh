@@ -1119,19 +1119,7 @@ do
       ' ${file} | sponge ./target/rp/models/blocks/${namespace}/${model_path}/${model_name}.json
 
         # MULTI KEYWORD CHECK
-        model_lower="${model_name,,}"
-        SPECIAL_KEYS=("wing" "back" "backpack")
-
-        is_special=false
-        for key in "${SPECIAL_KEYS[@]}"; do
-            if [[ "$model_lower" == *"$key"* ]]; then
-                is_special=true
-                break
-            fi
-        done
-
-        if [[ "$is_special" == true ]]; then
-
+        if [[ "$model_lower" =~ (wing|tail|backpack) ]]; then
         # ------------------------------------------
         #  WING SPECIAL ANIMATION
         # ------------------------------------------
