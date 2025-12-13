@@ -1118,10 +1118,20 @@ do
       }
       ' ${file} | sponge ./target/rp/models/blocks/${namespace}/${model_path}/${model_name}.json
 
-      # generate animations (with wing override)
-      mkdir -p ./target/rp/animations/${namespace}/${model_path}
-      
-      if [[ "${model_name,,}" == *"wing"* ]]; then
+        # MULTI KEYWORD CHECK
+        model_lower="${model_name,,}"
+        SPECIAL_KEYS=("wing" "back" "backpack")
+
+        is_special=false
+        for key in "${SPECIAL_KEYS[@]}"; do
+            if [[ "$model_lower" == *"$key"* ]]; then
+                is_special=true
+                break
+            fi
+        done
+
+        if [[ "$is_special" == true ]]; then
+
         # ------------------------------------------
         #  WING SPECIAL ANIMATION
         # ------------------------------------------
