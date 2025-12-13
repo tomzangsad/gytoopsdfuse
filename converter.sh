@@ -1302,12 +1302,11 @@ do
                   "geyser_custom": {
                     "rotation": [90, 60, -40],
                     "position": [4, 10, 4],
-                    "scale": 1.2
+                    "scale": 1.5
                   },
                   "geyser_custom_x": {
 	              "position": [-1.5, 3.25, 0.5],
-	              "rotation": [-9, 0, 0],
-	              "scale": [0.55, 0.55, 0.55]
+	              "rotation": [-9, 0, 0]
 	            },
                   "geyser_custom_y": (if .display.firstperson_righthand.rotation then {
                     "rotation": [0, (- .display.firstperson_righthand.rotation[1]), 0]
