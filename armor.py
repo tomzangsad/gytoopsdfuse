@@ -1030,48 +1030,44 @@ def check_nexo_and_layers():
     total_files = len(layer1) + len(layer2) + len(hum_files) + len(leg_files)
     total_matched = len(layer_pairs) + len(matched_hum)
     total_missing = len(missing_layer1) + len(missing_layer2) + len(missing_humanoid) + len(missing_leggings)
-    # ----------------------------------------------------------
-    # 7) MERGE TEXTURES: ถ้าชื่อเดียวกันให้ overwrite, ถ้าไม่ซ้ำก็ปล่อยไว้
-    # ----------------------------------------------------------
     print("\n" + "="*60)
+    
     print("🔁 MERGING TEXTURES WITH SAME NAME")
     print("="*60)
-
-    # เก็บไฟล์ทั้งหมดใน output folder
+    
     output_dir = "staging/target/rp/textures/layer_nexo"
     os.makedirs(output_dir, exist_ok=True)
-
-    # รวมไฟล์ที่มาจาก 2 แหล่ง
-    # layer_pairs → base_armor_humanoid / base_armor_leggings
-    # matched_hum → equipment humanoid/leggings
-    merged_map = {}  # key = filename, value = full_path
-
-    # 7.1 เพิ่มไฟล์จาก layer_1/layer_2
-    for f in os.listdir(output_dir):
-        src = os.path.join(output_dir, f)
-        merged_map[f] = src  # ตั้งต้นก่อน equipment มา overwrite
-
-    # 7.2 เพิ่มไฟล์จาก equipment humanoid
+    
+    # 7.1 รวมไฟล์เดิมจาก layer
+    existing_files = {f: os.path.join(output_dir, f) for f in os.listdir(output_dir)}
+    
+    # 7.2 overwrite จาก equipment หากมีชื่อซ้ำ
     for f in matched_hum:
         base = os.path.splitext(f)[0]
-
+    
         hum = f"{base}_armor_humanoid.png"
         leg = f"{base}_armor_leggings.png"
-
-        # path ต้นทาง
+    
         src_hum = os.path.join(out_equip, hum)
         src_leg = os.path.join(out_equip, leg)
-
-        # ถ้า output_dir มีไฟล์นี้อยู่แล้ว → overwrite
+    
+        dst_hum = os.path.join(output_dir, hum)
+        dst_leg = os.path.join(output_dir, leg)
+    
+        # humanoid overwrite
         if os.path.exists(src_hum):
-            shutil.copy(src_hum, os.path.join(output_dir, hum))
-            print(f"✔ Overwrite: {hum}")
-
+            if os.path.abspath(src_hum) != os.path.abspath(dst_hum):
+                shutil.copy(src_hum, dst_hum)
+                print(f"✔ Overwrite: {hum}")
+    
+        # leggings overwrite
         if os.path.exists(src_leg):
-            shutil.copy(src_leg, os.path.join(output_dir, leg))
-            print(f"✔ Overwrite: {leg}")
-
+            if os.path.abspath(src_leg) != os.path.abspath(dst_leg):
+                shutil.copy(src_leg, dst_leg)
+                print(f"✔ Overwrite: {leg}")
+    
     print("\n🔁 Merge textures complete.\n")
+
     print("\n" + "="*60)
     print("🧮 TOTAL SUMMARY")
     print("="*60)
