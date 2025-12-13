@@ -1310,10 +1310,10 @@ do
                     "scale": 1.2
                   },
                   "geyser_custom_x": {
-              "position": [-1.5, 3.25, 0.5],
-              "rotation": [-9, 0, 0],
-              "scale": [0.55, 0.55, 0.55]
-            },
+	              "position": [-1.5, 3.25, 0.5],
+	              "rotation": [-9, 0, 0],
+	              "scale": [0.55, 0.55, 0.55]
+	            },
                   "geyser_custom_y": (if .display.firstperson_righthand.rotation then {
                     "rotation": [0, (- .display.firstperson_righthand.rotation[1]), 0]
                   } else null end),
@@ -1327,8 +1327,8 @@ do
                 "bones": {
                   "geyser_custom": {
                     "rotation": [0, 180, 0],
-            "position": [-16, 14, 14],
-            "scale": 1.2
+		            "position": [-16, 14, 14],
+		            "scale": 1.2
                   },
                   "geyser_custom_x": {
                     "rotation": [9.47, 0, 0],
