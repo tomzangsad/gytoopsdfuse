@@ -1114,8 +1114,7 @@ do
 		#if [[ "${model_name,,}" == *"wing"* ]]; then
 		if [[ "${model_name,,}" == *wing* ]] || \
 		   [[ "${model_name,,}" == *back* ]] || \
-		   [[ "${model_name,,}" == *backpack* ]] || \
-		   [[ "${model_name,,}" == *shield* ]]; then
+		   [[ "${model_name,,}" == *backpack* ]]; then
 
         # ------------------------------------------
         #  WING SPECIAL ANIMATION
