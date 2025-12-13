@@ -1106,8 +1106,9 @@ do
         }]
       }
       ' ${file} | sponge ./target/rp/models/blocks/${namespace}/${model_path}/${model_name}.json
-
+			
         # MULTI KEYWORD CHECK
+		mkdir -p ./target/rp/animations/${namespace}/${model_path}
         #if [[ "$model_lower" =~ (wing|tail|backpack|shield) ]]; then
 		#if [[ "${model_name,,}" =~ (wing|back|backpack|shield) ]]; then
 		#if [[ "${model_name,,}" == *"wing"* ]]; then
