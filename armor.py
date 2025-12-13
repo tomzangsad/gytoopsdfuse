@@ -859,19 +859,32 @@ def import_gui_config():
 # ===================================================
 # 🧩 NEXO TEXTURE SCAN + COPY (FINAL STEP)
 # ===================================================
+def print_nexo_summary(humanoid_files, leggings_files, matched_sets):
+    missing_leggings = set(humanoid_files) - set(leggings_files)
+    missing_humanoid = set(leggings_files) - set(humanoid_files)
+
+    total_count = len(humanoid_files) + len(leggings_files)
+
+    print("\n=================================")
+    print("========== TOTAL SUMMARY ========")
+    print("=================================")
+    print(f"📦 Total sets/files counted: {total_count}")
+    print(f"✔ Armor sets: {len(matched_sets)}")
+    print(f"❌ Total missing: {len(missing_leggings) + len(missing_humanoid)}")
+    print(f" - Missing leggings: {len(missing_leggings)}")
+    print(f" - Missing humanoid: {len(missing_humanoid)}")
+    print("=================================\n")
 def process_nexo_textures():
     print("\n" + "="*60)
     print("🟣 Processing NEXO Armor Textures (Scan + Copy)")
     print("="*60)
 
-    # NEXO pack อยู่ใน pack/assets
     assets_path = r"pack/assets"
 
     if not os.path.exists(assets_path):
         print("❌ pack/assets not found — cannot scan.")
         return
 
-    # ตรวจพบ NEXO pack
     nexo_root = os.path.join(assets_path, "nexo")
     if not os.path.exists(nexo_root):
         print("❌ No NEXO folder inside pack/assets — skipping.")
@@ -879,7 +892,6 @@ def process_nexo_textures():
 
     print("✅ NEXO pack detected.\n")
 
-    # humanoid / leggings paths
     humanoid_path = os.path.join(nexo_root, "textures/entity/equipment/humanoid")
     leggings_path = os.path.join(nexo_root, "textures/entity/equipment/humanoid_leggings")
 
@@ -887,7 +899,6 @@ def process_nexo_textures():
         print("❌ Missing humanoid or humanoid_leggings folder!")
         return
 
-    # อ่านไฟล์ทั้งหมด
     humanoid_files = {
         f.lower(): os.path.join(humanoid_path, f)
         for f in os.listdir(humanoid_path)
@@ -900,18 +911,15 @@ def process_nexo_textures():
         if f.endswith(".png")
     }
 
-    # หาคู่ตรงกัน
     matched_sets = set(humanoid_files) & set(leggings_files)
 
     print(f"🎯 Found {len(matched_sets)} matching NEXO armor sets\n")
 
-    # Output Bedrock RP
     output_dir = "staging/target/rp/textures/layer_nexo"
     os.makedirs(output_dir, exist_ok=True)
 
-    # คัดลอกไฟล์
     for name in sorted(matched_sets):
-        base = name[:-4]  # remove .png
+        base = name[:-4]
 
         src_h = humanoid_files[name]
         src_l = leggings_files[name]
@@ -925,7 +933,12 @@ def process_nexo_textures():
         print(f"✔ Copied: {dst_h}")
         print(f"✔ Copied: {dst_l}")
 
+    # 📌 SUMMARY CALL (อันนี้คือที่ต้องเพิ่ม)
+    print_nexo_summary(humanoid_files, leggings_files, matched_sets)
+
     print("\n🎉 NEXO Texture Processing Finished!\n")
+
+
 
 # ===============================
 # 🚀 MAIN START
