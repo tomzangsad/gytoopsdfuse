@@ -100,19 +100,8 @@ fi
 
 # warn user about limitations of the script
 printf '\e[1;31m%-6s\e[m\n' "
-███████████████████████████████████████████████████████████████████████████████
 ████████████████████████ # <!> # W A R N I N G # <!> # ████████████████████████
-███████████████████████████████████████████████████████████████████████████████
-███ This script has been provided as is. If your resource pack does not     ███
-███ entirely conform the vanilla resource specification, including but not  ███
-███ limited to, missing textures, improper parenting, improperly defined    ███
-███ predicates, and malformed JSON files, among other problems, there is a  ███
-███ strong possibility this script will fail. Please remedy any potential   ███
-███ resource pack formatting errors before attempting to make use of this   ███
-███ converter. You have been warned.                                        ███
-███████████████████████████████████████████████████████████████████████████████
-███████████████████████████████████████████████████████████████████████████████
-███████████████████████████████████████████████████████████████████████████████
+
 "
 
 if [[ ${warn} != "false" ]]; then
@@ -1121,7 +1110,12 @@ do
         # MULTI KEYWORD CHECK
         #if [[ "$model_lower" =~ (wing|tail|backpack|shield) ]]; then
 		#if [[ "${model_name,,}" =~ (wing|back|backpack|shield) ]]; then
-		if [[ "${model_name,,}" == *"wing"* ]]; then
+		#if [[ "${model_name,,}" == *"wing"* ]]; then
+		if [[ "${model_name,,}" == *wing* ]] || \
+		   [[ "${model_name,,}" == *back* ]] || \
+		   [[ "${model_name,,}" == *backpack* ]] || \
+		   [[ "${model_name,,}" == *shield* ]]; then
+
         # ------------------------------------------
         #  WING SPECIAL ANIMATION
         # ------------------------------------------
