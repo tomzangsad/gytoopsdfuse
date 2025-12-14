@@ -113,7 +113,7 @@ def write_armor(file, gmdl, layer, i):
         "minecraft:attachable": {
             "description": {
                 "identifier": f"geyser_custom:{gmdl}.player",
-                "item": {f"geyser_custom:{gmdl}": "query.owner_identifier == 'minecraft:player'"},
+                "item": {f"geyser_custom:{gmdl}": True},
                 "materials": {
                     "default": "armor_leather",
                     "enchanted": "armor_leather_enchanted",
