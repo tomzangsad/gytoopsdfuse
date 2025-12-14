@@ -4,12 +4,31 @@ from io import BytesIO
 import glob, os, json
 
 lines = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "a", "b", "c", "d", "e", "f"]
-try:
-    with open("pack/assets/minecraft/font/default.json", "r") as f:
-        data = json.load(f)
-except Exception as e:
-    print("[FONT ERROR]")
-    print(e)
+FONT_JSON_PATHS = [
+    "pack/assets/minecraft/font/default.json",
+    "pack/assets/nexo/font/default.json"
+]
+
+data = {"providers": []}
+
+for font_path in FONT_JSON_PATHS:
+    if not os.path.isfile(font_path):
+        print(f"[FONT] Skip (not found): {font_path}")
+        continue
+
+    try:
+        with open(font_path, "r", encoding="utf-8") as f:
+            font_data = json.load(f)
+
+        providers = font_data.get("providers", [])
+        data["providers"].extend(providers)
+
+        print(f"[FONT] Loaded: {font_path} ({len(providers)} providers)")
+
+    except Exception as e:
+        print("[FONT ERROR]", font_path)
+        print(e)
+
 symbols = []
 paths = []
 heights = []
