@@ -1322,7 +1322,7 @@ do
                   "geyser_custom": {
                     "rotation": [0, 180, 0],
 		            "position": [-16, 14, 14],
-		            "scale": 1.5
+		            "scale": 1.1
                   },
                   "geyser_custom_x": {
                     "rotation": [9.47, 0, 0],
