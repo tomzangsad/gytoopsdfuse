@@ -764,7 +764,11 @@ def fix_player_attachable_texture_paths():
                 new_tex = f"textures/equipment/{humanoid_src}"
 
             old_tex = desc["textures"]["default"]
-
+            # 🧪 ====== เพิ่มตรงนี้ ======
+            # ถ้าเป็น CIT (leather armor / armor_layer) → ห้ามแตะ
+            if "textures/armor_layer" in old_tex:
+                continue
+            # ==========================
             # ถ้าเหมือนเดิมไม่ต้องแก้
             if old_tex == new_tex:
                 continue
@@ -962,11 +966,9 @@ geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
-# ประมวลผล Leather Armor
-process_leather_armor()
 
-# ประมวลผล Equipment Armor (Netherite, etc.)
-process_equipment_armor()
+process_leather_armor() # ประมวลผล Leather Armor
+process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
@@ -976,8 +978,6 @@ process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
-
-
 
 
 
