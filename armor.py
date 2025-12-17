@@ -853,7 +853,22 @@ def import_gui_config():
         print(f"🖼️ Imported PNGs → {dest_texture_folder}")
     else:
         print("⚠️ No PNG texture folder found:", src_texture_folder)
+# ===============================
+# ⚙️ Import Kaizer global config
+# ===============================
+def import_kaizer_config():
+    src = "pack/kaizer_config.json"
+    dest = "staging/kaizer_config.json"
 
+    # สร้าง staging ถ้ายังไม่มี
+    os.makedirs("staging", exist_ok=True)
+
+    if not os.path.exists(src):
+        print("⚠️ No kaizer_config.json found in ./pack/")
+        return
+
+    shutil.copy(src, dest)
+    print("⚙️ Imported kaizer_config.json → staging/kaizer_config.json")
 
 
 # ===================================================
