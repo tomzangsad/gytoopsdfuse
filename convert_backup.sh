@@ -548,12 +548,13 @@ fi
 
 
 # generate a fallback texture
-convert -size 16x16 xc:\#FFFFFF ./assets/minecraft/textures/0.png
+convert -size 16x16 xc:transparent -alpha on PNG32:./assets/minecraft/textures/0.png
+
 
 # make sure we crop all mcmeta associated png files
 status_message process "Cropping animated textures"
 for i in $(find ./assets/**/textures -type f -name "*.mcmeta" | sed 's/\.mcmeta//'); do 
-convert ${i} -set option:distort:viewport "%[fx:min(w,h)]x%[fx:min(w,h)]" -distort affine "0,0 0,0" -define png:format=png8 -clamp ${i} 2> /dev/null
+convert ${i} -set option:distort:viewport "%[fx:min(w,h)]x%[fx:min(w,h)]" -distort affine "0,0 0,0" -define png:format=png32 -alpha on -clamp ${i} 2> /dev/null
 done
 
 # ============================================================
@@ -651,7 +652,7 @@ generate_isometric_icon() {
       \( tmp/top.png   -virtual-pixel transparent +distort Affine '0,96 0,0   0,0 -34.8,-32  96,96 34.8,-32' \) \
       \( tmp/north.png -virtual-pixel transparent +distort Affine '96,0 0,0   0,0 -34.8,-32  96,96 0,64' \) \
       \( tmp/west.png  -virtual-pixel transparent +distort Affine '0,0 0,0   0,96 0,64  96,0 34.8,-32' \) \
-      -background none -compose plus -layers merge +repage \
+      -background none -compose over -layers merge +repage \
       -resize 64x64! PNG32:"$out_png"
 
     rm -f tmp/*.png
@@ -939,14 +940,21 @@ model_list=( $(jq -r '.[] | select(.generated == false) | .path' config.json) )
 # get our final texture list to be atlased
 # get a bash array of all texture files in our resource pack
 status_message process "Generating an array of all model PNG files to crosscheck with our atlas"
-jq -n '$ARGS.positional' --args $(find ./assets/**/textures -type f -name '*.png') | sponge scratch_files/all_textures.temp
+jq -n '$ARGS.positional' --args \
+$(find ./assets/**/textures -type f -name '*.png' ! -name '*.mcmeta' \
+   ! -exec test -f "{}.mcmeta" \; -print) \
+| sponge scratch_files/all_textures.temp
+
 # get bash array of all texture files listed in our models
 status_message process "Generating union atlas arrays for all model textures"
 jq -s '
 def namespace: 
   if contains(":") then sub("\\:(.+)"; "") else "minecraft" end; 
 [.[]| [.textures[]?] | unique] 
-| map(map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png"))
+| map(
+    map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")
+    | map(select(test("\\.png$") and (test("\\.mcmeta$") | not)))
+  )
 ' ${model_list[@]} | sponge scratch_files/union_atlas.temp
 jq '
 def intersects(a;b): any(a[]; . as $x | any(b[]; . == $x));
@@ -1416,7 +1424,7 @@ status_message completion "en_US and en_GB lang files written\n"
 
 # Ensure images are in the correct color space
 status_message process "Setting all images to png8"
-find ./target/rp/textures -name '*.png' -exec mogrify -define png:format=png8  {} +
+find ./target/rp/textures -name '*.png' -exec mogrify -define png:format=png32 {} +
 status_message completion "All images set to png8"
 
 if [[ ${rename_model_files} == "true" ]]
