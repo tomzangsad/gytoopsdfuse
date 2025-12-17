@@ -1,20 +1,14 @@
 from PIL import Image
 from font_sprite import sprite
+from io import BytesIO
 import glob, os, json
 
-# ==================================================
-# CONFIG
-# ==================================================
-lines = [0,1,2,3,4,5,6,7,8,9,"a","b","c","d","e","f"]
-
+lines = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "a", "b", "c", "d", "e", "f"]
 FONT_JSON_PATHS = [
     "pack/assets/minecraft/font/default.json",
     "pack/assets/nexo/font/default.json"
 ]
 
-# ==================================================
-# LOAD FONT PROVIDERS
-# ==================================================
 data = {"providers": []}
 
 for font_path in FONT_JSON_PATHS:
@@ -28,157 +22,165 @@ for font_path in FONT_JSON_PATHS:
 
         providers = font_data.get("providers", [])
         data["providers"].extend(providers)
+
         print(f"[FONT] Loaded: {font_path} ({len(providers)} providers)")
 
     except Exception as e:
-        print("[FONT ERROR]", font_path, e)
+        print("[FONT ERROR]", font_path)
+        print(e)
 
-# ==================================================
-# PARSE PROVIDERS (SAFE)
-# ==================================================
 symbols = []
 paths = []
 heights = []
 ascents = []
-
-for d in data["providers"]:
+for d in data['providers']:
     try:
-        chars = d.get("chars")
-        if not chars:
-            continue
-
-        symbol = "".join(chars)
-
-        # ❗ ข้าม multi-char / emoji
-        if len(symbol) != 1:
-            print(f"[SKIP SYMBOL] multi-char: {repr(symbol)}")
-            continue
-
-        ord(symbol)  # validate
-
-        symbols.append(chars)
-        paths.append(d["file"])
-        heights.append(d.get("height", 8))
-        ascents.append(d.get("ascent", 7))
-
-    except Exception as e:
-        print("[SKIP SYMBOL ERROR]", e)
+        symbols.append(d['chars'])
+        paths.append(d['file'])
+        heights.append(d['height'])
+        ascents.append(d['ascent'])
+    except:
         continue
 
-# ==================================================
-# CREATE GLYPH LIST (SAFE)
-# ==================================================
+def createfolder(glyph):
+    os.makedirs(f"images/{glyph}", exist_ok = True)
+    os.makedirs(f"export/{glyph}", exist_ok = True)
+    os.makedirs(f"font/", exist_ok = True)
+    
+def create_empty(glyph, blankimg):
+    for line in lines:
+        for linee in lines:
+            if linee != lines:
+                name = f"{line}{linee}"
+                if os.path.isfile(f"images/{glyph}/0x{glyph}{name}.png"):
+                    continue
+                else:
+                    imagesus = Image.open(blankimg)
+                    image = imagesus.copy()
+                    image.save(f"images/{glyph}/0x{glyph}{name}.png", "PNG")
+    for line in lines:
+        name = f"{line}{line}"
+        if os.path.isfile(f"images/{glyph}/0x{glyph}{name}.png"):
+            continue
+        else:
+            imagesus = Image.open(blankimg)
+            image = imagesus.copy()
+            image.save(f"images/{glyph}/0x{glyph}{name}.png", "PNG")
+
+def imagetoexport(glyph, blankimg):
+    filelist = [file for file in os.listdir(f'images/{glyph}') if file.endswith('.png')]
+    for img in filelist:
+        image = Image.open(blankimg)
+        logo = Image.open(f'images/{glyph}/{img}')
+        image_copy = image.copy()
+        w, h = image.size
+        wl, hl = logo.size
+        for height, symboll in zip(heights, symbols):
+            symbolbe = ''.join(symboll)
+            symbolbehex = (hex(ord(symbolbe)))
+            if len(symbolbehex) == 6:
+                symbol = symbolbehex[4:]
+            elif len(symbolbehex) == 5:
+                symbolbehex = symbolbehex[:2] + "0" + symbolbehex[2:]
+                symbol = symbolbehex[4:]
+            name = f"0x{glyph}{symbol}"
+            imgname = f"0x{glyph}{img}"
+            if name == imgname:
+                if height >= 1 and height < w and height < h:
+                    size = (height, height)
+                    logo.thumbnail(size,Image.ANTIALIAS)                 
+        if wl > (w/2) and hl > (h/2):
+            position = (0, 0)
+            image_copy.paste(logo, position)
+            image_copy.save(f"export/{glyph}/{img}")
+        else:
+            position = (0, (h//2) - (hl//2))
+            image_copy.paste(logo, position)
+            image_copy.save(f"export/{glyph}/{img}")
+
+            
 glyphs = []
-
-for chars in symbols:
-    try:
-        symbol = "".join(chars)
-        if len(symbol) != 1:
+for i in symbols:
+    if i not in glyphs:
+        try:
+            symbolbe = ''.join(i)
+            sbh = (hex(ord(symbolbe)))
+            a = sbh[2:]
+            ab = a[:2]
+            glyphs.append(ab.upper())
+        except:
+            print(f"Symbol Error: {symbolbe}")
+            symbols.remove(i)
             continue
-
-        code = f"{ord(symbol):04X}"
-        glyphs.append(code[:2])
-
-    except Exception as e:
-        print("[GLYPH SKIP]", e)
-        continue
-
-glyphs = sorted(set(glyphs))
+glyphs = list(dict.fromkeys(glyphs))
 print("[FONT FILE]")
 print(glyphs)
 
-# ==================================================
-# UTILS
-# ==================================================
-def createfolder(glyph):
-    os.makedirs(f"images/{glyph}", exist_ok=True)
-    os.makedirs(f"export/{glyph}", exist_ok=True)
-    os.makedirs("font", exist_ok=True)
-
-def create_empty(glyph, blankimg):
-    for a in lines:
-        for b in lines:
-            name = f"{a}{b}"
-            path = f"images/{glyph}/0x{glyph}{name}.png"
-            if os.path.isfile(path):
-                continue
-            Image.open(blankimg).copy().save(path, "PNG")
-
-def imagetoexport(glyph, blankimg):
-    for img in os.listdir(f"images/{glyph}"):
-        if not img.endswith(".png"):
-            continue
-
-        base = Image.open(blankimg)
-        logo = Image.open(f"images/{glyph}/{img}")
-
-        bw, bh = base.size
-        lw, lh = logo.size
-
-        if lw > bw//2 and lh > bh//2:
-            pos = (0,0)
-        else:
-            pos = (0, (bh//2)-(lh//2))
-
-        base.paste(logo, pos)
-        base.save(f"export/{glyph}/{img}")
-
-# ==================================================
-# MAIN CONVERTER
-# ==================================================
 listglyphdone = []
-
 def converterpack(glyph):
-    try:
-        if glyph in listglyphdone:
-            return
-
-        createfolder(glyph)
-        maxw = maxh = 0
-
-        for chars, path in zip(symbols, paths):
-            symbol = "".join(chars)
-            code = f"{ord(symbol):04X}"
-            if code[:2] != glyph:
-                continue
-
-            imgname = f"0x{glyph}{code[2:]}.png"
-
-            try:
+    createfolder(glyph)
+    if len(symbols) == len(paths):
+        maxsw, maxsh = 0, 0
+        for symboll, path in zip(symbols, paths):
+            symbolbe = ''.join(symboll)
+            symbolbehex = (hex(ord(symbolbe)))
+            if glyph in listglyphdone:
+                return False
+            if len(symbolbehex) == 6:
+                symbol = symbolbehex[4:]
+                symbolac = symbolbehex[2:]
+                symbolcheck = symbolac[:2]
+            elif len(symbolbehex) == 5:
+                symbolbehex = symbolbehex[:2] + "0" + symbolbehex[2:]
+                symbol = symbolbehex[4:]
+                symbolac = symbolbehex[2:]
+                symbolcheck = symbolac[:2]
+                glyphs.append(symbolcheck.upper())
+            if (symbolcheck.upper()) == (glyph.upper()):
                 if ":" in path:
-                    ns, p = path.split(":", 1)
-                    img = Image.open(f"pack/assets/{ns}/textures/{p}")
+                    try:
+                        namespace = path.split(":")[0]
+                        pathnew = path.split(":")[1]
+                        imagefont = Image.open(f"pack/assets/{namespace}/textures/{pathnew}")
+                        image = imagefont.copy()
+                        image.save(f"images/{glyph}/0x{glyph}{symbol}.png", "PNG")
+                    except Exception as e:
+                        print(e)
+                        continue
                 else:
-                    img = Image.open(f"pack/assets/minecraft/textures/{path}")
-
-                img.save(f"images/{glyph}/{imgname}", "PNG")
-
-                w,h = img.size
-                maxw, maxh = max(maxw,w), max(maxh,h)
-
-            except Exception as e:
-                print("[IMAGE SKIP]", e)
+                    try:
+                        imagefont = Image.open(f"pack/assets/minecraft/textures/{path}")
+                        image = imagefont.copy()
+                        image.save(f"images/{glyph}/0x{glyph}{symbol}.png", "PNG")
+                    except Exception as e: 
+                        print(e)
+                        continue
+            else:
                 continue
-
-        if maxw == 0 or maxh == 0:
-            print(f"[GLYPH EMPTY] {glyph}")
-            return
-
-        size = max(maxw, maxh) + 1
-        Image.open("blank256.png").resize((size,size)).save("blankimg.png")
-
-        create_empty(glyph, "blankimg.png")
-        imagetoexport(glyph, "blankimg.png")
-        sprite(glyph, size*16, (size,size))
-
-        listglyphdone.append(glyph)
-        print(f"[GLYPH DONE] {glyph}")
-
-    except Exception as e:
-        print(f"[GLYPH FAIL] {glyph} : {e}")
-
-# ==================================================
-# RUN
-# ==================================================
+        else:                
+            files = glob.glob(f"images/{glyph}/*.png")
+            for file in files:
+                image = Image.open(file)
+                sw, sh = image.size
+                maxsw, maxsh = (max(maxsw, sw), max(maxsh, sh))
+            if maxsw == maxsh:
+                size = (int(maxsw + 1), int(maxsw + 1))
+            elif maxsw > maxsh:
+                size = (int(maxsw + 1), int(maxsw + 1))
+            elif maxsh > maxsw:
+                size = (int(maxsh + 1), int(maxsh + 1))
+            if size == (0, 0):
+                pass
+            else:
+                glyphsize = size * 16
+                img = Image.open("blank256.png")
+                imgre = img.resize(size)
+                imgre.save("blankimg.png")
+                blankimg = "blankimg.png"
+                create_empty(glyph, blankimg) 
+                imagetoexport(glyph, blankimg)
+                sprite(glyph, glyphsize, size)
+                listglyphdone.append(glyph)
+            
 for glyph in glyphs:
     converterpack(glyph)
