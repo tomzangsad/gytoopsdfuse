@@ -1,3 +1,4 @@
+
 F
 
 
@@ -142,6 +143,21 @@ ${C_GRAY}Fallback pack URL: ${C_BLUE}${fallback_pack:=null}
 status_message process "Decompressing input pack"
 unzip -n -q "${1}"
 status_message completion "Input pack decompressed"
+
+# ============================================================
+# Read Kaizer animation config (STEP2)
+# ============================================================
+ANIMATION_SELECTION="false"  # default = animation enabled
+KAIZER_CONFIG="./kaizer_config.json"
+if [[ -f "$KAIZER_CONFIG" ]]; then
+  ANIMATION_SELECTION=$(jq -r '
+    .Animation_Selection.animation.selection // false
+  ' "$KAIZER_CONFIG" 2>/dev/null)
+  status_message info "Kaizer animation selection = ${ANIMATION_SELECTION}"
+else
+  status_message info "No kaizer_config.json found → animation enabled by default"
+fi
+
 
 # exit the script if no input pack exists by checking for a pack.mcmeta file
 if [ ! -f pack.mcmeta ]
@@ -939,23 +955,49 @@ model_list=( $(jq -r '.[] | select(.generated == false) | .path' config.json) )
 
 # get our final texture list to be atlased
 # get a bash array of all texture files in our resource pack
-status_message process "Generating an array of all model PNG files to crosscheck with our atlas"
-jq -n '$ARGS.positional' --args \
-$(find ./assets/**/textures -type f -name '*.png' ! -name '*.mcmeta' \
-   ! -exec test -f "{}.mcmeta" \; -print) \
-| sponge scratch_files/all_textures.temp
+
+#Step3
+status_message process "Generating texture list for atlas (animation selection = ${ANIMATION_SELECTION})"
+if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+  # ❌ ไม่รวม animation
+  jq -n '$ARGS.positional' --args \
+  $(find ./assets/**/textures -type f -name '*.png' \
+     ! -exec test -f "{}.mcmeta" \; -print) \
+  | sponge scratch_files/all_textures.temp
+else
+  # ✅ รวม animation ปกติ
+  jq -n '$ARGS.positional' --args \
+  $(find ./assets/**/textures -type f -name '*.png' -print) \
+  | sponge scratch_files/all_textures.temp
+fi
 
 # get bash array of all texture files listed in our models
-status_message process "Generating union atlas arrays for all model textures"
-jq -s '
-def namespace: 
-  if contains(":") then sub("\\:(.+)"; "") else "minecraft" end; 
-[.[]| [.textures[]?] | unique] 
-| map(
-    map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")
-    | map(select(test("\\.png$") and (test("\\.mcmeta$") | not)))
-  )
-' ${model_list[@]} | sponge scratch_files/union_atlas.temp
+#step4
+status_message process "Generating union atlas arrays (animation selection = ${ANIMATION_SELECTION})"
+
+if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+  # ❌ ไม่รวม animation texture
+  jq -s '
+  def namespace:
+    if contains(":") then sub("\\:(.+)"; "") else "minecraft" end;
+  [.[] | (.textures // {}) | [.[]?] | unique]
+  | map(
+      map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")
+      | map(select(test("\\.png$") and (test("\\.mcmeta$") | not)))
+    )
+  ' ${model_list[@]} | sponge scratch_files/union_atlas.temp
+else
+  # ✅ รวม animation texture ปกติ
+  jq -s '
+  def namespace:
+    if contains(":") then sub("\\:(.+)"; "") else "minecraft" end;
+  [.[] | (.textures // {}) | [.[]?] | unique]
+  | map(
+      map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")
+    )
+  ' ${model_list[@]} | sponge scratch_files/union_atlas.temp
+fi
+
 jq '
 def intersects(a;b): any(a[]; . as $x | any(b[]; . == $x));
 
