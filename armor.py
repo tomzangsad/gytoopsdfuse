@@ -314,7 +314,6 @@ def write_equipment_base(file, gmdl, texture_path, i):
         json.dump(ajson, f, indent=4)
 
     print(f"🟦 Generated base attachable: {file}")
-    
 def find_existing_gmdl(namespace, armor_name, armor_piece):
     """
     ค้นหาไฟล์ attachable เดิมที่ IA auto-gen ไว้ในโฟลเดอร์ namespace ทั้งหมด
@@ -327,19 +326,16 @@ def find_existing_gmdl(namespace, armor_name, armor_piece):
         if ".player" in file:
             continue
 
-        filename = os.path.basename(file).lower()
+        # มักอยู่ในรูป items เช่น:
+        # japan_armor_basickimono_helmet.gmdl_xxxxx.json
+        filename = os.path.basename(file)
 
-        # ✅ FIX: ต้องมีทั้ง armor_name และ armor_piece ใน filename
-        if armor_name.lower() in filename and armor_piece in filename:
+        if armor_name in filename and armor_piece in filename:
             with open(file, "r", encoding="utf-8") as f:
                 data = json.load(f)["minecraft:attachable"]
-                gmdl_full = data["description"]["identifier"].split(":")[1]
-                
-                # 🔥 Return ทั้ง gmdl และ base_name (ก่อน .gmdl_)
-                base_name = gmdl_full.split(".gmdl")[0]
-                return gmdl_full, base_name
+                return data["description"]["identifier"].split(":")[1]
 
-    return None, None
+    return None
 
 # ===============================
 # 🛡️ ประมวลผล Netherite/Equipment Armor
@@ -568,8 +564,7 @@ def process_equipment_armor():
                             # สร้าง gmdl ID
                             armor_piece = armor_type.split("_")[1]  # helmet, chestplate, etc.
                             # หา gmdl จากไฟล์ attachable เดิม
-                            # ✅ ใหม่
-                            gmdl, base_name = find_existing_gmdl(namespace, armor_name, armor_piece)
+                            gmdl = find_existing_gmdl(namespace, armor_name, armor_piece)
                             if not gmdl:
                                 print(f"⚠️ Cannot find existing gmdl for {armor_name} {armor_piece}")
                                 continue
@@ -585,11 +580,11 @@ def process_equipment_armor():
                                 f.write(f"{gmdl},{atlas_path}\n")
                             print(f"📌 Added to atlas: {gmdl}")
                             
-                            # ✅ ใหม่ (ใช้ base_name จาก attachable จริง)
+                            # เลือก texture humanoid/leggings
                             if armor_piece == "leggings":
-                                final_texture = f"textures/equipment/{namespace}_{base_name}_leggings.png"
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_leggings.png"
                             else:
-                                final_texture = f"textures/equipment/{namespace}_{base_name}_humanoid.png"
+                                final_texture = f"textures/equipment/{namespace}_{armor_name}_humanoid.png"
                             
                             # path base และ player
                             base_attachable = f"staging/target/rp/attachables/{namespace}/{gmdl}.json"
@@ -728,6 +723,7 @@ def fix_player_attachable_texture_paths():
 
     # โหลดไฟล์ texture ทั้งหมดไว้ก่อน
     all_png = glob.glob(os.path.join(tex_dir, "*.png"))
+    all_png_map = {os.path.basename(f): f for f in all_png}
 
     # loop ทุก namespace
     for namespace in os.listdir(attach_path):
@@ -735,54 +731,46 @@ def fix_player_attachable_texture_paths():
         if not os.path.isdir(ns_path):
             continue
 
-        # ✅ วนไฟล์ player.json ครั้งเดียว แล้วหา texture แต่ละไฟล์
+        # หาชื่อ texture จริง (มีแค่ 2 ไฟล์)
+        humanoid_src = None
+        leggings_src = None
+
+        for f in all_png:
+            base = os.path.basename(f).lower()
+            if not base.startswith(namespace.lower() + "_"):
+                continue
+
+            if "humanoid" in base:
+                humanoid_src = base
+            if "leggings" in base:
+                leggings_src = base
+
+        if not humanoid_src:
+            continue
+
+        # loop player.json
         for pf in glob.glob(ns_path + "/**/*.player.json", recursive=True):
             with open(pf, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             desc = data["minecraft:attachable"]["description"]
-            gmdl_full = desc["identifier"].split(":")[1].replace(".player", "")
-            base_name = gmdl_full.split(".gmdl")[0]  # ✅ เอา base name จริง
-            
-            old_tex = desc["textures"]["default"]
-            
-            # 🧪 ถ้าเป็น CIT (leather armor / armor_layer) → ข้าม
-            if "textures/armor_layer" in old_tex:
-                print(f"⏩ Skip CIT armor: {os.path.basename(pf)}")
-                continue
-            
-            # ✅ หา texture ที่ match กับ base_name ของไฟล์นี้โดยเฉพาะ
-            humanoid_src = None
-            leggings_src = None
-            
-            for f in all_png:
-                fname = os.path.basename(f).lower()
-                base_lower = base_name.lower()
-                ns_lower = namespace.lower()
-                
-                # Match pattern: namespace_basename_humanoid.png
-                # หรือ namespace_basename_leggings.png
-                if fname.startswith(f"{ns_lower}_{base_lower}_"):
-                    if fname.endswith("_humanoid.png"):
-                        humanoid_src = os.path.basename(f)
-                    elif fname.endswith("_leggings.png"):
-                        leggings_src = os.path.basename(f)
-            
-            if not humanoid_src:
-                print(f"⚠️ No texture found for {base_name} in {namespace}")
-                continue
 
             # ดูว่าเป็นหมวก, เสื้อ, รองเท้าหรือกางเกง
             geom = desc["geometry"]["default"]
 
-            if "leggings" in geom and leggings_src:
+            if "leggings" in geom:
                 new_tex = f"textures/equipment/{leggings_src}"
             else:
                 new_tex = f"textures/equipment/{humanoid_src}"
 
+            old_tex = desc["textures"]["default"]
+            # 🧪 ====== เพิ่มตรงนี้ ======
+            # ถ้าเป็น CIT (leather armor / armor_layer) → ห้ามแตะ
+            if "textures/armor_layer" in old_tex:
+                continue
+            # ==========================
             # ถ้าเหมือนเดิมไม่ต้องแก้
             if old_tex == new_tex:
-                print(f"✅ Already correct: {os.path.basename(pf)}")
                 continue
 
             desc["textures"]["default"] = new_tex
@@ -990,7 +978,6 @@ process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
-
 
 
 
