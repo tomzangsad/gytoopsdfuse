@@ -1,3 +1,4 @@
+
 F
 
 
@@ -143,6 +144,37 @@ status_message process "Decompressing input pack"
 unzip -n -q "${1}"
 status_message completion "Input pack decompressed"
 
+# ============================================================
+# Read Kaizer animation config (STEP2)
+# ============================================================
+ANIMATION_SELECTION="false"  # default = animation enabled
+KAIZER_CONFIG="./kaizer_config.json"
+if [[ -f "$KAIZER_CONFIG" ]]; then
+  ANIMATION_SELECTION=$(jq -r '
+    .Animation_Selection.animation.selection // false
+  ' "$KAIZER_CONFIG" 2>/dev/null)
+  status_message info "Kaizer animation selection = ${ANIMATION_SELECTION}"
+else
+  status_message info "No kaizer_config.json found → animation enabled by default"
+fi
+
+# ============================================================
+# Read skip_pack config (STEP 2.5)
+# ============================================================
+SKIP_PACKS=()
+if [[ -f "$KAIZER_CONFIG" ]]; then
+  # อ่าน list ของ namespace ที่ต้อง skip
+  SKIP_PACKS=($(jq -r '
+    .Animation_Selection.skip_pack.list // {} 
+    | to_entries[] 
+    | select(.value == true) 
+    | .key
+  ' "$KAIZER_CONFIG" 2>/dev/null))
+  
+  if [[ ${#SKIP_PACKS[@]} -gt 0 ]]; then
+    status_message info "Skip packs: ${SKIP_PACKS[*]}"
+  fi
+fi
 # exit the script if no input pack exists by checking for a pack.mcmeta file
 if [ ! -f pack.mcmeta ]
 then
@@ -939,23 +971,90 @@ model_list=( $(jq -r '.[] | select(.generated == false) | .path' config.json) )
 
 # get our final texture list to be atlased
 # get a bash array of all texture files in our resource pack
-status_message process "Generating an array of all model PNG files to crosscheck with our atlas"
-jq -n '$ARGS.positional' --args \
-$(find ./assets/**/textures -type f -name '*.png' ! -name '*.mcmeta' \
-   ! -exec test -f "{}.mcmeta" \; -print) \
-| sponge scratch_files/all_textures.temp
+
+#Step3
+status_message process "Generating texture list for atlas (animation selection = ${ANIMATION_SELECTION})"
+
+if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+  # ❌ ไม่รวม animation ยกเว้น namespace ใน SKIP_PACKS
+  if [[ ${#SKIP_PACKS[@]} -gt 0 ]]; then
+    # สร้าง include pattern สำหรับ skip_packs (รวม animation เฉพาะ packs เหล่านี้)
+    INCLUDE_EXPR=""
+    for ns in "${SKIP_PACKS[@]}"; do
+      INCLUDE_EXPR="$INCLUDE_EXPR -path './assets/$ns/*' -o"
+    done
+    INCLUDE_EXPR="${INCLUDE_EXPR% -o}"  # ลบ -o ตัวสุดท้าย
+    
+    # หา texture ที่ไม่ใช่ animation จาก namespace ปกติ
+    find ./assets/**/textures -type f -name '*.png' ! -exec test -f "{}.mcmeta" \; -print > /tmp/non_anim.txt
+    
+    # หา texture ทั้งหมด (รวม animation) จาก skip_packs
+    eval "find ./assets/**/textures \( $INCLUDE_EXPR \) -type f -name '*.png' -print" > /tmp/skip_anim.txt
+    
+    # รวมทั้ง 2 list
+    cat /tmp/non_anim.txt /tmp/skip_anim.txt | sort -u | jq -nR '[inputs]' | sponge scratch_files/all_textures.temp
+    rm -f /tmp/non_anim.txt /tmp/skip_anim.txt
+  else
+    # ไม่มี skip_pack → ไม่รวม animation ทั้งหมด
+    find ./assets/**/textures -type f -name '*.png' ! -exec test -f "{}.mcmeta" \; -print \
+    | jq -nR '[inputs]' | sponge scratch_files/all_textures.temp
+  fi
+else
+  # ✅ รวม animation ทุก pack (ignore skip_pack)
+  find ./assets/**/textures -type f -name '*.png' -print \
+  | jq -nR '[inputs]' | sponge scratch_files/all_textures.temp
+fi
+
+status_message completion "Texture list generated (animation=${ANIMATION_SELECTION}, include_anim_for: ${SKIP_PACKS[*]:-none})"
 
 # get bash array of all texture files listed in our models
-status_message process "Generating union atlas arrays for all model textures"
-jq -s '
-def namespace: 
-  if contains(":") then sub("\\:(.+)"; "") else "minecraft" end; 
-[.[]| [.textures[]?] | unique] 
-| map(
-    map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")
-    | map(select(test("\\.png$") and (test("\\.mcmeta$") | not)))
-  )
-' ${model_list[@]} | sponge scratch_files/union_atlas.temp
+#step4
+status_message process "Generating union atlas arrays (animation selection = ${ANIMATION_SELECTION})"
+
+# ไม่ต้องกรอง model ออก เพราะเราต้องการ geometry ของทุก pack
+# เราแค่ไม่เอา texture animation ของ pack อื่นๆ
+
+if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+  # ❌ ไม่รวม animation texture ยกเว้น SKIP_PACKS
+  jq -s --argjson skip_packs "$(printf '%s\n' "${SKIP_PACKS[@]}" | jq -R . | jq -s . 2>/dev/null || echo '[]')" '
+  def namespace:
+    if contains(":") then sub("\\:(.+)"; "") else "minecraft" end;
+  
+  def is_skip_pack($ns):
+    $skip_packs | index($ns) != null;
+  
+  [.[] | (.textures // {}) | [.[]?] | unique]
+  | map(
+      map(
+        . as $tex
+        | ($tex | namespace) as $ns
+        | "./assets/" + $ns + "/textures/" + ($tex | sub("(.*?)\\:"; "")) + ".png"
+      )
+      | map(
+        . as $path
+        | ($path | sub("^\\./assets/([^/]+)/.*"; "\\1")) as $ns
+        | if is_skip_pack($ns) then
+            # ถ้าเป็น skip_pack → รวม animation
+            select(test("\\.png$"))
+          else
+            # ถ้าไม่ใช่ → ข้าม animation
+            select(test("\\.png$") and (test("\\.mcmeta$") | not))
+          end
+      )
+    )
+  ' "${model_list[@]}" | sponge scratch_files/union_atlas.temp
+else
+  # ✅ รวม animation ทุก pack
+  jq -s '
+  def namespace:
+    if contains(":") then sub("\\:(.+)"; "") else "minecraft" end;
+  [.[] | (.textures // {}) | [.[]?] | unique]
+  | map(
+      map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")
+    )
+  ' "${model_list[@]}" | sponge scratch_files/union_atlas.temp
+fi
+
 jq '
 def intersects(a;b): any(a[]; . as $x | any(b[]; . == $x));
 
@@ -1010,8 +1109,7 @@ do
     local model_name="${6}"
     local path_hash="${7}"
     local geometry="${8}"
-
-    # find which texture atlas we will be using if not generated
+    
     if [[ ${generated} = "false" ]]
     then
       local atlas_index=$(jq -r -s 'def namespace: if contains(":") then sub("\\:(.+)"; "") else "minecraft" end; def intersects(a;b): any(a[]; . as $x | any(b[]; . == $x)); (.[0] | [.textures[]] | map("./assets/" + (. | namespace) + "/textures/" + (. | sub("(.*?)\\:"; "")) + ".png")) as $inp | [(.[1] | (map(if intersects(.;$inp) then . else empty end)[])) as $entry | .[1] | to_entries[] | select(.value == $entry).key][0] // 0' ${file} scratch_files/union_atlas.temp)
