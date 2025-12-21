@@ -317,7 +317,7 @@ printf "${C_CLOSE}"
 
 # 🧱 Skip unwanted asset folders (betterhud, nameplates, modelengine) KaizerMC Edit
 status_message process "Filtering out unwanted asset folders before conversion"
-find ./assets -type d \( -path "./assets/betterhud" -o -path "./assets/nameplates" \) -prune -exec echo "Skipping directory: {}" \; -exec rm -rf {} \;
+find ./assets -type d \( -path "./assets/betterhud" -o -path "./assets/nameplates" -o -path "./assets/modelengine" \) -prune -exec echo "Skipping directory: {}" \; -exec rm -rf {} \;
 status_message completion "Filtered unwanted folders (betterhud, nameplates, modelengine)"
 
 # setup our initial config by iterating over all json files in the block and item folders
