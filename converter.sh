@@ -183,9 +183,17 @@ then
 fi
 
 # ensure the directory that would contain predicate definitions exists
-if test -d "./assets/minecraft/models/item"
-then 
-  status_message completion "Minecraft namespace item folder found."
+# Support BOTH old format (models/item) and new format (items) for 1.21.4+
+OLD_FORMAT_DIR="./assets/minecraft/models/item"
+NEW_FORMAT_DIR="./assets/minecraft/items"
+
+if test -d "$OLD_FORMAT_DIR" || test -d "$NEW_FORMAT_DIR"; then
+  if test -d "$OLD_FORMAT_DIR"; then
+    status_message completion "Minecraft namespace item folder found (OLD format: models/item)."
+  fi
+  if test -d "$NEW_FORMAT_DIR"; then
+    status_message completion "Minecraft namespace items folder found (NEW format 1.21.4+: items)."
+  fi
 else
   # create our initial directories for bp & rp
   status_message process "Generating initial directory strucutre for our bedrock packs"
@@ -316,7 +324,14 @@ status_message completion "Filtered unwanted folders (betterhud, nameplates, mod
 # technically we only need to iterate over actual item models that contain overrides, but the constraints of bash would likely make such an approach less efficent 
 status_message process "Iterating through all vanilla associated model JSONs to generate initial predicate config\nOn a large pack, this may take some time...\n"
 
-jq --slurpfile item_texture scratch_files/item_texture.json --slurpfile item_mappings scratch_files/item_mappings.json -n '
+# Initialize empty config.json
+echo '{}' > config.json
+
+# Process OLD FORMAT (models/item) if it exists
+if test -d "./assets/minecraft/models/item"; then
+  status_message process "Processing OLD format (models/item)..."
+  
+  jq --slurpfile item_texture scratch_files/item_texture.json --slurpfile item_mappings scratch_files/item_mappings.json -n '
 [inputs | {(input_filename | sub("(.+)/(?<itemname>.*?).json"; .itemname)): .overrides?[]?}] |
 
 def maxdur($input):
@@ -359,11 +374,94 @@ if contains(":") then sub("\\:(.+)"; "") else "minecraft" end
 | INDEX(.geyserID)
 
 ' ./assets/minecraft/models/item/*.json > config.json || { status_message error "Invalid JSON exists in block or item folder! See above log."; exit 1; }
-status_message completion "Initial predicate config generated"
+  status_message completion "OLD format predicate config generated"
+else
+  status_message info "No OLD format (models/item) found, skipping..."
+fi
+
+# ============================================================
+# NEW FORMAT SUPPORT: assets/minecraft/items (1.21.4+)
+# ============================================================
+NEW_ITEMS_DIR="./assets/minecraft/items"
+
+if test -d "$NEW_ITEMS_DIR"; then
+  status_message process "Detected NEW item format (1.21.4+) at ${NEW_ITEMS_DIR}"
+  
+  # Count files in new format directory
+  NEW_FILES_COUNT=$(find "$NEW_ITEMS_DIR" -name "*.json" | wc -l)
+  status_message info "Found ${NEW_FILES_COUNT} JSON files in items folder"
+  
+  # Create empty new format config
+  echo '{}' > scratch_files/new_format_config.json
+  
+  # Process each file in the items folder
+  for itemfile in ${NEW_ITEMS_DIR}/*.json; do
+    if [[ -f "$itemfile" ]]; then
+      item_name=$(basename "$itemfile" .json)
+      
+      # Extract entries from this file if it has range_dispatch
+      jq --arg item_name "$item_name" '
+        select(.model.type == "minecraft:range_dispatch" and .model.property == "minecraft:custom_model_data") |
+        .model.entries[] |
+        select(.model.model != null) |
+        {
+          "item": $item_name,
+          "nbt": {
+            "CustomModelData": (.threshold | floor)
+          },
+          "path": ("./assets/" + (if .model.model | contains(":") then (.model.model | split(":")[0]) else "minecraft" end) + "/models/" + (if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) + ".json"),
+          "namespace": (if .model.model | contains(":") then (.model.model | split(":")[0]) else "minecraft" end),
+          "model_path": ((if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) | split("/")[:-1] | join("/")),
+          "model_name": ((if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) | split("/")[-1]),
+          "generated": false
+        }
+      ' "$itemfile" 2>/dev/null
+    fi
+  done | jq -s '
+    to_entries | 
+    map((.value.geyserID = "gmdl_new_\(1+.key)") | .value) |
+    INDEX(.geyserID)
+  ' > scratch_files/new_format_config.json
+  
+  # Check result
+  if [[ -f scratch_files/new_format_config.json ]]; then
+    NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
+    status_message info "NEW format parser found ${NEW_COUNT} entries"
+    
+    if [[ "$NEW_COUNT" -gt 0 ]]; then
+      # Check if OLD format config exists and has content
+      OLD_COUNT=$(jq 'length' config.json 2>/dev/null || echo "0")
+      
+      if [[ "$OLD_COUNT" -gt 0 ]]; then
+        # Merge with existing config
+        jq -s '.[0] + .[1]' config.json scratch_files/new_format_config.json | sponge config.json
+        status_message completion "Merged ${NEW_COUNT} NEW format + ${OLD_COUNT} OLD format entries"
+      else
+        # Use new format config as main config
+        cp scratch_files/new_format_config.json config.json
+        status_message completion "Using ${NEW_COUNT} entries from NEW format (OLD format was empty)"
+      fi
+    else
+      status_message info "No valid entries found in NEW format items"
+    fi
+  else
+    status_message error "Failed to create new_format_config.json"
+  fi
+  
+  status_message completion "New format (1.21.4+) processing complete"
+fi
+
+# ============================================================
+# END NEW FORMAT SUPPORT
+# ============================================================
 
 # get a bash array of all model json files in our resource pack
 status_message process "Generating an array of all model JSON files to crosscheck with our predicate config"
 json_dir=($(find ./assets/**/models -type f -name '*.json'))
+
+# DEBUG: Show config count before filtering
+BEFORE_FILTER=$(jq 'length' config.json 2>/dev/null || echo "0")
+status_message info "DEBUG: config.json has ${BEFORE_FILTER} entries BEFORE file validation"
 
 # ensure all our reference files in config.json exist, and delete the entry if they do not
 status_message critical "Removing config entries that do not have an associated JSON file in the pack"
@@ -375,6 +473,10 @@ def real_file($input):
 map_values(if real_file(.path) != null then . else empty end)
 
 ' config.json --args ${json_dir[@]} | sponge config.json
+
+# DEBUG: Show config count after file validation
+AFTER_FILE_FILTER=$(jq 'length' config.json 2>/dev/null || echo "0")
+status_message info "DEBUG: config.json has ${AFTER_FILE_FILTER} entries AFTER file validation (removed $((BEFORE_FILTER - AFTER_FILE_FILTER)))"
 
 # get a bash array of all our input models
 status_message process "Creating a bash array for remaing models in our predicate config"
@@ -425,8 +527,19 @@ def gtest($input_g):
 
 ' scratch_files/parents.json config.json | sponge config.json
 
+# DEBUG: Show config count after parental filtering
+AFTER_PARENT_FILTER=$(jq 'length' config.json 2>/dev/null || echo "0")
+status_message info "DEBUG: config.json has ${AFTER_PARENT_FILTER} entries AFTER parental filter (removed $((AFTER_FILE_FILTER - AFTER_PARENT_FILTER)))"
+
 # obtain hashes of all model predicate info to ensure consistent model naming
 jq -r '.[] | [.geyserID, (.item + "_c" + (.nbt.CustomModelData | tostring) + "_d" + (.nbt.Damage | tostring) + "_u" + (.nbt.Unbreakable | tostring)), .path] | @tsv | gsub("\\t";",")' config.json > scratch_files/paths.csv
+
+# Check if config has any entries
+CONFIG_COUNT=$(jq 'length' config.json 2>/dev/null || echo "0")
+if [[ "$CONFIG_COUNT" -eq 0 ]]; then
+  status_message error "No valid model entries found in config.json! Check if your resource pack has valid item models."
+  exit 1
+fi
 
 function write_hash () { 
     local entry_hash=$(echo -n "${1}" | md5sum | head -c 7)
@@ -434,9 +547,18 @@ function write_hash () {
     echo "${3},${entry_hash},${path_hash}" >> "${4}"
 }
 
+# Pre-create hashes.csv to prevent file not found error
+touch scratch_files/hashes.csv
+
 while IFS=, read -r gid predicate path
     do write_hash "${predicate}" "${path}" "${gid}" "scratch_files/hashes.csv"
 done < scratch_files/paths.csv > /dev/null
+
+# Check if hashes.csv has content
+if [[ ! -s scratch_files/hashes.csv ]]; then
+  status_message error "Failed to generate hashes! paths.csv may be empty."
+  exit 1
+fi
 
 jq -cR 'split(",")' scratch_files/hashes.csv | jq -s 'map({(.[0]): [.[1], .[2]]}) | add' > scratch_files/hashmap.json
 
