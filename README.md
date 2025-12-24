@@ -49,7 +49,6 @@ You are free to:
 - Use
 - Study
 - Modify
-- Redistribute
 
 this code under the terms of the AGPL v3.
 
