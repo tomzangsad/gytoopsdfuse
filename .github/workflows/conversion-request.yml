@@ -215,13 +215,13 @@ jobs:
         continue-on-error: true  # ไม่ให้ fail ทันที
         run: |
           curl --max-time 1800 --retry 5 --retry-delay 10 \
-            -X POST "http://kaizermc.thddns.net:9551/upload_pack" \
+            -X POST "http://home.kaizermc.xyz:3010/upload_pack" \
             -F "pack=@packdata/PackFiles.zip"
 
 
       - name: Notify Controller
         run: |
-          curl -X POST "http://kaizermc.thddns.net:9551/notify/convert_done" \
+          curl -X POST "http://home.kaizermc.xyz:3010/notify/convert_done" \
             -H "Content-Type: application/json" \
             -d '{"status":"done"}'
             
@@ -234,7 +234,7 @@ jobs:
     steps:
       - name: Notify Controller (FAILED)
         run: |
-          curl -X POST "http://kaizermc.thddns.net:9551/notify/convert_failed" \
+          curl -X POST "http://home.kaizermc.xyz:3010/notify/convert_failed" \
             -H "Content-Type: application/json" \
             -d '{
               "status": "failed",
