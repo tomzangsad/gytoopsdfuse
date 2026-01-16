@@ -969,11 +969,11 @@ def process_otter_armors():
     # Absolute path to OtterPack armors
     # Adjust logic to find it relative to Desktop/miu/ if needed, but hardcoded based on finding is safer for now
     # We found it at c:\Users\KaizerMC\Desktop\miu\OtterPack_Cracked_1_12
-    otter_root = r"../OtterPack_Cracked_1_12/assets/minecraft/optifine/cit/armors"
+    otter_root = r"..pack/assets/minecraft/optifine/cit/armors"
     
     # Fallback to absolute if relative fails (assuming script is in gytoopsdfuse-main)
     if not os.path.exists(otter_root):
-        otter_root = r"c:/Users/KaizerMC/Desktop/miu/OtterPack_Cracked_1_12/assets/minecraft/optifine/cit/armors"
+        otter_root = r"pack/assets/minecraft/optifine/cit/armors"
 
     if not os.path.exists(otter_root):
         print(f"⚠️ OtterPack path not found: {otter_root}")
