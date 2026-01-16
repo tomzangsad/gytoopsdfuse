@@ -30,7 +30,11 @@ for file in files:
                     continue
                 with open(am, "r") as f:
                     data_am = json.load(f)
-                    gmdl = data_am["minecraft:attachable"]["description"]["identifier"].split(":")[1]
+                    identifier = data_am["minecraft:attachable"]["description"]["identifier"]
+                    if ":" in identifier:
+                        gmdl = identifier.split(":")[1]
+                    else:
+                        gmdl = identifier
                     geometry = blocks_util.get_geometry_block(v["model"])
                     texture = blocks_util.create_terrain_texture(gmdl, data_am["minecraft:attachable"]["description"]["textures"]["default"])
                 if geometry == "geometry.cube":
