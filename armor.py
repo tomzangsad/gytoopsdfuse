@@ -656,50 +656,48 @@ def auto_generate_player_attachables():
             armor_name_clean = gmdl.split(".gmdl")[0]
             
             # ลองหา texture ในหลาย paths
-            # 1. Equipment format: textures/equipment/{namespace}_{name}_humanoid.png
-            # 2. CIT format: textures/armor_layer/{name}_armor_layer_1.png หรือ layer_2.png
-            
             final_texture = None
             
-            # ลองหา equipment texture ก่อน
-            if armor_type == "leggings":
-                equip_tex = f"staging/target/rp/textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
-            else:
-                equip_tex = f"staging/target/rp/textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+            # ตรวจสอบว่าเป็น OtterPack path หรือไม่ (เช่น otter/season01/armor/bark/boots)
+            # ดึง armor name จาก file path
+            file_path_parts = file.replace("\\", "/").split("/")
             
-            if os.path.exists(equip_tex):
+            # หา armor name จาก path pattern: .../otter/.../armor/{armor_name}/{piece}...
+            otter_armor_name = None
+            for i, part in enumerate(file_path_parts):
+                if part == "armor" and i + 1 < len(file_path_parts):
+                    # part ถัดไปน่าจะเป็น armor name
+                    otter_armor_name = file_path_parts[i + 1]
+                    break
+            
+            # ถ้าพบ OtterPack armor name, ลองหา CIT texture
+            if otter_armor_name:
                 if armor_type == "leggings":
-                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                    cit_tex_path = f"staging/target/rp/textures/armor_layer/{otter_armor_name}_armor_layer_2.png"
+                    cit_texture = f"textures/armor_layer/{otter_armor_name}_armor_layer_2"
                 else:
-                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
-            else:
-                # ลองหา CIT armor layer texture
-                # ดึง armor name จาก gmdl (เช่น otter/season01/armor/guard/boots -> guard)
-                # หรือจาก armor_name_clean โดยตรง
-                parts = armor_name_clean.replace("/", "_").split("_")
+                    cit_tex_path = f"staging/target/rp/textures/armor_layer/{otter_armor_name}_armor_layer_1.png"
+                    cit_texture = f"textures/armor_layer/{otter_armor_name}_armor_layer_1"
                 
-                # ลองหลาย pattern
-                possible_names = [
-                    armor_name_clean.split("/")[-1] if "/" in armor_name_clean else armor_name_clean.split("_")[0],
-                    armor_name_clean.replace("/", "_"),
-                    "_".join(parts[-2:]) if len(parts) >= 2 else armor_name_clean
-                ]
-                
-                for name in possible_names:
-                    if armor_type == "leggings":
-                        cit_tex = f"staging/target/rp/textures/armor_layer/{name}_armor_layer_2.png"
-                    else:
-                        cit_tex = f"staging/target/rp/textures/armor_layer/{name}_armor_layer_1.png"
-                    
-                    if os.path.exists(cit_tex):
-                        if armor_type == "leggings":
-                            final_texture = f"textures/armor_layer/{name}_armor_layer_2"
-                        else:
-                            final_texture = f"textures/armor_layer/{name}_armor_layer_1"
-                        break
+                if os.path.exists(cit_tex_path):
+                    final_texture = cit_texture
+                    print(f"  🦦 OtterPack CIT: {otter_armor_name} → {final_texture}")
             
+            # ถ้าไม่พบ CIT, ลองหา equipment texture
             if not final_texture:
-                # ถ้าหาไม่เจอ ให้ใช้ equipment path เดิม (จะถูกลบทีหลังถ้าไม่มี)
+                if armor_type == "leggings":
+                    equip_tex = f"staging/target/rp/textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                else:
+                    equip_tex = f"staging/target/rp/textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+                
+                if os.path.exists(equip_tex):
+                    if armor_type == "leggings":
+                        final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                    else:
+                        final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+            
+            # ถ้ายังหาไม่เจอ ให้ใช้ equipment path เดิม (จะถูกลบทีหลังถ้าไม่มี)
+            if not final_texture:
                 if armor_type == "leggings":
                     final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
                 else:
@@ -918,6 +916,90 @@ def import_kaizer_config():
 
     shutil.copy(src, dest)
     print("⚙️ Imported kaizer_config.json → staging/kaizer_config.json")
+
+
+# ===================================================
+# ===============================
+# 🦦 Copy CIT Armor Textures (Simple - for OtterPack)
+# ===============================
+def copy_cit_armor_textures():
+    """
+    Copy CIT armor layer textures จาก optifine/cit/armors/{name}/ ไปที่ textures/armor_layer/
+    เพื่อให้ auto_generate_player_attachables() สามารถหา texture ได้
+    """
+    print("\n" + "="*60)
+    print("🦦 Copying CIT Armor Textures (OtterPack Style)")
+    print("="*60)
+    
+    cit_armors_path = "pack/assets/minecraft/optifine/cit/armors"
+    
+    if not os.path.exists(cit_armors_path):
+        print(f"⚠️ CIT armors path not found: {cit_armors_path}")
+        return
+    
+    # สแกน armor folders
+    armor_folders = [d for d in os.listdir(cit_armors_path) 
+                     if os.path.isdir(os.path.join(cit_armors_path, d))]
+    
+    print(f"📁 Found {len(armor_folders)} armor sets")
+    
+    os.makedirs("staging/target/rp/textures/armor_layer", exist_ok=True)
+    copied_count = 0
+    
+    for armor_name in armor_folders:
+        armor_folder = os.path.join(cit_armors_path, armor_name)
+        
+        # ค้นหา .properties file
+        prop_file = os.path.join(armor_folder, f"{armor_name}.properties")
+        if not os.path.exists(prop_file):
+            prop_files = glob.glob(os.path.join(armor_folder, "*.properties"))
+            if prop_files:
+                prop_file = prop_files[0]
+            else:
+                continue
+        
+        # อ่าน properties
+        optifine = Properties()
+        try:
+            optifine.load(open(prop_file, "rb"))
+        except:
+            continue
+        
+        # หา layer textures
+        layer1_tex = None
+        layer2_tex = None
+        
+        if optifine.get("texture.leather_layer_1"):
+            layer1_tex = optifine.get("texture.leather_layer_1").data
+        elif optifine.get("texture.leather_layer_1_overlay"):
+            layer1_tex = optifine.get("texture.leather_layer_1_overlay").data
+            
+        if optifine.get("texture.leather_layer_2"):
+            layer2_tex = optifine.get("texture.leather_layer_2").data
+        elif optifine.get("texture.leather_layer_2_overlay"):
+            layer2_tex = optifine.get("texture.leather_layer_2_overlay").data
+        
+        if not layer1_tex:
+            continue
+        
+        # Copy layer 1
+        layer1_src = os.path.join(armor_folder, layer1_tex)
+        if os.path.exists(layer1_src):
+            layer1_name = layer1_tex.replace(".png", "")
+            layer1_dest = f"staging/target/rp/textures/armor_layer/{layer1_name}.png"
+            shutil.copy(layer1_src, layer1_dest)
+            copied_count += 1
+        
+        # Copy layer 2
+        if layer2_tex:
+            layer2_src = os.path.join(armor_folder, layer2_tex)
+            if os.path.exists(layer2_src):
+                layer2_name = layer2_tex.replace(".png", "")
+                layer2_dest = f"staging/target/rp/textures/armor_layer/{layer2_name}.png"
+                shutil.copy(layer2_src, layer2_dest)
+                copied_count += 1
+    
+    print(f"✅ Copied {copied_count} CIT armor textures to armor_layer/")
 
 
 # ===================================================
@@ -1284,12 +1366,12 @@ if os.path.exists(geyser_mappings_file):
 
 process_leather_armor() # ประมวลผล Leather Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
+copy_cit_armor_textures() # Copy OtterPack CIT textures to armor_layer/
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
-process_optifine_cit_armors()  # ประมวลผล OptiFine CIT Armors (OtterPack Style)
 process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
