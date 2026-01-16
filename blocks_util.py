@@ -3,8 +3,12 @@ import glob
 import os
 
 def get_am_file(model):
-    namespace = model.split(":")[0]
-    path = model.split(":")[1]
+    if ":" in model:
+        namespace = model.split(":")[0]
+        path = model.split(":")[1]
+    else:
+        namespace = "minecraft"
+        path = model
     files = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
     for fa in files:
         if f"{path.split('/')[-1]}." in fa:
@@ -41,8 +45,12 @@ def create_terrain_texture(gmdl: str, texture_file: str):
         json.dump(data, f, indent=4)
     return f"block_{gmdl}"
 def get_geometry_block(model: str):
-    namespace = model.split(":")[0]
-    path = model.split(":")[1]
+    if ":" in model:
+        namespace = model.split(":")[0]
+        path = model.split(":")[1]
+    else:
+        namespace = "minecraft"
+        path = model
     geometry_file_list = glob.glob(f"staging/target/rp/models/blocks/{namespace}/{path}.json")
     if len(geometry_file_list) > 0:
         geometry_file = geometry_file_list[0]
