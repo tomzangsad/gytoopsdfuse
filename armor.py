@@ -655,10 +655,55 @@ def auto_generate_player_attachables():
             # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
             armor_name_clean = gmdl.split(".gmdl")[0]
             
+            # ลองหา texture ในหลาย paths
+            # 1. Equipment format: textures/equipment/{namespace}_{name}_humanoid.png
+            # 2. CIT format: textures/armor_layer/{name}_armor_layer_1.png หรือ layer_2.png
+            
+            final_texture = None
+            
+            # ลองหา equipment texture ก่อน
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                equip_tex = f"staging/target/rp/textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
             else:
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+                equip_tex = f"staging/target/rp/textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+            
+            if os.path.exists(equip_tex):
+                if armor_type == "leggings":
+                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                else:
+                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+            else:
+                # ลองหา CIT armor layer texture
+                # ดึง armor name จาก gmdl (เช่น otter/season01/armor/guard/boots -> guard)
+                # หรือจาก armor_name_clean โดยตรง
+                parts = armor_name_clean.replace("/", "_").split("_")
+                
+                # ลองหลาย pattern
+                possible_names = [
+                    armor_name_clean.split("/")[-1] if "/" in armor_name_clean else armor_name_clean.split("_")[0],
+                    armor_name_clean.replace("/", "_"),
+                    "_".join(parts[-2:]) if len(parts) >= 2 else armor_name_clean
+                ]
+                
+                for name in possible_names:
+                    if armor_type == "leggings":
+                        cit_tex = f"staging/target/rp/textures/armor_layer/{name}_armor_layer_2.png"
+                    else:
+                        cit_tex = f"staging/target/rp/textures/armor_layer/{name}_armor_layer_1.png"
+                    
+                    if os.path.exists(cit_tex):
+                        if armor_type == "leggings":
+                            final_texture = f"textures/armor_layer/{name}_armor_layer_2"
+                        else:
+                            final_texture = f"textures/armor_layer/{name}_armor_layer_1"
+                        break
+            
+            if not final_texture:
+                # ถ้าหาไม่เจอ ให้ใช้ equipment path เดิม (จะถูกลบทีหลังถ้าไม่มี)
+                if armor_type == "leggings":
+                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                else:
+                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
 
 
             # JSON player attachable
