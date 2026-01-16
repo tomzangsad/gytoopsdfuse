@@ -1072,6 +1072,7 @@ if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
 
+process_otter_armors() # ประมวลผล OtterPack Armors (Run first to ensure dirs exist)
 process_leather_armor() # ประมวลผล Leather Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
 auto_generate_player_attachables()
@@ -1079,7 +1080,6 @@ fix_player_attachable_texture_paths()
 remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
-process_otter_armors() # ประมวลผล OtterPack Armors
 process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
