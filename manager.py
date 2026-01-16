@@ -19,8 +19,11 @@ try:
     if os.getenv("BOW_CONVERSION") == "true": import bow
 except Exception as e: print(e)
 try:
+    import crossbow
+try:
     if os.getenv("SHIELD_CONVERSION") == "true": import shield
 except Exception as e: print(e)
 try:
     if os.getenv("BLOCK_CONVERSION") == "true": import blocks
 except Exception as e: print(e)
+    
