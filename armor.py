@@ -286,6 +286,128 @@ def process_leather_armor():
                 print(f"❌ Error while processing {model}: {e}")
                 continue
 
+    # =========================================================
+    # 🦦 Process Additional Armors (OtterPack / Folder Scan)
+    # =========================================================
+    otter_root = "pack/assets/minecraft/optifine/cit/armors"
+    
+    if os.path.exists(otter_root):
+        print("\n" + "-"*40)
+        print(f"📂 Scanning additional armors in: {otter_root}")
+        print("-" * 40)
+
+        for folder_name in os.listdir(otter_root):
+            folder_path = os.path.join(otter_root, folder_name)
+            if not os.path.isdir(folder_path):
+                continue
+
+            prop_file = os.path.join(folder_path, f"{folder_name}.properties")
+            if not os.path.exists(prop_file):
+                # Try finding ANY properties file if standard name is missing? 
+                # For now stick to strict naming or first prop file found
+                prop_files = glob.glob(os.path.join(folder_path, "*.properties"))
+                if prop_files:
+                    prop_file = prop_files[0]
+                else:
+                    continue
+
+            try:
+                # Read properties
+                props = Properties()
+                with open(prop_file, "rb") as f:
+                    props.load(f)
+
+                # Get layer textures
+                layer1 = None
+                layer2 = None
+
+                # Check keys (support both standard and overlay keys)
+                if props.get("texture.leather_layer_1"):
+                    layer1 = props.get("texture.leather_layer_1").data
+                elif props.get("texture.leather_layer_1_overlay"):
+                        layer1 = props.get("texture.leather_layer_1_overlay").data
+
+                if props.get("texture.leather_layer_2"):
+                    layer2 = props.get("texture.leather_layer_2").data
+                elif props.get("texture.leather_layer_2_overlay"):
+                        layer2 = props.get("texture.leather_layer_2_overlay").data
+
+                if not layer1:
+                    continue
+
+                # Copy textures
+                dest_layer_dir = "staging/target/rp/textures/armor_layer"
+                os.makedirs(dest_layer_dir, exist_ok=True)
+
+                # Avoid conflicts by prefixing folder name if needed, 
+                # but user asked to "do the same", so maybe just copy?
+                # Using unique name logic from before is safer.
+                new_layer1_name = f"otter_{layer1}"
+                
+                src_layer1 = os.path.join(folder_path, layer1)
+                dest_layer1 = os.path.join(dest_layer_dir, new_layer1_name)
+
+                if os.path.exists(src_layer1):
+                    shutil.copy(src_layer1, dest_layer1)
+                else:
+                    print(f"❌ Missing texture file: {src_layer1}")
+                    continue
+
+                if layer2:
+                    new_layer2_name = f"otter_{layer2}"
+                    src_layer2 = os.path.join(folder_path, layer2)
+                    dest_layer2 = os.path.join(dest_layer_dir, new_layer2_name)
+                    if os.path.exists(src_layer2):
+                        shutil.copy(src_layer2, dest_layer2)
+
+                # Generate attachables
+                gmdl_id = f"otter_{folder_name}"
+                
+                # --- [FIX] Register Icon for this set ---
+                # Since no dedicated icon exists, use the layer 1 texture as the icon.
+                # Ideally we crop or resize, but for now just pointing to it is enough for functionality.
+                
+                # Path relative to resource pack root
+                # texture is in staging/target/rp/textures/armor_layer/otter_xxxxx.png
+                # Atlas path should be "textures/armor_layer/otter_xxxxx" (no extension)
+                # But wait, Bedrock usually expects items in textures/items/ or similar.
+                # We can reuse the armor layer texture path.
+                
+                icon_atlas_path = f"textures/armor_layer/{new_layer1_name.replace('.png', '')}"
+                
+                # 1. Update item_texture.json
+                update_item_texture_json(gmdl_id, icon_atlas_path)
+                
+                # 2. Add to icons.csv
+                icons_csv = "scratch_files/icons.csv"
+                os.makedirs("scratch_files", exist_ok=True)
+                with open(icons_csv, "a", encoding="utf-8") as f:
+                    f.write(f"{gmdl_id},{icon_atlas_path}\n")
+
+                print(f"📌 Registered Otter Icon: {gmdl_id} -> {icon_atlas_path}")
+                # ----------------------------------------
+                
+                layer1_clean = new_layer1_name.replace(".png", "") 
+                layer2_clean = new_layer2_name.replace(".png", "") if layer2 else layer1_clean
+
+                # Loop 4 types: helmet, chestplate, leggings, boots
+                type_map = ["helmet", "chestplate", "leggings", "boots"]
+                for i in range(4):
+                    armor_type = type_map[i]
+                    
+                    # Leggings (index 2) use layer 2, others use layer 1
+                    current_layer = layer2_clean if (i == 2 and layer2) else layer1_clean
+                    
+                    # Output file
+                    out_path = f"staging/target/rp/attachables/otter/{folder_name}/{folder_name}_{armor_type}.player.json"
+                    
+                    write_armor(out_path, gmdl_id, current_layer, i)
+                
+                print(f"✅ Processed Set: {folder_name}")
+
+            except Exception as e:
+                print(f"❌ Error processing {folder_name}: {e}")
+
 def write_equipment_base(file, gmdl, texture_path, i):
     type_map = ["helmet", "chestplate", "leggings", "boots"]
     armor_type = type_map[i]
@@ -958,111 +1080,6 @@ def process_nexo_textures():
     print("\n🎉 NEXO Texture Processing Finished!\n")
 
 
-# ===============================
-# 🦦 Process OtterPack Armors
-# ===============================
-def process_otter_armors():
-    print("\n" + "="*60)
-    print("🦦 Processing OtterPack Armors")
-    print("="*60)
-
-    # Absolute path to OtterPack armors
-    # Adjust logic to find it relative to Desktop/miu/ if needed, but hardcoded based on finding is safer for now
-    # We found it at c:\Users\KaizerMC\Desktop\miu\OtterPack_Cracked_1_12
-    otter_root = r"..pack/assets/minecraft/optifine/cit/armors"
-    
-    # Fallback to absolute if relative fails (assuming script is in gytoopsdfuse-main)
-    if not os.path.exists(otter_root):
-        otter_root = r"pack/assets/minecraft/optifine/cit/armors"
-
-    if not os.path.exists(otter_root):
-        print(f"⚠️ OtterPack path not found: {otter_root}")
-        return
-
-    # Iterate over subdirectories
-    for folder_name in os.listdir(otter_root):
-        folder_path = os.path.join(otter_root, folder_name)
-        if not os.path.isdir(folder_path):
-            continue
-
-        prop_file = os.path.join(folder_path, f"{folder_name}.properties")
-        if not os.path.exists(prop_file):
-            print(f"⚠️ Missing properties file for {folder_name}")
-            continue
-
-        try:
-            # Read properties
-            props = Properties()
-            with open(prop_file, "rb") as f:
-                props.load(f)
-
-            # Get layer textures
-            layer1 = None
-            layer2 = None
-
-            # Check keys (support both standard and overlay keys)
-            if props.get("texture.leather_layer_1"):
-                layer1 = props.get("texture.leather_layer_1").data
-            elif props.get("texture.leather_layer_1_overlay"):
-                 layer1 = props.get("texture.leather_layer_1_overlay").data
-
-            if props.get("texture.leather_layer_2"):
-                layer2 = props.get("texture.leather_layer_2").data
-            elif props.get("texture.leather_layer_2_overlay"):
-                 layer2 = props.get("texture.leather_layer_2_overlay").data
-
-            if not layer1:
-                print(f"⚠️ No layer 1 texture found for {folder_name}")
-                continue
-
-            # Copy textures
-            dest_layer_dir = "staging/target/rp/textures/armor_layer"
-            os.makedirs(dest_layer_dir, exist_ok=True)
-
-            # Define new filenames to avoid conflicts
-            # Example: otter_amethyst_armor_layer_1.png
-            new_layer1_name = f"otter_{layer1}"
-            
-            src_layer1 = os.path.join(folder_path, layer1)
-            dest_layer1 = os.path.join(dest_layer_dir, new_layer1_name)
-
-            if os.path.exists(src_layer1):
-                shutil.copy(src_layer1, dest_layer1)
-            else:
-                print(f"❌ Missing texture file: {src_layer1}")
-                continue
-
-            if layer2:
-                new_layer2_name = f"otter_{layer2}"
-                src_layer2 = os.path.join(folder_path, layer2)
-                dest_layer2 = os.path.join(dest_layer_dir, new_layer2_name)
-                if os.path.exists(src_layer2):
-                    shutil.copy(src_layer2, dest_layer2)
-
-            # Generate attachables
-            gmdl_id = f"otter_{folder_name}"
-            
-            layer1_clean = new_layer1_name.replace(".png", "") 
-            layer2_clean = new_layer2_name.replace(".png", "") if layer2 else layer1_clean
-
-            # Loop 4 types: helmet, chestplate, leggings, boots
-            type_map = ["helmet", "chestplate", "leggings", "boots"]
-            for i in range(4):
-                armor_type = type_map[i]
-                
-                # Leggings (index 2) use layer 2, others use layer 1
-                current_layer = layer2_clean if (i == 2 and layer2) else layer1_clean
-                
-                # Output file
-                # Use 'otter' namespace folder for organization
-                out_path = f"staging/target/rp/attachables/otter/{folder_name}/{folder_name}_{armor_type}.player.json"
-                
-                write_armor(out_path, gmdl_id, current_layer, i)
-            
-            print(f"✅ Processed Otter Set: {folder_name}")
-
-        except Exception as e:
-            print(f"❌ Error processing {folder_name}: {e}")
 
 # ===============================
 # 🚀 MAIN START
@@ -1071,8 +1088,6 @@ geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
-
-process_otter_armors() # ประมวลผล OtterPack Armors (Run first to ensure dirs exist)
 process_leather_armor() # ประมวลผล Leather Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
 auto_generate_player_attachables()
