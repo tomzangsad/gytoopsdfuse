@@ -43,14 +43,18 @@ def create_terrain_texture(gmdl: str, texture_file: str):
 def get_geometry_block(model: str):
     namespace = model.split(":")[0]
     path = model.split(":")[1]
-    geometry_file = glob.glob(f"staging/target/rp/models/blocks/{namespace}/{path}.json")[0]
-    if geometry_file != None:
+    geometry_file_list = glob.glob(f"staging/target/rp/models/blocks/{namespace}/{path}.json")
+    if len(geometry_file_list) > 0:
+        geometry_file = geometry_file_list[0]
         with open(geometry_file, "r") as f:
             geo_data = f.read()
             if geo_data == "":
+                print(f"  [WARN] Empty geometry file found: {geometry_file}. Reverting to cube.")
                 os.remove(geometry_file)
                 return "geometry.cube"
             else:
                 data = json.loads(geo_data)
                 return data["minecraft:geometry"][0]["description"]["identifier"]
-    else: return "geometry.cube"
+    else: 
+        print(f"  [WARN] Geometry file not found for: {namespace}/{path}. Reverting to cube.")
+        return "geometry.cube"
