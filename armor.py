@@ -197,6 +197,9 @@ def process_otterpack_cit_armor():
                 continue
             
             try:
+                # ตรวจสอบว่า model มี ':' หรือไม่
+                if ":" not in model:
+                    continue
                 namespace, path = model.split(":")
                 item = path.split("/")[-1]
                 
@@ -346,6 +349,9 @@ def process_leather_armor():
                 continue
 
             try:
+                # ตรวจสอบว่า model มี ':' หรือไม่
+                if ":" not in model:
+                    continue
                 namespace, path = model.split(":")
                 item = path.split("/")[-1]
 
