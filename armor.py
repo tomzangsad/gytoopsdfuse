@@ -958,9 +958,152 @@ def process_nexo_textures():
     print("\n🎉 NEXO Texture Processing Finished!\n")
 
 
+# ===================================================
+# 🧩 STANDARD ARMOR TEXTURE SCAN + COPY (ALL NAMESPACES EXCEPT NEXO)
+# ===================================================
+def process_standard_armor_textures():
+    """
+    สแกน armor texture ใน path ปกติ:
+    assets/{namespace}/textures/entity/equipment/humanoid
+    assets/{namespace}/textures/entity/equipment/humanoid_leggings
+    
+    สำหรับทุก namespace ที่ไม่ใช่ nexo (เพราะ nexo มี function แยกอยู่แล้ว)
+    """
+    print("\n" + "="*60)
+    print("🔵 Processing Standard Armor Textures (All Namespaces)")
+    print("="*60)
+
+    assets_path = r"pack/assets"
+
+    if not os.path.exists(assets_path):
+        print("❌ pack/assets not found — cannot scan.")
+        return
+
+    # สแกนทุก namespace ที่มี humanoid/humanoid_leggings (ยกเว้น nexo)
+    all_humanoid_files = {}
+    all_leggings_files = {}
+    namespaces_found = []
+
+    for namespace in os.listdir(assets_path):
+        # ข้าม nexo เพราะมี function แยกอยู่แล้ว
+        if namespace.lower() == "nexo":
+            continue
+
+        ns_path = os.path.join(assets_path, namespace)
+        if not os.path.isdir(ns_path):
+            continue
+
+        humanoid_path = os.path.join(ns_path, "textures/entity/equipment/humanoid")
+        leggings_path = os.path.join(ns_path, "textures/entity/equipment/humanoid_leggings")
+
+        # ถ้ามีอย่างน้อยหนึ่ง folder
+        if os.path.exists(humanoid_path) or os.path.exists(leggings_path):
+            namespaces_found.append(namespace)
+            print(f"\n📁 Found armor textures in namespace: {namespace}")
+
+            # Collect humanoid files
+            if os.path.exists(humanoid_path):
+                for f in os.listdir(humanoid_path):
+                    if f.endswith(".png"):
+                        key = f.lower()  # ใช้แค่ filename เป็น key
+                        all_humanoid_files[key] = {
+                            "path": os.path.join(humanoid_path, f),
+                            "namespace": namespace,
+                            "filename": f.lower()
+                        }
+                print(f"   ✔ humanoid: {len([f for f in os.listdir(humanoid_path) if f.endswith('.png')])} files")
+
+            # Collect leggings files
+            if os.path.exists(leggings_path):
+                for f in os.listdir(leggings_path):
+                    if f.endswith(".png"):
+                        key = f.lower()  # ใช้แค่ filename เป็น key
+                        all_leggings_files[key] = {
+                            "path": os.path.join(leggings_path, f),
+                            "namespace": namespace,
+                            "filename": f.lower()
+                        }
+                print(f"   ✔ humanoid_leggings: {len([f for f in os.listdir(leggings_path) if f.endswith('.png')])} files")
+
+    if not namespaces_found:
+        print("ℹ️ No standard armor textures found in any namespace (excluding nexo).")
+        return
+
+    print(f"\n� Total namespaces with armor textures: {len(namespaces_found)}")
+    print(f"   Namespaces: {', '.join(namespaces_found)}")
+
+    # หา matched sets (ที่มีทั้ง humanoid และ leggings)
+    matched_sets = set(all_humanoid_files.keys()) & set(all_leggings_files.keys())
+
+    print(f"\n🎯 Found {len(matched_sets)} matching armor sets (both humanoid + leggings)\n")
+
+    output_dir = "staging/target/rp/textures/layer_armor"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Copy matched sets
+    for key in sorted(matched_sets):
+        h_info = all_humanoid_files[key]
+        l_info = all_leggings_files[key]
+        base = h_info["filename"][:-4]  # remove .png
+
+        src_h = h_info["path"]
+        src_l = l_info["path"]
+
+        # ใช้ชื่อไฟล์เดิม ไม่มี namespace prefix
+        dst_h = os.path.join(output_dir, f"{base}_armor_humanoid.png")
+        dst_l = os.path.join(output_dir, f"{base}_armor_leggings.png")
+
+        shutil.copy2(src_h, dst_h)
+        shutil.copy2(src_l, dst_l)
+
+        print(f"✔ Copied: {dst_h}")
+        print(f"✔ Copied: {dst_l}")
+
+    # Copy humanoid-only files (ไม่มี leggings คู่)
+    humanoid_only = set(all_humanoid_files.keys()) - set(all_leggings_files.keys())
+    if humanoid_only:
+        print(f"\n📦 Copying {len(humanoid_only)} humanoid-only files (no matching leggings):")
+        for key in sorted(humanoid_only):
+            h_info = all_humanoid_files[key]
+            base = h_info["filename"][:-4]
+
+            src_h = h_info["path"]
+            dst_h = os.path.join(output_dir, f"{base}_armor_humanoid.png")
+
+            shutil.copy2(src_h, dst_h)
+            print(f"✔ Copied (humanoid only): {dst_h}")
+
+    # Copy leggings-only files (ไม่มี humanoid คู่)
+    leggings_only = set(all_leggings_files.keys()) - set(all_humanoid_files.keys())
+    if leggings_only:
+        print(f"\n📦 Copying {len(leggings_only)} leggings-only files (no matching humanoid):")
+        for key in sorted(leggings_only):
+            l_info = all_leggings_files[key]
+            base = l_info["filename"][:-4]
+
+            src_l = l_info["path"]
+            dst_l = os.path.join(output_dir, f"{base}_armor_leggings.png")
+
+            shutil.copy2(src_l, dst_l)
+            print(f"✔ Copied (leggings only): {dst_l}")
+
+    # 📌 SUMMARY
+    print("\n" + "="*60)
+    print("========== STANDARD ARMOR TEXTURE SUMMARY ==========")
+    print("="*60)
+    print(f"📁 Namespaces scanned: {len(namespaces_found)}")
+    print(f"📦 Total humanoid files: {len(all_humanoid_files)}")
+    print(f"📦 Total leggings files: {len(all_leggings_files)}")
+    print(f"✔ Complete armor sets: {len(matched_sets)}")
+    print(f"⚠ Humanoid only: {len(humanoid_only)}")
+    print(f"⚠ Leggings only: {len(leggings_only)}")
+    print("="*60)
+
+    print("\n🎉 Standard Armor Texture Processing Finished!\n")
+
 
 # ===============================
-# 🚀 MAIN START
+# �🚀 MAIN START
 # ===============================
 geyser_mappings_file = "staging/target/geyser_mappings.json"
 if os.path.exists(geyser_mappings_file):
@@ -975,6 +1118,7 @@ remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
 process_nexo_textures()
+process_standard_armor_textures()  # สแกน armor texture ทุก namespace (ยกเว้น nexo)
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
