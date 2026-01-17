@@ -822,10 +822,7 @@ def auto_generate_player_attachables():
 
             player_file = file.replace(".attachable.json", ".attachable.player.json")
 
-            # ถ้ามีอยู่แล้วก็ข้าม
-            if os.path.exists(player_file):
-                print(f"⏩ Skip (already exists): {player_file}")
-                continue
+            # Overwrite ถ้ามีอยู่แล้ว (ไม่ skip) เพื่อให้ texture path ถูกต้อง
 
             # อ่าน attachable เดิม
             with open(file, "r", encoding="utf-8") as f:
