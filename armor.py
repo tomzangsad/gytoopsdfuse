@@ -453,10 +453,16 @@ def process_equipment_armor():
             # Extract filename from namespace:texture
             tex_name = humanoid_texture.split(":")[1]
             
-            # IA Overlay 1.21.2+ path
+            # IA Overlay 1.21.2+ path (primary)
             src_humanoid = os.path.join(
                 textures_base,
                 "textures", "entity", "equipment", "humanoid",
+                tex_name + ".png"
+            )
+            
+            # Fallback: pack/assets/minecraft path
+            src_humanoid_fallback = os.path.join(
+                "pack", "assets", "minecraft", "textures", "entity", "equipment", "humanoid",
                 tex_name + ".png"
             )
 
@@ -471,8 +477,12 @@ def process_equipment_armor():
             if os.path.exists(src_humanoid):
                 shutil.copy(src_humanoid, dest_humanoid)
                 print(f"🧩 Copied humanoid texture → {dest_humanoid}")
+            elif os.path.exists(src_humanoid_fallback):
+                shutil.copy(src_humanoid_fallback, dest_humanoid)
+                print(f"🧩 Copied humanoid texture (fallback) → {dest_humanoid}")
             else:
                 print(f"⚠️ Humanoid texture not found: {src_humanoid}")
+                print(f"   Also not found: {src_humanoid_fallback}")
                 continue
             
             # Leggings texture
@@ -484,8 +494,14 @@ def process_equipment_armor():
                     "textures", "entity", "equipment", "humanoid_leggings",
                     tex_name + ".png"
                 )
+                # Fallback: pack/assets/minecraft path
+                src_leggings_fallback = os.path.join(
+                    "pack", "assets", "minecraft", "textures", "entity", "equipment", "humanoid_leggings",
+                    tex_name + ".png"
+                )
             else:
                 src_leggings = src_humanoid
+                src_leggings_fallback = src_humanoid_fallback
             
             dest_leggings = os.path.join(
                 "staging/target/rp/textures/equipment",
@@ -498,14 +514,21 @@ def process_equipment_armor():
             if os.path.exists(src_leggings):
                 shutil.copy(src_leggings, dest_leggings)
                 print(f"🧩 Copied leggings texture → {dest_leggings}")
+            elif os.path.exists(src_leggings_fallback):
+                shutil.copy(src_leggings_fallback, dest_leggings)
+                print(f"🧩 Copied leggings texture (fallback) → {dest_leggings}")
             else:
                 print(f"⚠ leggings texture not found: {src_leggings}")
+                print(f"   Also not found: {src_leggings_fallback}")
                 dest_leggings = dest_humanoid
 
 
             
             # ประมวลผลแต่ละชิ้นส่วนเกราะ
-            armor_types = ["netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"]
+            armor_types = [
+                "netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots",
+                "diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"
+            ]
             
             for i, armor_type in enumerate(armor_types):
                 item_json = f"pack/assets/minecraft/models/item/{armor_type}.json"
@@ -973,10 +996,11 @@ process_leather_armor() # ประมวลผล Leather Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
+process_nexo_textures()
 remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
-process_nexo_textures()
+#process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
