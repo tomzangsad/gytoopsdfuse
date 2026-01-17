@@ -655,10 +655,26 @@ def auto_generate_player_attachables():
             # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
             armor_name_clean = gmdl.split(".gmdl")[0]
             
+            # ค้นหา texture จากหลาย path
+            final_texture = None
+            
+            # ลองหาใน layer_armor ก่อน (ไม่มี namespace prefix)
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                layer_armor_tex = f"staging/target/rp/textures/layer_armor/{armor_name_clean}_armor_leggings.png"
             else:
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+                layer_armor_tex = f"staging/target/rp/textures/layer_armor/{armor_name_clean}_armor_humanoid.png"
+            
+            if os.path.exists(layer_armor_tex):
+                if armor_type == "leggings":
+                    final_texture = f"textures/layer_armor/{armor_name_clean}_armor_leggings"
+                else:
+                    final_texture = f"textures/layer_armor/{armor_name_clean}_armor_humanoid"
+            else:
+                # fallback ไป equipment (path เดิม)
+                if armor_type == "leggings":
+                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings"
+                else:
+                    final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid"
 
 
             # JSON player attachable
@@ -718,11 +734,19 @@ def fix_player_attachable_texture_paths():
     print("🎯 Fixing .player.json textures to use REAL source textures")
     print("="*60)
 
-    tex_dir = "staging/target/rp/textures/equipment"
+    # สแกนทั้ง equipment และ layer_armor
+    tex_dirs = [
+        "staging/target/rp/textures/equipment",
+        "staging/target/rp/textures/layer_armor",
+        "staging/target/rp/textures/layer_nexo"
+    ]
     attach_path = "staging/target/rp/attachables"
 
     # โหลดไฟล์ texture ทั้งหมดไว้ก่อน
-    all_png = glob.glob(os.path.join(tex_dir, "*.png"))
+    all_png = []
+    for tex_dir in tex_dirs:
+        if os.path.exists(tex_dir):
+            all_png.extend(glob.glob(os.path.join(tex_dir, "*.png")))
     all_png_map = {os.path.basename(f): f for f in all_png}
 
     # loop ทุก namespace
@@ -815,6 +839,17 @@ def remove_invalid_player_attachables():
                     print(f"   Missing: {tex_path}")
                 else:
                     print(f"✅ OK (CIT): {pf}")
+
+                continue
+            
+            # ✅ layer_armor / layer_nexo = อย่าลบทิ้ง (เพิ่มใหม่)
+            if "textures/layer_armor" in tex or "textures/layer_nexo" in tex:
+
+                if not os.path.exists(tex_path):
+                    print(f"⚠️ WARN (layer armor missing, NOT removed): {pf}")
+                    print(f"   Missing: {tex_path}")
+                else:
+                    print(f"✅ OK (layer armor): {pf}")
 
                 continue
 
