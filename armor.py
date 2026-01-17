@@ -1198,9 +1198,9 @@ if os.path.exists(geyser_mappings_file):
 process_leather_armor() # ประมวลผล Leather Armor (IA CIT)
 process_otterpack_cit_armor() # ประมวลผล OtterPack CIT Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
+process_nexo_textures() # ประมวลผล NEXO textures ก่อน!
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
-process_nexo_textures()
 remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
