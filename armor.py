@@ -379,8 +379,8 @@ def process_equipment_armor():
         return
     
     # วนหา namespace folders
-    for namespace in namespaces_found:
-        namespace_path = os.path.join(overlay_path, namespace)
+    for namespace, base_path in namespaces_with_paths:
+        namespace_path = os.path.join(base_path, namespace)
         if not os.path.isdir(namespace_path):
             continue
             
