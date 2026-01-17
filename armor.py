@@ -837,13 +837,54 @@ def auto_generate_player_attachables():
             else:
                 armor_type = "helmet"
             
-            # ดึง base_name จากไฟล์ (ก่อน .gmdl_xxxxx)
-            armor_name_clean = gmdl.split(".gmdl")[0]
+            # ดึงชื่อ armor จาก folder path (เช่น .../armor/adventurer/boots.gmdl_xxx.json → "adventurer")
+            path_parts = file.replace("\\", "/").split("/")
+            armor_folder_name = None
+            for i, part in enumerate(path_parts):
+                if part == "armor" and i + 1 < len(path_parts):
+                    armor_folder_name = path_parts[i + 1]
+                    break
             
+            if not armor_folder_name:
+                # fallback: ใช้ parent folder
+                armor_folder_name = os.path.basename(os.path.dirname(file))
+            
+            # หา texture path ที่ถูกต้อง
+            # 1. ลอง layer_nexo/ ก่อน (OtterPack/NEXO)
+            # 2. ถ้าไม่เจอ ลอง armor_layer/ (CIT)
+            # 3. ถ้าไม่เจอ ใช้ equipment/
+            
+            final_texture = None
+            
+            # ลอง layer_nexo/
             if armor_type == "leggings":
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_leggings.png"
+                nexo_tex = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}_armor_leggings.png"
+                nexo_tex_alt = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}-armor_armor_leggings.png"
             else:
-                final_texture = f"textures/equipment/{namespace}_{armor_name_clean}_humanoid.png"
+                nexo_tex = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}_armor_humanoid.png"
+                nexo_tex_alt = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}-armor_armor_humanoid.png"
+            
+            if os.path.exists(nexo_tex):
+                final_texture = nexo_tex.replace("staging/target/rp/", "").replace(".png", "")
+            elif os.path.exists(nexo_tex_alt):
+                final_texture = nexo_tex_alt.replace("staging/target/rp/", "").replace(".png", "")
+            
+            # ลอง armor_layer/ (CIT)
+            if not final_texture:
+                if armor_type == "leggings":
+                    cit_tex = f"staging/target/rp/textures/armor_layer/otter_{armor_folder_name}_armor_layer_2.png"
+                else:
+                    cit_tex = f"staging/target/rp/textures/armor_layer/otter_{armor_folder_name}_armor_layer_1.png"
+                
+                if os.path.exists(cit_tex):
+                    final_texture = cit_tex.replace("staging/target/rp/", "").replace(".png", "")
+            
+            # fallback: equipment/
+            if not final_texture:
+                if armor_type == "leggings":
+                    final_texture = f"textures/equipment/{namespace}_{armor_folder_name}_leggings"
+                else:
+                    final_texture = f"textures/equipment/{namespace}_{armor_folder_name}_humanoid"
 
 
             # JSON player attachable
@@ -872,7 +913,7 @@ def auto_generate_player_attachables():
             with open(player_file, "w", encoding="utf-8") as f:
                 json.dump(player_json, f, indent=4)
 
-            print(f"🧩 Generated ARMOR ONLY: {player_file}")
+            print(f"🧩 Generated ARMOR ONLY: {player_file} → {final_texture}")
 
 def detect_armor_sources(tex_dir, namespace):
     """
