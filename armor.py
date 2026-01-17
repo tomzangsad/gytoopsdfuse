@@ -859,18 +859,25 @@ def auto_generate_player_attachables():
             
             final_texture = None
             
-            # ลอง layer_nexo/
-            if armor_type == "leggings":
-                nexo_tex = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}_armor_leggings.png"
-                nexo_tex_alt = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}-armor_armor_leggings.png"
-            else:
-                nexo_tex = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}_armor_humanoid.png"
-                nexo_tex_alt = f"staging/target/rp/textures/layer_nexo/{armor_folder_name}-armor_armor_humanoid.png"
+            # แปลง folder name variants (bulk_frog -> bulk-frog, underscore -> hyphen)
+            folder_variants = [
+                armor_folder_name,
+                armor_folder_name.replace("_", "-"),
+                f"{armor_folder_name}-armor",
+                f"{armor_folder_name.replace('_', '-')}-armor"
+            ]
             
-            if os.path.exists(nexo_tex):
-                final_texture = nexo_tex.replace("staging/target/rp/", "").replace(".png", "")
-            elif os.path.exists(nexo_tex_alt):
-                final_texture = nexo_tex_alt.replace("staging/target/rp/", "").replace(".png", "")
+            # ลอง layer_nexo/ ด้วย glob
+            for variant in folder_variants:
+                if armor_type == "leggings":
+                    pattern = f"staging/target/rp/textures/layer_nexo/{variant}*_leggings.png"
+                else:
+                    pattern = f"staging/target/rp/textures/layer_nexo/{variant}*_humanoid.png"
+                
+                matches = glob.glob(pattern)
+                if matches:
+                    final_texture = matches[0].replace("staging/target/rp/", "").replace(".png", "")
+                    break
             
             # ลอง armor_layer/ (CIT)
             if not final_texture:
