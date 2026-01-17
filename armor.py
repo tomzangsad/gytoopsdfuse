@@ -168,6 +168,161 @@ def write_equipment_armor(file, gmdl, texture_path, i):
     print(f"✅ Generated equipment attachable: {file}")
 
 
+# ===============================
+# 📦 ประมวลผล OtterPack CIT Armor
+# ===============================
+def process_otterpack_cit_armor():
+    """ประมวลผล CIT armor แบบ OtterPack (subfolder structure) - ทำงานเหมือน process_leather_armor()"""
+    print("\n" + "="*60)
+    print("🦦 Processing OtterPack CIT Armor")
+    print("="*60)
+    
+    # Path ของ OtterPack CIT
+    cit_armors_path = "pack/assets/minecraft/optifine/cit/armors"
+    
+    if not os.path.exists(cit_armors_path):
+        print(f"⚠️ OtterPack CIT path not found: {cit_armors_path}")
+        return
+    
+    optifine = Properties()
+    item_type = ["leather_helmet", "leather_chestplate", "leather_leggings", "leather_boots"]
+    
+    for i, armor in enumerate(item_type):
+        item_json = f"pack/assets/minecraft/models/item/{armor}.json"
+        overrides = process_json_file(item_json)
+        
+        for override in overrides:
+            model = override.get("model")
+            if not model:
+                continue
+            
+            try:
+                namespace, path = model.split(":")
+                item = path.split("/")[-1]
+                
+                # หา armor folder ที่ตรงกับ item name
+                # เช่น item = "otter_helmet" → folder = "otter"
+                armor_folder_name = None
+                for folder in os.listdir(cit_armors_path):
+                    folder_path = os.path.join(cit_armors_path, folder)
+                    if not os.path.isdir(folder_path):
+                        continue
+                    # ตรวจว่าชื่อ item เริ่มด้วยชื่อ folder
+                    if item.lower().startswith(folder.lower()):
+                        armor_folder_name = folder
+                        break
+                
+                if not armor_folder_name:
+                    # ไม่เจอ folder ที่ตรง → ข้าม (อาจเป็น IA CIT)
+                    continue
+                
+                folder_path = os.path.join(cit_armors_path, armor_folder_name)
+                
+                # โหลด .properties
+                prop_files = glob.glob(os.path.join(folder_path, "*.properties"))
+                if not prop_files:
+                    print(f"⚠️ No .properties in {folder_path}")
+                    continue
+                
+                prop_file = prop_files[0]
+                optifine.load(open(prop_file, "rb"))
+                
+                layer_key = f"texture.leather_layer_{2 if i == 2 else 1}"
+                layer = None
+                
+                if optifine.get(layer_key):
+                    layer = optifine.get(layer_key).data.split(".")[0]
+                elif optifine.get(f"{layer_key}_overlay"):
+                    layer = optifine.get(f"{layer_key}_overlay").data.split(".")[0]
+                else:
+                    print(f"⚠️ No layer info found in {prop_file}")
+                    continue
+                
+                # Copy armor texture (จาก subfolder)
+                os.makedirs("staging/target/rp/textures/armor_layer", exist_ok=True)
+                src_texture = os.path.join(folder_path, f"{layer}.png")
+                
+                # เพิ่ม prefix "otter_" ถ้ายังไม่มี
+                if not layer.startswith("otter_"):
+                    dest_layer = f"otter_{layer}"
+                else:
+                    dest_layer = layer
+                
+                if os.path.exists(src_texture):
+                    shutil.copy(src_texture, f"staging/target/rp/textures/armor_layer/{dest_layer}.png")
+                    print(f"🧩 Copied {layer}.png → armor_layer/{dest_layer}.png")
+                else:
+                    print(f"⚠️ Missing armor texture: {src_texture}")
+                
+                # Copy 2D icon
+                model_json_path = f"pack/assets/{namespace}/models/{path}.json"
+                
+                if not os.path.exists(model_json_path):
+                    print(f"⚠️ Missing model file: {model_json_path}")
+                    continue
+                
+                with open(model_json_path, "r") as f:
+                    model_data = json.load(f)
+                
+                textures = model_data.get("textures", {})
+                icon_texture = textures.get("layer0") or textures.get("layer1")
+                
+                if icon_texture == "item/empty" and textures.get("layer1"):
+                    icon_texture = textures["layer1"]
+                
+                if not icon_texture:
+                    print(f"⚠️ No icon texture found in {model_json_path}")
+                    continue
+                
+                if ":" in icon_texture:
+                    icon_texture = icon_texture.split(":")[1]
+                
+                src_icon = f"pack/assets/{namespace}/textures/{icon_texture}.png"
+                dest_icon = f"staging/target/rp/textures/{namespace}/{icon_texture}.png"
+                
+                os.makedirs(os.path.dirname(dest_icon), exist_ok=True)
+                
+                if os.path.exists(src_icon):
+                    shutil.copy(src_icon, dest_icon)
+                    print(f"🖼️ Copied item icon → {dest_icon}")
+                else:
+                    print(f"⚠️ Missing icon texture: {src_icon}")
+                    continue
+                
+                # หา gmdl จาก attachable
+                afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
+                if not afile:
+                    print(f"⚠️ No attachable found for {model}")
+                    continue
+                
+                with open(afile[0], "r") as f:
+                    da = json.load(f)["minecraft:attachable"]
+                    gmdl = da["description"]["identifier"].split(":")[1]
+                
+                # Add icon → icons.csv
+                atlas_texture_path = f"textures/{namespace}/{icon_texture}.png"
+                
+                icons_csv = "scratch_files/icons.csv"
+                os.makedirs("scratch_files", exist_ok=True)
+                
+                with open(icons_csv, "a", encoding="utf-8") as f:
+                    f.write(f"{gmdl},{atlas_texture_path}\n")
+                
+                print(f"📌 Added icon to atlas: {gmdl} → {atlas_texture_path}")
+                
+                # อัปเดต item_texture.json
+                update_item_texture_json(gmdl, atlas_texture_path)
+                
+                # Generate player attachable
+                pfile = afile[0].replace(".json", ".player.json")
+                write_armor(pfile, gmdl, dest_layer, i)
+                
+            except Exception as e:
+                print(f"❌ Error while processing {model}: {e}")
+                continue
+    
+    print("\n🦦 OtterPack CIT processing complete!")
+
 
 # ===============================
 # 📦 ประมวลผล Leather Armor (CIT)
@@ -469,7 +624,7 @@ def process_equipment_armor():
             
             # Fallback: pack/assets/minecraft path
             src_humanoid_fallback = os.path.join(
-                "pack", "assets", "minecraft", "textures", "entity", "equipment", "humanoid",
+                "minecraft", "textures", "entity", "equipment", "humanoid",
                 tex_name + ".png"
             )
 
@@ -999,7 +1154,8 @@ if os.path.exists(geyser_mappings_file):
     remove_duplicates_with_custom_model_data(geyser_mappings_file)
 
 
-process_leather_armor() # ประมวลผล Leather Armor
+process_leather_armor() # ประมวลผล Leather Armor (IA CIT)
+process_otterpack_cit_armor() # ประมวลผล OtterPack CIT Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
