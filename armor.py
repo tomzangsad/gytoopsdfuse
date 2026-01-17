@@ -346,28 +346,35 @@ def process_equipment_armor():
     print("⚔️ Processing Equipment Armor (Netherite, etc.)")
     print("="*60)
     
-    overlay_path = "pack/ia_overlay_1_21_2_plus/assets"
+    # กำหนด paths ที่จะหา equipment models
+    search_paths = [
+        "pack/ia_overlay_1_21_2_plus/assets",  # IA Overlay path
+        "pack/assets"                           # Standard assets path
+    ]
     
-    if not os.path.exists(overlay_path):
-        print(f"⚠️ Overlay path not found: {overlay_path}")
-        return
+    # รวบรวม namespace + path ที่เจอ equipment models
+    namespaces_with_paths = []  # [(namespace, base_path), ...]
     
-    print(f"📁 Found overlay path: {overlay_path}")
-    
-    # วนหา namespace folders
-    namespaces_found = []
-    for namespace in os.listdir(overlay_path):
-        namespace_path = os.path.join(overlay_path, namespace)
-        if not os.path.isdir(namespace_path):
+    for base_path in search_paths:
+        if not os.path.exists(base_path):
+            print(f"⚠️ Path not found: {base_path}")
             continue
         
-        models_path = os.path.join(namespace_path, "models", "equipment")
-        if os.path.exists(models_path):
-            namespaces_found.append(namespace)
+        print(f"📁 Scanning: {base_path}")
+        
+        for namespace in os.listdir(base_path):
+            namespace_path = os.path.join(base_path, namespace)
+            if not os.path.isdir(namespace_path):
+                continue
+            
+            models_path = os.path.join(namespace_path, "models", "equipment")
+            if os.path.exists(models_path):
+                namespaces_with_paths.append((namespace, base_path))
+                print(f"   ✅ Found equipment models in: {namespace}")
     
-    print(f"🔍 Found {len(namespaces_found)} namespaces with equipment models: {namespaces_found}")
+    print(f"\n🔍 Found {len(namespaces_with_paths)} namespace(s) with equipment models")
     
-    if not namespaces_found:
+    if not namespaces_with_paths:
         print("⚠️ No equipment models found!")
         return
     
