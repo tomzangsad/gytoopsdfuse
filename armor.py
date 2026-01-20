@@ -34,7 +34,7 @@ def update_item_texture_json(gmdl_id, atlas_path):
 # ===============================
 def process_json_file(file_path):
     if not os.path.exists(file_path):
-        print(f"❌ File not found: {file_path}")
+        print(f"[X] File not found: {file_path}")
         return []
 
     with open(file_path, "r", encoding="utf-8") as f:
@@ -175,7 +175,7 @@ def write_equipment_armor(file, gmdl, texture_path, i):
 def process_leather_armor():
     """ประมวลผล leather armor แบบเดิมด้วย CIT properties"""
     print("\n" + "="*60)
-    print("🧪 Processing Leather Armor (CIT)")
+    print("Processing Leather Armor (CIT)")
     print("="*60)
     
     optifine = Properties()
@@ -343,16 +343,16 @@ def find_existing_gmdl(namespace, armor_name, armor_piece):
 def process_equipment_armor():
     """ประมวลผล Netherite และ armor อื่นๆ ที่ใช้ equipment model"""
     print("\n" + "="*60)
-    print("⚔️ Processing Equipment Armor (Netherite, etc.)")
+    print("Processing Equipment Armor (Netherite, etc.)")
     print("="*60)
     
     overlay_path = "pack/ia_overlay_1_21_2_plus/assets"
     
     if not os.path.exists(overlay_path):
-        print(f"⚠️ Overlay path not found: {overlay_path}")
+        print(f"[WARN] Overlay path not found: {overlay_path}")
         return
     
-    print(f"📁 Found overlay path: {overlay_path}")
+    print(f"[DIR] Found overlay path: {overlay_path}")
     
     # วนหา namespace folders
     namespaces_found = []
@@ -606,7 +606,7 @@ def process_equipment_armor():
 # ===============================
 def auto_generate_player_attachables():
     print("\n" + "="*60)
-    print("🛠️ Auto-generating .player.json for ARMOR ONLY")
+    print("Auto-generating .player.json for ARMOR ONLY")
     print("="*60)
 
     base_path = "staging/target/rp/attachables"
@@ -614,6 +614,10 @@ def auto_generate_player_attachables():
     ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
     # เดินทุก namespace + subfolder
+    if not os.path.exists(base_path):
+        print(f"[WARN] {base_path} not found. Skipping auto-generation.")
+        return
+
     for namespace in os.listdir(base_path):
         ns_path = os.path.join(base_path, namespace)
         if not os.path.isdir(ns_path):
@@ -768,6 +772,46 @@ def fix_player_attachable_texture_paths():
             # ถ้าเป็น CIT (leather armor / armor_layer) → ห้ามแตะ
             if "textures/armor_layer" in old_tex:
                 continue
+            
+            # --- START NEXO CHECK ---
+            # Fallback for Nexo/Otter armors (look in layer_nexo)
+            
+            # Construct expected Nexo filename
+            base_fname = os.path.basename(pf)
+            simple_name = base_fname.split(".gmdl")[0] 
+            
+            nexo_name = simple_name
+            for part in ["_helmet", "_chestplate", "_leggings", "_boots"]:
+                nexo_name = nexo_name.replace(part, "")
+            
+            suffix = "leggings" if "leggings" in geom else "humanoid"
+            nexo_filename = f"{nexo_name}_armor_{suffix}.png"
+            
+            nexo_dir = "staging/target/rp/textures/layer_nexo"
+            nexo_full_path = os.path.join(nexo_dir, nexo_filename)
+            
+            found_nexo = None
+            
+            if os.path.exists(nexo_full_path):
+                found_nexo = nexo_filename
+            elif os.path.exists(nexo_dir):
+                # case insensitive
+                for f in os.listdir(nexo_dir):
+                    if f.lower() == nexo_filename.lower():
+                        found_nexo = f
+                        break
+            
+            if found_nexo:
+                new_nexo_tex = f"textures/layer_nexo/{found_nexo}".replace(".png", "")
+                desc["textures"]["default"] = new_nexo_tex
+                
+                with open(pf, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=4)
+                    
+                print(f"[FIX] Updated Nexo Texture: {os.path.basename(pf)} -> {new_nexo_tex}")
+                continue
+            # --- END NEXO CHECK ---
+
             # ==========================
             # ถ้าเหมือนเดิมไม่ต้องแก้
             if old_tex == new_tex:
@@ -807,21 +851,21 @@ def remove_invalid_player_attachables():
             else:
                 tex_path = os.path.join("staging/target/rp", tex.replace("/", os.sep) + ".png")
 
-            # ✅ CIT = อย่าลบทิ้ง
+            # Check CIT
             if "textures/armor_layer" in tex:
 
                 if not os.path.exists(tex_path):
-                    print(f"⚠️ WARN (CIT texture missing, NOT removed): {pf}")
+                    print(f"WARN (CIT texture missing, NOT removed): {pf}")
                     print(f"   Missing: {tex_path}")
                 else:
-                    print(f"✅ OK (CIT): {pf}")
+                    print(f"OK (CIT): {pf}")
 
                 continue
 
-            # ❌ Equipment / Cosmetic → ลบทิ้งได้
+            # Check Equipment / Cosmetic
             if not os.path.exists(tex_path):
 
-                print(f"❌ REMOVE: {pf}")
+                print(f"REMOVE: {pf}")
                 print(f"   Missing texture: {tex_path}")
 
                 try:
@@ -829,7 +873,7 @@ def remove_invalid_player_attachables():
                 except:
                     pass
             else:
-                print(f"✅ OK: {pf}")
+                print(f"OK: {pf}")
 # ===============================
 # 📥 โหลด GUI config + คัดลอก PNG ไป staging
 # ===============================
@@ -887,35 +931,35 @@ def print_nexo_summary(humanoid_files, leggings_files, matched_sets):
     print("\n=================================")
     print("========== TOTAL SUMMARY ========")
     print("=================================")
-    print(f"📦 Total sets/files counted: {total_count}")
-    print(f"✔ Armor sets: {len(matched_sets)}")
-    print(f"❌ Total missing: {len(missing_leggings) + len(missing_humanoid)}")
+    print(f"Total sets/files counted: {total_count}")
+    print(f"[OK] Armor sets: {len(matched_sets)}")
+    print(f"[MISSING] Total missing: {len(missing_leggings) + len(missing_humanoid)}")
     print(f" - Missing leggings: {len(missing_leggings)}")
     print(f" - Missing humanoid: {len(missing_humanoid)}")
     print("=================================\n")
 def process_nexo_textures():
     print("\n" + "="*60)
-    print("🟣 Processing NEXO Armor Textures (Scan + Copy)")
+    print("Processing NEXO Armor Textures (Scan + Copy)")
     print("="*60)
 
     assets_path = r"pack/assets"
 
     if not os.path.exists(assets_path):
-        print("❌ pack/assets not found — cannot scan.")
+        print("[X] pack/assets not found -- cannot scan.")
         return
 
     nexo_root = os.path.join(assets_path, "nexo")
     if not os.path.exists(nexo_root):
-        print("❌ No NEXO folder inside pack/assets — skipping.")
+        print("[X] No NEXO folder inside pack/assets -- skipping.")
         return
 
-    print("✅ NEXO pack detected.\n")
+    print("[OK] NEXO pack detected.\n")
 
     humanoid_path = os.path.join(nexo_root, "textures/entity/equipment/humanoid")
     leggings_path = os.path.join(nexo_root, "textures/entity/equipment/humanoid_leggings")
 
     if not os.path.exists(humanoid_path) or not os.path.exists(leggings_path):
-        print("❌ Missing humanoid or humanoid_leggings folder!")
+        print("[X] Missing humanoid or humanoid_leggings folder!")
         return
 
     humanoid_files = {
@@ -932,7 +976,7 @@ def process_nexo_textures():
 
     matched_sets = set(humanoid_files) & set(leggings_files)
 
-    print(f"🎯 Found {len(matched_sets)} matching NEXO armor sets\n")
+    print(f"Found {len(matched_sets)} matching NEXO armor sets\n")
 
     output_dir = "staging/target/rp/textures/layer_nexo"
     os.makedirs(output_dir, exist_ok=True)
@@ -949,13 +993,13 @@ def process_nexo_textures():
         shutil.copy2(src_h, dst_h)
         shutil.copy2(src_l, dst_l)
 
-        print(f"✔ Copied: {dst_h}")
-        print(f"✔ Copied: {dst_l}")
+        print(f"Copied: {dst_h}")
+        print(f"Copied: {dst_l}")
 
     # 📌 SUMMARY CALL (อันนี้คือที่ต้องเพิ่ม)
     print_nexo_summary(humanoid_files, leggings_files, matched_sets)
 
-    print("\n🎉 NEXO Texture Processing Finished!\n")
+    print("\nNEXO Texture Processing Finished!\n")
 
 
 
@@ -969,11 +1013,12 @@ if os.path.exists(geyser_mappings_file):
 
 process_leather_armor() # ประมวลผล Leather Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
+process_nexo_textures() # 1. Copy Nexo Textures first!
 auto_generate_player_attachables()
-fix_player_attachable_texture_paths()remove_invalid_player_attachables()
+fix_player_attachable_texture_paths() # 2. Fix paths (now checks layer_nexo)
+remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
-process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
