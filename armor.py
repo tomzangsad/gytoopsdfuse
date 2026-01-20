@@ -505,7 +505,8 @@ def process_equipment_armor():
 
             
             # ประมวลผลแต่ละชิ้นส่วนเกราะ
-            armor_types = ["netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots"]
+            armor_types = ["netherite_helmet", "netherite_chestplate", "netherite_leggings", "netherite_boots", "diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots",]
+            
             
             for i, armor_type in enumerate(armor_types):
                 item_json = f"pack/assets/minecraft/models/item/{armor_type}.json"
