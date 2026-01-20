@@ -971,7 +971,7 @@ process_leather_armor() # ประมวลผล Leather Armor
 process_equipment_armor() # ประมวลผล Equipment Armor (Netherite, etc.)
 auto_generate_player_attachables()
 fix_player_attachable_texture_paths()
-remove_invalid_player_attachables()
+#remove_invalid_player_attachables()
 import_gui_config()
 import_kaizer_config()
 process_nexo_textures()
