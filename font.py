@@ -35,7 +35,13 @@ heights = []
 ascents = []
 for d in data['providers']:
     try:
-        symbols.append(d['chars'])
+        chars = d['chars']
+        # ตรวจสอบว่า chars มีแค่ 1 unicode character เท่านั้น
+        symbolbe = ''.join(chars)
+        if len(symbolbe) != 1:
+            print(f"[FONT SKIP] chars has {len(symbolbe)} characters (need exactly 1): {repr(symbolbe)} - file: {d.get('file', 'unknown')}")
+            continue
+        symbols.append(chars)
         paths.append(d['file'])
         heights.append(d['height'])
         ascents.append(d['ascent'])
@@ -77,6 +83,9 @@ def imagetoexport(glyph, blankimg):
         wl, hl = logo.size
         for height, symboll in zip(heights, symbols):
             symbolbe = ''.join(symboll)
+            # ข้าม chars ที่มีมากกว่า 1 unicode
+            if len(symbolbe) != 1:
+                continue
             symbolbehex = (hex(ord(symbolbe)))
             if len(symbolbehex) == 6:
                 symbol = symbolbehex[4:]
@@ -104,6 +113,10 @@ for i in symbols:
     if i not in glyphs:
         try:
             symbolbe = ''.join(i)
+            # ข้าม chars ที่มีมากกว่า 1 unicode
+            if len(symbolbe) != 1:
+                print(f"[GLYPH SKIP] chars has {len(symbolbe)} characters: {repr(symbolbe)}")
+                continue
             sbh = (hex(ord(symbolbe)))
             a = sbh[2:]
             ab = a[:2]
