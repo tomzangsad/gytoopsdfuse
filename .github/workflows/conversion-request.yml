@@ -161,7 +161,9 @@ jobs:
             -r ${RENAME_MODEL_FILES} \
             -s ${ARCHIVE_SCRATCH} \
             -u "true"
-
+    
+      - name: Debug - List staging files
+        run: ls -R staging
       # Upload
       - uses: actions/upload-artifact@v4
         with:
