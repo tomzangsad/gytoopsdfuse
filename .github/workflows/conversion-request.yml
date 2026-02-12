@@ -172,9 +172,9 @@ jobs:
             staging/target/*.json
             staging/target/scratch_files.zip
             staging/config.json
-            staging/guis.json
             staging/kaizer_config.json
             staging/textures/zgui/ui/gui/*.png
+            staging/guis.json
 
   post-result:
     runs-on: ubuntu-latest
