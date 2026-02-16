@@ -1,7 +1,3 @@
-
-F
-
-
 #!/usr/bin/env bash
 : ${1?'Please specify an input resource pack in the same directory as the script (e.g. ./converter.sh MyResourcePack.zip)'}
 
@@ -175,6 +171,20 @@ if [[ -f "$KAIZER_CONFIG" ]]; then
     status_message info "Skip packs: ${SKIP_PACKS[*]}"
   fi
 fi
+
+# ============================================================
+# Read Mapping_Selection config (STEP 2.6)
+# ============================================================
+MAPPING_VERSION="v1"  # default = mapping v1
+if [[ -f "$KAIZER_CONFIG" ]]; then
+  MAPPING_VERSION=$(jq -r '
+    .Mapping_Selection.mapping.version // "v1"
+  ' "$KAIZER_CONFIG" 2>/dev/null)
+  status_message info "Kaizer mapping version = ${MAPPING_VERSION}"
+else
+  status_message info "No kaizer_config.json found → mapping v1 by default"
+fi
+
 # exit the script if no input pack exists by checking for a pack.mcmeta file
 if [ ! -f pack.mcmeta ]
 then
@@ -1725,32 +1735,72 @@ if test -f ${merge_input}; then
   status_message completion "Input bedrock pack merged with generated assets\n"
 fi
 
-status_message process "Creating Geyser mappings in target directory"
+status_message process "Creating Geyser mappings in target directory (${MAPPING_VERSION})"
 echo
-jq '
-([map(
-  {
-    ("minecraft:" + .item): [
-      {
-        "name": .path_hash,
-        "allow_offhand": true,
-        "icon": (if .generated == true then .path_hash else .path_hash end)
-      }
-      + (if (.generated == false) then {"frame": (.bedrock_icon.frame)} else {} end)
-      + (if .nbt.CustomModelData then {"custom_model_data": (.nbt.CustomModelData)} else {} end)
-      + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
-      + (if .nbt.Unbreakable then {"unbreakable": (.nbt.Unbreakable)} else {} end)
-    ]
-  }
-) 
-| map(to_entries[])
-| group_by(.key)[] 
-| {(.[0].key) : map(.value) | add}] | add) as $mappings
-| {
-    "format_version": "1",
-    "items": $mappings
-  }
-' config.json | sponge ./target/geyser_mappings.json
+
+if [[ "${MAPPING_VERSION}" == "v2" ]]; then
+  # ============================================================
+  # Mapping V2: format_version 2, with bedrock_identifier, display_name, bedrock_options
+  # ============================================================
+  jq '
+  ([map(
+    {
+      ("minecraft:" + .item): [
+        {
+          "type": "legacy",
+          "custom_model_data": (.nbt.CustomModelData // null),
+          "bedrock_identifier": ("geyser_custom:" + .path_hash),
+          "display_name": (.model_name | gsub("_"; " ") | gsub("(?<a>^| )(?<b>\\w)"; "\(.a)\(.b | ascii_upcase)")),
+          "bedrock_options": {
+            "icon": .path_hash,
+            "allow_offhand": true,
+            "creative_category": "items"
+          }
+        }
+        + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
+        + (if .nbt.Unbreakable then {"unbreakable": (.nbt.Unbreakable)} else {} end)
+      ]
+    }
+  )
+  | map(to_entries[])
+  | group_by(.key)[]
+  | {(.[0].key) : map(.value) | add}] | add) as $mappings
+  | {
+      "format_version": 2,
+      "items": $mappings
+    }
+  ' config.json | sponge ./target/geyser_mappings.json
+  status_message completion "Geyser mappings V2 generated"
+else
+  # ============================================================
+  # Mapping V1 (default): format_version "1", original structure
+  # ============================================================
+  jq '
+  ([map(
+    {
+      ("minecraft:" + .item): [
+        {
+          "name": .path_hash,
+          "allow_offhand": true,
+          "icon": (if .generated == true then .path_hash else .path_hash end)
+        }
+        + (if (.generated == false) then {"frame": (.bedrock_icon.frame)} else {} end)
+        + (if .nbt.CustomModelData then {"custom_model_data": (.nbt.CustomModelData)} else {} end)
+        + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
+        + (if .nbt.Unbreakable then {"unbreakable": (.nbt.Unbreakable)} else {} end)
+      ]
+    }
+  ) 
+  | map(to_entries[])
+  | group_by(.key)[] 
+  | {(.[0].key) : map(.value) | add}] | add) as $mappings
+  | {
+      "format_version": "1",
+      "items": $mappings
+    }
+  ' config.json | sponge ./target/geyser_mappings.json
+  status_message completion "Geyser mappings V1 generated"
+fi
 
 # Add sprites if sprites.json exists in the root pack
 if [ -f sprites.json ]; then
@@ -1781,20 +1831,39 @@ if [ -f sprites.json ]; then
   | .texture_data += $icon_sprites
   ' scratch_files/sprite_hashmap.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
   
-  jq -s '
-  {
-  "format_version": "1",
-  "items": 
-    ((.[0] | keys | map({(.): (.)}) | add) as $sprites | .[1].items | to_entries | map(
-    (.key | split(":")[1]) as $item
-    | .value | {("minecraft:" + $item): (map(
-      .name as $name
-      | .icon as $icon
-      | .icon = ($sprites[($name)] // $icon)
-    ))}
-    ) | add)
-  }
-  ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
+  if [[ "${MAPPING_VERSION}" == "v2" ]]; then
+    # V2 sprite merge: update bedrock_options.icon
+    jq -s '
+    {
+    "format_version": 2,
+    "items": 
+      ((.[0] | keys | map({(.): (.)}) | add) as $sprites | .[1].items | to_entries | map(
+      (.key | split(":")[1]) as $item
+      | .value | {("minecraft:" + $item): (map(
+        .bedrock_options.icon as $name
+        | .bedrock_options.icon as $icon
+        | .bedrock_options.icon = ($sprites[($name)] // $icon)
+      ))}
+      ) | add)
+    }
+    ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
+  else
+    # V1 sprite merge: update icon at top level
+    jq -s '
+    {
+    "format_version": "1",
+    "items": 
+      ((.[0] | keys | map({(.): (.)}) | add) as $sprites | .[1].items | to_entries | map(
+      (.key | split(":")[1]) as $item
+      | .value | {("minecraft:" + $item): (map(
+        .name as $name
+        | .icon as $icon
+        | .icon = ($sprites[($name)] // $icon)
+      ))}
+      ) | add)
+    }
+    ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
+  fi
   
 fi
 
@@ -1804,18 +1873,35 @@ fi
 if [[ -f "./target/geyser_mappings.json" ]]; then
   status_message process "Removing duplicate entries from geyser_mappings.json"
 
-  jq '
-    .items |= with_entries(
-      .value |= (
-        unique_by(
-          if has("custom_model_data") then .custom_model_data
-          elif has("name") then .name
-          else .
-          end
+  if [[ "${MAPPING_VERSION}" == "v2" ]]; then
+    # V2 format: unique by custom_model_data or bedrock_identifier
+    jq '
+      .items |= with_entries(
+        .value |= (
+          unique_by(
+            if has("custom_model_data") then .custom_model_data
+            elif has("bedrock_identifier") then .bedrock_identifier
+            else .
+            end
+          )
         )
       )
-    )
-  ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
+    ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
+  else
+    # V1 format: unique by custom_model_data or name
+    jq '
+      .items |= with_entries(
+        .value |= (
+          unique_by(
+            if has("custom_model_data") then .custom_model_data
+            elif has("name") then .name
+            else .
+            end
+          )
+        )
+      )
+    ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
+  fi
 
   status_message completion "Duplicate mappings cleaned successfully"
 else
