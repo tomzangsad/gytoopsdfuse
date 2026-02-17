@@ -536,10 +536,22 @@ def process_equipment_armor():
                     
                     # ตรวจสอบว่า model ตรงกับ armor นี้หรือไม่
                     # บางครั้ง armor_name อาจจะเป็น "fairyarmor" แต่ model เป็น "fairyhelmet"
-                    # ดังนั้นให้เช็ค base name ด้วย
-                    armor_base = armor_name.lower().replace("armor", "").replace("set", "")
+                    # หรือ "gem_armor_divine" แต่ model เป็น "gem_helmet_divine"
                     
-                    if namespace in model and (armor_name in model or armor_base in model):
+                    # วิธีใหม่: split คำออกมา แล้วเช็คว่าทุกคำ (ที่ไม่ใช่ armor/set) อยู่ใน model หรือไม่
+                    significant_words = [w for w in armor_name.lower().split("_") if w not in ["armor", "set", ""]]
+                    
+                    match = False
+                    if namespace in model:
+                        model_lower = model.lower()
+                        # เช็คว่าทุกคำสำคัญอยู่ใน model name หรือไม่
+                        if all(word in model_lower for word in significant_words):
+                            match = True
+                        # ทางลัด: ถ้าชื่อตรงๆ อยู่ใน model ก็ให้ผ่าน
+                        elif armor_name.lower().replace("_armor", "").replace("_set", "") in model_lower:
+                            match = True
+
+                    if match:
                         print(f"✅ Found matching override: {model}")
                         
                         # หา icon texture
