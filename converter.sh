@@ -401,39 +401,55 @@ if test -d "$NEW_ITEMS_DIR"; then
   NEW_FILES_COUNT=$(find "$NEW_ITEMS_DIR" -name "*.json" | wc -l)
   status_message info "Found ${NEW_FILES_COUNT} JSON files in items folder"
   
-  # DEBUG: Show raw content of first 3 item files to understand structure
-  status_message info "DEBUG: Dumping first 3 item files for structure analysis..."
-  DUMP_COUNT=0
-  for dumpfile in ${NEW_ITEMS_DIR}/*.json; do
-    if [[ -f "$dumpfile" ]] && [[ $DUMP_COUNT -lt 3 ]]; then
-      echo "=== $(basename "$dumpfile") ==="
-      cat "$dumpfile" | jq '.' 2>/dev/null || cat "$dumpfile"
-      echo ""
-      DUMP_COUNT=$((DUMP_COUNT + 1))
-    fi
-  done
-  
   # Create empty new format config
   echo '{}' > scratch_files/new_format_config.json
   
-  # ── Pass 1: range_dispatch (custom_model_data) ──
+  # ── Parse NEW format items ──
+  # Handles both prefixed (minecraft:range_dispatch) and non-prefixed (range_dispatch) type names.
+  # Also recursively extracts models from condition/select/composite wrappers inside entries.
   for itemfile in ${NEW_ITEMS_DIR}/*.json; do
     if [[ -f "$itemfile" ]]; then
       item_name=$(basename "$itemfile" .json)
       
       jq --arg item_name "$item_name" '
-        select(.model.type == "minecraft:range_dispatch" and .model.property == "minecraft:custom_model_data") |
+
+        # helper: strip minecraft: prefix for type comparison
+        def norm_type: if type == "string" then ltrimstr("minecraft:") else "" end;
+
+        # helper: recursively extract the first usable model id from a node
+        def extract_model:
+          if type == "string" then .
+          elif type == "object" then
+            if (.type | norm_type) == "model" and (.model | type) == "string" then .model
+            elif (.type | norm_type) == "condition" then
+              (.on_false // .on_true) | extract_model
+            elif (.type | norm_type) == "select" then
+              (.fallback // (.cases[0]?.model // empty)) | extract_model
+            elif (.type | norm_type) == "range_dispatch" then
+              (.fallback // (.entries[0]?.model // empty)) | extract_model
+            elif (.type | norm_type) == "composite" then
+              (.models[0] // empty) | extract_model
+            else empty end
+          else empty end;
+
+        # top-level must be range_dispatch with custom_model_data
+        select(
+          (.model.type | norm_type) == "range_dispatch" and
+          (.model.property | norm_type) == "custom_model_data"
+        ) |
         .model.entries[] |
-        select(.model.model != null) |
+        (.threshold | floor) as $cmd |
+        (.model | extract_model) as $m |
+        select($m != null and $m != "") |
         {
           "item": $item_name,
           "nbt": {
-            "CustomModelData": (.threshold | floor)
+            "CustomModelData": $cmd
           },
-          "path": ("./assets/" + (if .model.model | contains(":") then (.model.model | split(":")[0]) else "minecraft" end) + "/models/" + (if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) + ".json"),
-          "namespace": (if .model.model | contains(":") then (.model.model | split(":")[0]) else "minecraft" end),
-          "model_path": ((if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) | split("/")[:-1] | join("/")),
-          "model_name": ((if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) | split("/")[-1]),
+          "path": ("./assets/" + (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end) + "/models/" + (if $m | contains(":") then ($m | split(":")[1]) else $m end) + ".json"),
+          "namespace": (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end),
+          "model_path": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[:-1] | join("/")),
+          "model_name": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[-1]),
           "generated": false
         }
       ' "$itemfile" 2>/dev/null
@@ -445,104 +461,7 @@ if test -d "$NEW_ITEMS_DIR"; then
   ' > scratch_files/new_format_config.json
   
   NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
-  status_message info "NEW format pass 1 (range_dispatch) found ${NEW_COUNT} entries"
-
-  # ── Pass 2: fallback – broader model types ──
-  # If range_dispatch found nothing, try extracting models from:
-  #   - direct model references (.model.type == "minecraft:model")
-  #   - select entries (.model.type == "minecraft:select")
-  #   - range_dispatch with other properties (e.g. damage)
-  #   - top-level .model field as bare string
-  if [[ "$NEW_COUNT" -eq 0 ]]; then
-    status_message process "Pass 1 found nothing, running broader NEW format detection (pass 2)..."
-
-    for itemfile in ${NEW_ITEMS_DIR}/*.json; do
-      if [[ -f "$itemfile" ]]; then
-        item_name=$(basename "$itemfile" .json)
-
-        jq --arg item_name "$item_name" '
-
-          # helper: turn a model id into an entry object
-          def to_entry($cmd):
-            ($cmd // empty) |
-            select(. != null and . != "") |
-            . as $m |
-            {
-              "item": $item_name,
-              "nbt": {},
-              "path": ("./assets/" + (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end) + "/models/" + (if $m | contains(":") then ($m | split(":")[1]) else $m end) + ".json"),
-              "namespace": (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end),
-              "model_path": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[:-1] | join("/")),
-              "model_name": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[-1]),
-              "generated": false
-            };
-
-          # ── Case A: type == minecraft:model  (direct model ref) ──
-          if .model.type == "minecraft:model" and .model.model != null then
-            .model.model | to_entry(.)
-
-          # ── Case B: type == minecraft:select  (select with cases) ──
-          elif .model.type == "minecraft:select" then
-            (
-              ( [.model.cases[]? | .model? |
-                if .type == "minecraft:model" and .model != null then .model
-                elif type == "string" then .
-                else empty end
-              ] ) +
-              ( [.model.fallback? |
-                if .type == "minecraft:model" and .model != null then .model
-                elif type == "string" then .
-                else empty end
-              ] )
-            ) | .[]? | to_entry(.)
-
-          # ── Case C: type == minecraft:range_dispatch (any property) ──
-          elif .model.type == "minecraft:range_dispatch" then
-            .model.entries[]? |
-            if .model.type == "minecraft:model" and .model.model != null then
-              .model.model | to_entry(.)
-            elif .model.model != null then
-              .model.model | to_entry(.)
-            else empty end
-
-          # ── Case D: top-level .model is a bare string ──
-          elif (.model | type) == "string" then
-            .model | to_entry(.)
-
-          # ── Case E: type == minecraft:condition ──
-          elif .model.type == "minecraft:condition" then
-            (
-              [.model.on_true?, .model.on_false? |
-                if .type == "minecraft:model" and .model != null then .model
-                elif type == "string" then .
-                else empty end
-              ]
-            ) | .[]? | to_entry(.)
-
-          # ── Case F: type == minecraft:composite (array of models) ──
-          elif .model.type == "minecraft:composite" then
-            .model.models[]? |
-            if .type == "minecraft:model" and .model != null then
-              .model | to_entry(.)
-            elif type == "string" then
-              to_entry(.)
-            else empty end
-
-          else empty end
-
-        ' "$itemfile" 2>/dev/null
-      fi
-    done | jq -s '
-      # deduplicate by path
-      unique_by(.path) |
-      to_entries |
-      map((.value.geyserID = "gmdl_new_\(1+.key)") | .value) |
-      INDEX(.geyserID)
-    ' > scratch_files/new_format_config.json
-
-    NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
-    status_message info "NEW format pass 2 (broad) found ${NEW_COUNT} entries"
-  fi
+  status_message info "NEW format parser found ${NEW_COUNT} entries"
 
   # ── Merge results ──
   if [[ -f scratch_files/new_format_config.json ]]; then
@@ -557,7 +476,7 @@ if test -d "$NEW_ITEMS_DIR"; then
         status_message completion "Using ${NEW_COUNT} entries from NEW format (OLD format was empty)"
       fi
     else
-      status_message info "No valid entries found in NEW format items after all passes"
+      status_message info "No valid entries found in NEW format items"
     fi
   else
     status_message error "Failed to create new_format_config.json"
