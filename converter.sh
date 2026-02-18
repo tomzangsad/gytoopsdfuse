@@ -401,6 +401,18 @@ if test -d "$NEW_ITEMS_DIR"; then
   NEW_FILES_COUNT=$(find "$NEW_ITEMS_DIR" -name "*.json" | wc -l)
   status_message info "Found ${NEW_FILES_COUNT} JSON files in items folder"
   
+  # DEBUG: Show raw content of first 3 item files to understand structure
+  status_message info "DEBUG: Dumping first 3 item files for structure analysis..."
+  DUMP_COUNT=0
+  for dumpfile in ${NEW_ITEMS_DIR}/*.json; do
+    if [[ -f "$dumpfile" ]] && [[ $DUMP_COUNT -lt 3 ]]; then
+      echo "=== $(basename "$dumpfile") ==="
+      cat "$dumpfile" | jq '.' 2>/dev/null || cat "$dumpfile"
+      echo ""
+      DUMP_COUNT=$((DUMP_COUNT + 1))
+    fi
+  done
+  
   # Create empty new format config
   echo '{}' > scratch_files/new_format_config.json
   
