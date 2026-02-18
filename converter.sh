@@ -404,12 +404,11 @@ if test -d "$NEW_ITEMS_DIR"; then
   # Create empty new format config
   echo '{}' > scratch_files/new_format_config.json
   
-  # Process each file in the items folder
+  # ── Pass 1: range_dispatch (custom_model_data) ──
   for itemfile in ${NEW_ITEMS_DIR}/*.json; do
     if [[ -f "$itemfile" ]]; then
       item_name=$(basename "$itemfile" .json)
       
-      # Extract entries from this file if it has range_dispatch
       jq --arg item_name "$item_name" '
         select(.model.type == "minecraft:range_dispatch" and .model.property == "minecraft:custom_model_data") |
         .model.entries[] |
@@ -433,26 +432,120 @@ if test -d "$NEW_ITEMS_DIR"; then
     INDEX(.geyserID)
   ' > scratch_files/new_format_config.json
   
-  # Check result
-  if [[ -f scratch_files/new_format_config.json ]]; then
+  NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
+  status_message info "NEW format pass 1 (range_dispatch) found ${NEW_COUNT} entries"
+
+  # ── Pass 2: fallback – broader model types ──
+  # If range_dispatch found nothing, try extracting models from:
+  #   - direct model references (.model.type == "minecraft:model")
+  #   - select entries (.model.type == "minecraft:select")
+  #   - range_dispatch with other properties (e.g. damage)
+  #   - top-level .model field as bare string
+  if [[ "$NEW_COUNT" -eq 0 ]]; then
+    status_message process "Pass 1 found nothing, running broader NEW format detection (pass 2)..."
+
+    for itemfile in ${NEW_ITEMS_DIR}/*.json; do
+      if [[ -f "$itemfile" ]]; then
+        item_name=$(basename "$itemfile" .json)
+
+        jq --arg item_name "$item_name" '
+
+          # helper: turn a model id into an entry object
+          def to_entry($cmd):
+            ($cmd // empty) |
+            select(. != null and . != "") |
+            . as $m |
+            {
+              "item": $item_name,
+              "nbt": {},
+              "path": ("./assets/" + (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end) + "/models/" + (if $m | contains(":") then ($m | split(":")[1]) else $m end) + ".json"),
+              "namespace": (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end),
+              "model_path": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[:-1] | join("/")),
+              "model_name": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[-1]),
+              "generated": false
+            };
+
+          # ── Case A: type == minecraft:model  (direct model ref) ──
+          if .model.type == "minecraft:model" and .model.model != null then
+            .model.model | to_entry(.)
+
+          # ── Case B: type == minecraft:select  (select with cases) ──
+          elif .model.type == "minecraft:select" then
+            (
+              ( [.model.cases[]? | .model? |
+                if .type == "minecraft:model" and .model != null then .model
+                elif type == "string" then .
+                else empty end
+              ] ) +
+              ( [.model.fallback? |
+                if .type == "minecraft:model" and .model != null then .model
+                elif type == "string" then .
+                else empty end
+              ] )
+            ) | .[]? | to_entry(.)
+
+          # ── Case C: type == minecraft:range_dispatch (any property) ──
+          elif .model.type == "minecraft:range_dispatch" then
+            .model.entries[]? |
+            if .model.type == "minecraft:model" and .model.model != null then
+              .model.model | to_entry(.)
+            elif .model.model != null then
+              .model.model | to_entry(.)
+            else empty end
+
+          # ── Case D: top-level .model is a bare string ──
+          elif (.model | type) == "string" then
+            .model | to_entry(.)
+
+          # ── Case E: type == minecraft:condition ──
+          elif .model.type == "minecraft:condition" then
+            (
+              [.model.on_true?, .model.on_false? |
+                if .type == "minecraft:model" and .model != null then .model
+                elif type == "string" then .
+                else empty end
+              ]
+            ) | .[]? | to_entry(.)
+
+          # ── Case F: type == minecraft:composite (array of models) ──
+          elif .model.type == "minecraft:composite" then
+            .model.models[]? |
+            if .type == "minecraft:model" and .model != null then
+              .model | to_entry(.)
+            elif type == "string" then
+              to_entry(.)
+            else empty end
+
+          else empty end
+
+        ' "$itemfile" 2>/dev/null
+      fi
+    done | jq -s '
+      # deduplicate by path
+      unique_by(.path) |
+      to_entries |
+      map((.value.geyserID = "gmdl_new_\(1+.key)") | .value) |
+      INDEX(.geyserID)
+    ' > scratch_files/new_format_config.json
+
     NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
-    status_message info "NEW format parser found ${NEW_COUNT} entries"
-    
+    status_message info "NEW format pass 2 (broad) found ${NEW_COUNT} entries"
+  fi
+
+  # ── Merge results ──
+  if [[ -f scratch_files/new_format_config.json ]]; then
     if [[ "$NEW_COUNT" -gt 0 ]]; then
-      # Check if OLD format config exists and has content
       OLD_COUNT=$(jq 'length' config.json 2>/dev/null || echo "0")
       
       if [[ "$OLD_COUNT" -gt 0 ]]; then
-        # Merge with existing config
         jq -s '.[0] + .[1]' config.json scratch_files/new_format_config.json | sponge config.json
         status_message completion "Merged ${NEW_COUNT} NEW format + ${OLD_COUNT} OLD format entries"
       else
-        # Use new format config as main config
         cp scratch_files/new_format_config.json config.json
         status_message completion "Using ${NEW_COUNT} entries from NEW format (OLD format was empty)"
       fi
     else
-      status_message info "No valid entries found in NEW format items"
+      status_message info "No valid entries found in NEW format items after all passes"
     fi
   else
     status_message error "Failed to create new_format_config.json"
