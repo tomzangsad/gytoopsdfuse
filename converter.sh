@@ -1777,8 +1777,7 @@ if [[ "${MAPPING_VERSION}" == "v2" ]]; then
           "display_name": (.model_name | gsub("_"; " ") | gsub("(?<a>^| )(?<b>\\w)"; "\(.a)\(.b | ascii_upcase)")),
           "bedrock_options": {
             "icon": .path_hash,
-            "allow_offhand": true,
-            "creative_category": "items"
+            "allow_offhand": true
           }
         }
         + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
