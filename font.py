@@ -86,14 +86,12 @@ def imagetoexport(glyph, blankimg):
             # ข้าม chars ที่มีมากกว่า 1 unicode
             if len(symbolbe) != 1:
                 continue
-            val = ord(symbolbe)
-            hex_str = f"{val:04X}"
-            symbol = hex_str[-2:]
-            
-            # Legacy logic support if needed, or just use robust calculation
-            # For 0xABCD -> symbol=CD
-            # For 0x101 -> 0101 -> symbol=01
-            # For 0x41 -> 0041 -> symbol=41
+            symbolbehex = (hex(ord(symbolbe)))
+            if len(symbolbehex) == 6:
+                symbol = symbolbehex[4:]
+            elif len(symbolbehex) == 5:
+                symbolbehex = symbolbehex[:2] + "0" + symbolbehex[2:]
+                symbol = symbolbehex[4:]
             name = f"0x{glyph}{symbol}"
             imgname = f"0x{glyph}{img}"
             if name == imgname:
@@ -119,9 +117,9 @@ for i in symbols:
             if len(symbolbe) != 1:
                 print(f"[GLYPH SKIP] chars has {len(symbolbe)} characters: {repr(symbolbe)}")
                 continue
-            val = ord(symbolbe)
-            hex_str = f"{val:04X}"
-            ab = hex_str[:-2]
+            sbh = (hex(ord(symbolbe)))
+            a = sbh[2:]
+            ab = a[:2]
             glyphs.append(ab.upper())
         except:
             print(f"Symbol Error: {symbolbe}")
@@ -138,13 +136,19 @@ def converterpack(glyph):
         maxsw, maxsh = 0, 0
         for symboll, path in zip(symbols, paths):
             symbolbe = ''.join(symboll)
-            val = ord(symbolbe)
-            hex_str = f"{val:04X}"
-            symbol = hex_str[-2:]
-            symbolcheck = hex_str[:-2]
-            
-            if symbolcheck.upper() not in glyphs:
-                 glyphs.append(symbolcheck.upper())
+            symbolbehex = (hex(ord(symbolbe)))
+            if glyph in listglyphdone:
+                return False
+            if len(symbolbehex) == 6:
+                symbol = symbolbehex[4:]
+                symbolac = symbolbehex[2:]
+                symbolcheck = symbolac[:2]
+            elif len(symbolbehex) == 5:
+                symbolbehex = symbolbehex[:2] + "0" + symbolbehex[2:]
+                symbol = symbolbehex[4:]
+                symbolac = symbolbehex[2:]
+                symbolcheck = symbolac[:2]
+                glyphs.append(symbolcheck.upper())
             if (symbolcheck.upper()) == (glyph.upper()):
                 if ":" in path:
                     try:
