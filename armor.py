@@ -5,6 +5,51 @@ import glob
 from jproperties import Properties
 
 # ===============================
+# 🔧 โหลด ItemAdder Blocks Atlas
+# ===============================
+ATLAS_MAPPING = {}
+
+def load_atlas_mapping():
+    global ATLAS_MAPPING
+    atlas_path = "pack/assets/minecraft/atlases/blocks.json"
+    if not os.path.exists(atlas_path):
+        print(f"⚠️ Atlas not found: {atlas_path}")
+        return
+
+    try:
+        with open(atlas_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        count = 0
+        for source in data.get("sources", []):
+            # บางทีเป็น 'single' และมี 'sprite' กับ 'resource'
+            if source.get("type") == "single":
+                resource = source.get("resource")
+                sprite = source.get("sprite")
+                if sprite and resource:
+                    ATLAS_MAPPING[sprite] = resource
+                    count += 1
+        print(f"✅ Loaded {count} atlas alias mappings from blocks.json")
+    except Exception as e:
+        print(f"⚠️ Error loading atlas mapping: {e}")
+
+def resolve_texture(tex):
+    """Resolve texture path via mapping, e.g. from 'block/ia_313' or 'elitecreatures:block/ia_169'."""
+    if not tex:
+        return tex
+    if tex in ATLAS_MAPPING:
+        return ATLAS_MAPPING[tex]
+    # Check if we should prepend minecraft: if missing
+    if ":" not in tex:
+        alt_key = f"minecraft:{tex}"
+        if alt_key in ATLAS_MAPPING:
+            return ATLAS_MAPPING[alt_key]
+    return tex
+
+# Initialize mapping on load
+load_atlas_mapping()
+
+# ===============================
 # 🔧 อัปเดต item_texture.json
 # ===============================
 def update_item_texture_json(gmdl_id, atlas_path):
@@ -238,10 +283,14 @@ def process_leather_armor():
                     model_data = json.load(f)
 
                 textures = model_data.get("textures", {})
-                icon_texture = textures.get("layer0") or textures.get("layer1")
+                
+                layer0 = resolve_texture(textures.get("layer0"))
+                layer1 = resolve_texture(textures.get("layer1"))
+                
+                icon_texture = layer0 or layer1
 
-                if icon_texture == "item/empty" and textures.get("layer1"):
-                    icon_texture = textures["layer1"]
+                if icon_texture == "item/empty" and layer1:
+                    icon_texture = layer1
 
                 if ":" in icon_texture:
                     icon_texture = icon_texture.split(":")[1]
@@ -542,7 +591,12 @@ def process_equipment_armor():
                             item_model = json.load(f)
                         
                         textures = item_model.get("textures", {})
-                        icon_texture = textures.get("layer0") or textures.get("layer1")
+                        layer0 = resolve_texture(textures.get("layer0"))
+                        layer1 = resolve_texture(textures.get("layer1"))
+                        icon_texture = layer0 or layer1
+                        
+                        if icon_texture == "item/empty" and layer1:
+                            icon_texture = layer1
                         
                         if not icon_texture:
                             print(f"⚠️ No icon texture found")
