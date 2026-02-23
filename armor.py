@@ -191,7 +191,11 @@ def process_leather_armor():
                 continue
 
             try:
-                namespace, path = model.split(":")
+                if ":" in model:
+                    namespace, path = model.split(":", 1)
+                else:
+                    namespace = "minecraft"
+                    path = model
                 item = path.split("/")[-1]
 
                 # โหลด .properties
@@ -449,9 +453,8 @@ def process_equipment_armor():
             # Copy textures (ใช้ path จาก namespace_path ที่มี pack/ อยู่แล้ว)
             textures_base = namespace_path  # เช่น pack/ia_overlay_1_21_2_plus/assets/3b_soul_skull
             
-            # Humanoid texture
             # Extract filename from namespace:texture
-            tex_name = humanoid_texture.split(":")[1]
+            tex_name = humanoid_texture.split(":")[-1]
             
             # IA Overlay 1.21.2+ path
             src_humanoid = os.path.join(
@@ -478,7 +481,7 @@ def process_equipment_armor():
             # Leggings texture
             # Leggings texture
             if leggings_texture:
-                tex_name = leggings_texture.split(":")[1]
+                tex_name = leggings_texture.split(":")[-1]
                 src_leggings = os.path.join(
                     textures_base,
                     "textures", "entity", "equipment", "humanoid_leggings",
