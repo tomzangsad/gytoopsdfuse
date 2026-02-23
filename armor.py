@@ -670,6 +670,10 @@ def auto_generate_player_attachables():
 
     base_path = "staging/target/rp/attachables"
 
+    if not os.path.exists(base_path):
+        print(f"⚠️ Path not found, skipping generation: {base_path}")
+        return
+
     ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
     # เดินทุก namespace + subfolder
@@ -762,6 +766,11 @@ def fix_player_attachable_texture_paths():
     print("="*60)
 
     attach_path = "staging/target/rp/attachables"
+
+    if not os.path.exists(attach_path):
+        print(f"⚠️ Path not found, skipping texture fix: {attach_path}")
+        return
+
     ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
     # loop ทุก namespace
@@ -825,6 +834,10 @@ def remove_invalid_player_attachables():
     print("="*60)
 
     attach_path = "staging/target/rp/attachables"
+
+    if not os.path.exists(attach_path):
+        print(f"⚠️ Path not found, skipping invalid clean: {attach_path}")
+        return
 
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
