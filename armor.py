@@ -2,58 +2,7 @@ import os
 import json
 import shutil
 import glob
-import sys
-import io
 from jproperties import Properties
-
-# Fix console encoding for Windows powershell outputs
-if sys.stdout.encoding.lower() != 'utf-8':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
-# ===============================
-# 🔧 โหลด ItemAdder Blocks Atlas
-# ===============================
-ATLAS_MAPPING = {}
-
-def load_atlas_mapping():
-    global ATLAS_MAPPING
-    atlas_path = "pack/assets/minecraft/atlases/blocks.json"
-    if not os.path.exists(atlas_path):
-        print(f"⚠️ Atlas not found: {atlas_path}")
-        return
-
-    try:
-        with open(atlas_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            
-        count = 0
-        for source in data.get("sources", []):
-            # บางทีเป็น 'single' และมี 'sprite' กับ 'resource'
-            if source.get("type") == "single":
-                resource = source.get("resource")
-                sprite = source.get("sprite")
-                if sprite and resource:
-                    ATLAS_MAPPING[sprite] = resource
-                    count += 1
-        print(f"✅ Loaded {count} atlas alias mappings from blocks.json")
-    except Exception as e:
-        print(f"⚠️ Error loading atlas mapping: {e}")
-
-def resolve_texture(tex):
-    """Resolve texture path via mapping, e.g. from 'block/ia_313' or 'elitecreatures:block/ia_169'."""
-    if not tex:
-        return tex
-    if tex in ATLAS_MAPPING:
-        return ATLAS_MAPPING[tex]
-    # Check if we should prepend minecraft: if missing
-    if ":" not in tex:
-        alt_key = f"minecraft:{tex}"
-        if alt_key in ATLAS_MAPPING:
-            return ATLAS_MAPPING[alt_key]
-    return tex
-
-# Initialize mapping on load
-load_atlas_mapping()
 
 # ===============================
 # 🔧 อัปเดต item_texture.json
@@ -242,11 +191,7 @@ def process_leather_armor():
                 continue
 
             try:
-                if ":" in model:
-                    namespace, path = model.split(":", 1)
-                else:
-                    namespace = "minecraft"
-                    path = model
+                namespace, path = model.split(":")
                 item = path.split("/")[-1]
 
                 # โหลด .properties
@@ -289,14 +234,10 @@ def process_leather_armor():
                     model_data = json.load(f)
 
                 textures = model_data.get("textures", {})
-                
-                layer0 = resolve_texture(textures.get("layer0"))
-                layer1 = resolve_texture(textures.get("layer1"))
-                
-                icon_texture = layer0 or layer1
+                icon_texture = textures.get("layer0") or textures.get("layer1")
 
-                if icon_texture == "item/empty" and layer1:
-                    icon_texture = layer1
+                if icon_texture == "item/empty" and textures.get("layer1"):
+                    icon_texture = textures["layer1"]
 
                 if ":" in icon_texture:
                     icon_texture = icon_texture.split(":")[1]
@@ -313,18 +254,13 @@ def process_leather_armor():
                     print(f"⚠️ Missing icon texture: {src_icon}")
                     continue
 
-                # หา gmdl จาก attachable โดยหาแบบ recursive
-                model_name = path.split("/")[-1]
-                afile = glob.glob(f"staging/target/rp/attachables/**/{model_name}*.json", recursive=True)
-                
-                # กรองเอาเฉพาะ .attachable.json และไม่ใช่ .player.json
-                valid_afile = [f for f in afile if ".attachable.json" in f and ".player.json" not in f]
-                
-                if not valid_afile:
+                # หา gmdl จาก attachable
+                afile = glob.glob(f"staging/target/rp/attachables/{namespace}/{path}*.json")
+                if not afile:
                     print(f"⚠️ No attachable found for {model}")
                     continue
 
-                with open(valid_afile[0], "r") as f:
+                with open(afile[0], "r") as f:
                     da = json.load(f)["minecraft:attachable"]
                     gmdl = da["description"]["identifier"].split(":")[1]
 
@@ -383,7 +319,7 @@ def find_existing_gmdl(namespace, armor_name, armor_piece):
     ค้นหาไฟล์ attachable เดิมที่ IA auto-gen ไว้ในโฟลเดอร์ namespace ทั้งหมด
     และดึง gmdl จริงออกมา เช่น elder_boots.gmdl_0e76107
     """
-    base_path = "staging/target/rp/attachables"
+    base_path = f"staging/target/rp/attachables/{namespace}"
 
     # ค้นทุกไฟล์ json ใน namespace และโฟลเดอร์ย่อย เช่น ia_auto_gen/*
     for file in glob.glob(base_path + "/**/*.json", recursive=True):
@@ -513,8 +449,9 @@ def process_equipment_armor():
             # Copy textures (ใช้ path จาก namespace_path ที่มี pack/ อยู่แล้ว)
             textures_base = namespace_path  # เช่น pack/ia_overlay_1_21_2_plus/assets/3b_soul_skull
             
+            # Humanoid texture
             # Extract filename from namespace:texture
-            tex_name = humanoid_texture.split(":")[-1]
+            tex_name = humanoid_texture.split(":")[1]
             
             # IA Overlay 1.21.2+ path
             src_humanoid = os.path.join(
@@ -541,7 +478,7 @@ def process_equipment_armor():
             # Leggings texture
             # Leggings texture
             if leggings_texture:
-                tex_name = leggings_texture.split(":")[-1]
+                tex_name = leggings_texture.split(":")[1]
                 src_leggings = os.path.join(
                     textures_base,
                     "textures", "entity", "equipment", "humanoid_leggings",
@@ -602,12 +539,7 @@ def process_equipment_armor():
                             item_model = json.load(f)
                         
                         textures = item_model.get("textures", {})
-                        layer0 = resolve_texture(textures.get("layer0"))
-                        layer1 = resolve_texture(textures.get("layer1"))
-                        icon_texture = layer0 or layer1
-                        
-                        if icon_texture == "item/empty" and layer1:
-                            icon_texture = layer1
+                        icon_texture = textures.get("layer0") or textures.get("layer1")
                         
                         if not icon_texture:
                             print(f"⚠️ No icon texture found")
@@ -735,10 +667,6 @@ def auto_generate_player_attachables():
 
     base_path = "staging/target/rp/attachables"
 
-    if not os.path.exists(base_path):
-        print(f"⚠️ Path not found, skipping generation: {base_path}")
-        return
-
     ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
     # เดินทุก namespace + subfolder
@@ -831,11 +759,6 @@ def fix_player_attachable_texture_paths():
     print("="*60)
 
     attach_path = "staging/target/rp/attachables"
-
-    if not os.path.exists(attach_path):
-        print(f"⚠️ Path not found, skipping texture fix: {attach_path}")
-        return
-
     ARMOR_KEYWORDS = ["helmet", "chestplate", "leggings", "boots"]
 
     # loop ทุก namespace
@@ -899,10 +822,6 @@ def remove_invalid_player_attachables():
     print("="*60)
 
     attach_path = "staging/target/rp/attachables"
-
-    if not os.path.exists(attach_path):
-        print(f"⚠️ Path not found, skipping invalid clean: {attach_path}")
-        return
 
     for namespace in os.listdir(attach_path):
         ns_path = os.path.join(attach_path, namespace)
@@ -1094,6 +1013,5 @@ process_nexo_textures()
 print("\n" + "="*60)
 print("✅ All armor processing complete!")
 print("="*60)
-
 
 
