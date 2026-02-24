@@ -1949,6 +1949,17 @@ else
   status_message completion "Archived scratch files\n"
 fi
 
+
+# ============================================================
+# Shorten long paths in the Bedrock RP (>= 80 chars cause
+# Geyser warnings on some Bedrock platforms). Run BEFORE zip.
+# ============================================================
+status_message process "Shortening long paths in the Bedrock RP (Geyser 80-char limit)"
+python -c "import sys; sys.exit(0)" 2>/dev/null && \
+  python "$(cd - > /dev/null && pwd)/shorten_paths.py" "./target/rp" 80 || \
+  status_message error "shorten_paths.py failed or python not found – skipping path shortening"
+status_message completion "Path shortening complete"
+
 status_message process "Compressing output packs"
 mkdir ./target/packaged
 cd ./target/rp > /dev/null && zip -rq8 geyser_resources_preview.mcpack . -x "*/.*" && cd ../.. > /dev/null && mv ./target/rp/geyser_resources_preview.mcpack ./target/packaged/geyser_resources_preview.mcpack
