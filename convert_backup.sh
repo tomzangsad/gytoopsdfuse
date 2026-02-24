@@ -1,7 +1,3 @@
-
-F
-
-
 #!/usr/bin/env bash
 : ${1?'Please specify an input resource pack in the same directory as the script (e.g. ./converter.sh MyResourcePack.zip)'}
 
@@ -175,6 +171,20 @@ if [[ -f "$KAIZER_CONFIG" ]]; then
     status_message info "Skip packs: ${SKIP_PACKS[*]}"
   fi
 fi
+
+# ============================================================
+# Read Mapping_Selection config (STEP 2.6)
+# ============================================================
+MAPPING_VERSION="v1"  # default = mapping v1
+if [[ -f "$KAIZER_CONFIG" ]]; then
+  MAPPING_VERSION=$(jq -r '
+    .Mapping_Selection.mapping.version // "v1"
+  ' "$KAIZER_CONFIG" 2>/dev/null)
+  status_message info "Kaizer mapping version = ${MAPPING_VERSION}"
+else
+  status_message info "No kaizer_config.json found → mapping v1 by default"
+fi
+
 # exit the script if no input pack exists by checking for a pack.mcmeta file
 if [ ! -f pack.mcmeta ]
 then
@@ -394,25 +404,52 @@ if test -d "$NEW_ITEMS_DIR"; then
   # Create empty new format config
   echo '{}' > scratch_files/new_format_config.json
   
-  # Process each file in the items folder
+  # ── Parse NEW format items ──
+  # Handles both prefixed (minecraft:range_dispatch) and non-prefixed (range_dispatch) type names.
+  # Also recursively extracts models from condition/select/composite wrappers inside entries.
   for itemfile in ${NEW_ITEMS_DIR}/*.json; do
     if [[ -f "$itemfile" ]]; then
       item_name=$(basename "$itemfile" .json)
       
-      # Extract entries from this file if it has range_dispatch
       jq --arg item_name "$item_name" '
-        select(.model.type == "minecraft:range_dispatch" and .model.property == "minecraft:custom_model_data") |
+
+        # helper: strip minecraft: prefix for type comparison
+        def norm_type: if type == "string" then ltrimstr("minecraft:") else "" end;
+
+        # helper: recursively extract the first usable model id from a node
+        def extract_model:
+          if type == "string" then .
+          elif type == "object" then
+            if (.type | norm_type) == "model" and (.model | type) == "string" then .model
+            elif (.type | norm_type) == "condition" then
+              (.on_false // .on_true) | extract_model
+            elif (.type | norm_type) == "select" then
+              (.fallback // (.cases[0]?.model // empty)) | extract_model
+            elif (.type | norm_type) == "range_dispatch" then
+              (.fallback // (.entries[0]?.model // empty)) | extract_model
+            elif (.type | norm_type) == "composite" then
+              (.models[0] // empty) | extract_model
+            else empty end
+          else empty end;
+
+        # top-level must be range_dispatch with custom_model_data
+        select(
+          (.model.type | norm_type) == "range_dispatch" and
+          (.model.property | norm_type) == "custom_model_data"
+        ) |
         .model.entries[] |
-        select(.model.model != null) |
+        (.threshold | floor) as $cmd |
+        (.model | extract_model) as $m |
+        select($m != null and $m != "") |
         {
           "item": $item_name,
           "nbt": {
-            "CustomModelData": (.threshold | floor)
+            "CustomModelData": $cmd
           },
-          "path": ("./assets/" + (if .model.model | contains(":") then (.model.model | split(":")[0]) else "minecraft" end) + "/models/" + (if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) + ".json"),
-          "namespace": (if .model.model | contains(":") then (.model.model | split(":")[0]) else "minecraft" end),
-          "model_path": ((if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) | split("/")[:-1] | join("/")),
-          "model_name": ((if .model.model | contains(":") then (.model.model | split(":")[1]) else .model.model end) | split("/")[-1]),
+          "path": ("./assets/" + (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end) + "/models/" + (if $m | contains(":") then ($m | split(":")[1]) else $m end) + ".json"),
+          "namespace": (if $m | contains(":") then ($m | split(":")[0]) else "minecraft" end),
+          "model_path": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[:-1] | join("/")),
+          "model_name": ((if $m | contains(":") then ($m | split(":")[1]) else $m end) | split("/")[-1]),
           "generated": false
         }
       ' "$itemfile" 2>/dev/null
@@ -423,21 +460,18 @@ if test -d "$NEW_ITEMS_DIR"; then
     INDEX(.geyserID)
   ' > scratch_files/new_format_config.json
   
-  # Check result
+  NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
+  status_message info "NEW format parser found ${NEW_COUNT} entries"
+
+  # ── Merge results ──
   if [[ -f scratch_files/new_format_config.json ]]; then
-    NEW_COUNT=$(jq 'length' scratch_files/new_format_config.json 2>/dev/null || echo "0")
-    status_message info "NEW format parser found ${NEW_COUNT} entries"
-    
     if [[ "$NEW_COUNT" -gt 0 ]]; then
-      # Check if OLD format config exists and has content
       OLD_COUNT=$(jq 'length' config.json 2>/dev/null || echo "0")
       
       if [[ "$OLD_COUNT" -gt 0 ]]; then
-        # Merge with existing config
         jq -s '.[0] + .[1]' config.json scratch_files/new_format_config.json | sponge config.json
         status_message completion "Merged ${NEW_COUNT} NEW format + ${OLD_COUNT} OLD format entries"
       else
-        # Use new format config as main config
         cp scratch_files/new_format_config.json config.json
         status_message completion "Using ${NEW_COUNT} entries from NEW format (OLD format was empty)"
       fi
@@ -1725,32 +1759,71 @@ if test -f ${merge_input}; then
   status_message completion "Input bedrock pack merged with generated assets\n"
 fi
 
-status_message process "Creating Geyser mappings in target directory"
+status_message process "Creating Geyser mappings in target directory (${MAPPING_VERSION})"
 echo
-jq '
-([map(
-  {
-    ("minecraft:" + .item): [
-      {
-        "name": .path_hash,
-        "allow_offhand": true,
-        "icon": (if .generated == true then .path_hash else .path_hash end)
-      }
-      + (if (.generated == false) then {"frame": (.bedrock_icon.frame)} else {} end)
-      + (if .nbt.CustomModelData then {"custom_model_data": (.nbt.CustomModelData)} else {} end)
-      + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
-      + (if .nbt.Unbreakable then {"unbreakable": (.nbt.Unbreakable)} else {} end)
-    ]
-  }
-) 
-| map(to_entries[])
-| group_by(.key)[] 
-| {(.[0].key) : map(.value) | add}] | add) as $mappings
-| {
-    "format_version": "1",
-    "items": $mappings
-  }
-' config.json | sponge ./target/geyser_mappings.json
+
+if [[ "${MAPPING_VERSION}" == "v2" ]]; then
+  # ============================================================
+  # Mapping V2: format_version 2, with bedrock_identifier, display_name, bedrock_options
+  # ============================================================
+  jq '
+  ([map(
+    {
+      ("minecraft:" + .item): [
+        {
+          "type": "legacy",
+          "custom_model_data": (.nbt.CustomModelData // null),
+          "bedrock_identifier": ("geyser_custom:" + .path_hash),
+          "display_name": (.model_name | gsub("_"; " ") | gsub("(?<a>^| )(?<b>\\w)"; "\(.a)\(.b | ascii_upcase)")),
+          "bedrock_options": {
+            "icon": .path_hash,
+            "allow_offhand": true
+          }
+        }
+        + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
+        + (if .nbt.Unbreakable then {"unbreakable": (.nbt.Unbreakable)} else {} end)
+      ]
+    }
+  )
+  | map(to_entries[])
+  | group_by(.key)[]
+  | {(.[0].key) : map(.value) | add}] | add) as $mappings
+  | {
+      "format_version": 2,
+      "items": $mappings
+    }
+  ' config.json | sponge ./target/geyser_mappings.json
+  status_message completion "Geyser mappings V2 generated"
+else
+  # ============================================================
+  # Mapping V1 (default): format_version "1", original structure
+  # ============================================================
+  jq '
+  ([map(
+    {
+      ("minecraft:" + .item): [
+        {
+          "name": .path_hash,
+          "allow_offhand": true,
+          "icon": (if .generated == true then .path_hash else .path_hash end)
+        }
+        + (if (.generated == false) then {"frame": (.bedrock_icon.frame)} else {} end)
+        + (if .nbt.CustomModelData then {"custom_model_data": (.nbt.CustomModelData)} else {} end)
+        + (if .nbt.Damage then {"damage_predicate": (.nbt.Damage)} else {} end)
+        + (if .nbt.Unbreakable then {"unbreakable": (.nbt.Unbreakable)} else {} end)
+      ]
+    }
+  ) 
+  | map(to_entries[])
+  | group_by(.key)[] 
+  | {(.[0].key) : map(.value) | add}] | add) as $mappings
+  | {
+      "format_version": "1",
+      "items": $mappings
+    }
+  ' config.json | sponge ./target/geyser_mappings.json
+  status_message completion "Geyser mappings V1 generated"
+fi
 
 # Add sprites if sprites.json exists in the root pack
 if [ -f sprites.json ]; then
@@ -1781,20 +1854,39 @@ if [ -f sprites.json ]; then
   | .texture_data += $icon_sprites
   ' scratch_files/sprite_hashmap.json ./target/rp/textures/item_texture.json | sponge ./target/rp/textures/item_texture.json
   
-  jq -s '
-  {
-  "format_version": "1",
-  "items": 
-    ((.[0] | keys | map({(.): (.)}) | add) as $sprites | .[1].items | to_entries | map(
-    (.key | split(":")[1]) as $item
-    | .value | {("minecraft:" + $item): (map(
-      .name as $name
-      | .icon as $icon
-      | .icon = ($sprites[($name)] // $icon)
-    ))}
-    ) | add)
-  }
-  ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
+  if [[ "${MAPPING_VERSION}" == "v2" ]]; then
+    # V2 sprite merge: update bedrock_options.icon
+    jq -s '
+    {
+    "format_version": 2,
+    "items": 
+      ((.[0] | keys | map({(.): (.)}) | add) as $sprites | .[1].items | to_entries | map(
+      (.key | split(":")[1]) as $item
+      | .value | {("minecraft:" + $item): (map(
+        .bedrock_options.icon as $name
+        | .bedrock_options.icon as $icon
+        | .bedrock_options.icon = ($sprites[($name)] // $icon)
+      ))}
+      ) | add)
+    }
+    ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
+  else
+    # V1 sprite merge: update icon at top level
+    jq -s '
+    {
+    "format_version": "1",
+    "items": 
+      ((.[0] | keys | map({(.): (.)}) | add) as $sprites | .[1].items | to_entries | map(
+      (.key | split(":")[1]) as $item
+      | .value | {("minecraft:" + $item): (map(
+        .name as $name
+        | .icon as $icon
+        | .icon = ($sprites[($name)] // $icon)
+      ))}
+      ) | add)
+    }
+    ' scratch_files/sprite_hashmap.json ./target/geyser_mappings.json | sponge ./target/geyser_mappings.json
+  fi
   
 fi
 
@@ -1804,18 +1896,35 @@ fi
 if [[ -f "./target/geyser_mappings.json" ]]; then
   status_message process "Removing duplicate entries from geyser_mappings.json"
 
-  jq '
-    .items |= with_entries(
-      .value |= (
-        unique_by(
-          if has("custom_model_data") then .custom_model_data
-          elif has("name") then .name
-          else .
-          end
+  if [[ "${MAPPING_VERSION}" == "v2" ]]; then
+    # V2 format: unique by custom_model_data or bedrock_identifier
+    jq '
+      .items |= with_entries(
+        .value |= (
+          unique_by(
+            if has("custom_model_data") then .custom_model_data
+            elif has("bedrock_identifier") then .bedrock_identifier
+            else .
+            end
+          )
         )
       )
-    )
-  ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
+    ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
+  else
+    # V1 format: unique by custom_model_data or name
+    jq '
+      .items |= with_entries(
+        .value |= (
+          unique_by(
+            if has("custom_model_data") then .custom_model_data
+            elif has("name") then .name
+            else .
+            end
+          )
+        )
+      )
+    ' ./target/geyser_mappings.json > ./target/geyser_mappings.tmp && mv ./target/geyser_mappings.tmp ./target/geyser_mappings.json
+  fi
 
   status_message completion "Duplicate mappings cleaned successfully"
 else
