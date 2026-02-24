@@ -1776,7 +1776,7 @@ if [[ "${MAPPING_VERSION}" == "v2" ]]; then
           "bedrock_identifier": ("geyser_custom:" + .path_hash),
           "display_name": (.model_name | gsub("_"; " ") | gsub("(?<a>^| )(?<b>\\w)"; "\(.a)\(.b | ascii_upcase)")),
           "bedrock_options": {
-            "icon": : (if .generated == true then .path_hash else .path_hash end),
+            "icon": (if .generated == true then .path_hash else .path_hash end),
             "allow_offhand": true
           }
         }
