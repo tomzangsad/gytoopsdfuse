@@ -1955,8 +1955,7 @@ fi
 # Geyser warnings on some Bedrock platforms). Run BEFORE zip.
 # ============================================================
 status_message process "Shortening long paths in the Bedrock RP (Geyser 80-char limit)"
-python -c "import sys; sys.exit(0)" 2>/dev/null && \
-  python "$(cd - > /dev/null && pwd)/shorten_paths.py" "./target/rp" 80 || \
+python "../shorten_paths.py" "./target/rp" 80 || \
   status_message error "shorten_paths.py failed or python not found – skipping path shortening"
 status_message completion "Path shortening complete"
 
