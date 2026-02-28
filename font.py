@@ -92,6 +92,8 @@ def imagetoexport(glyph, blankimg):
             elif len(symbolbehex) == 5:
                 symbolbehex = symbolbehex[:2] + "0" + symbolbehex[2:]
                 symbol = symbolbehex[4:]
+            else:
+                continue
             name = f"0x{glyph}{symbol}"
             imgname = f"0x{glyph}{img}"
             if name == imgname:
@@ -149,6 +151,9 @@ def converterpack(glyph):
                 symbolac = symbolbehex[2:]
                 symbolcheck = symbolac[:2]
                 glyphs.append(symbolcheck.upper())
+            else:
+                print(f"[FONT SKIP] unsupported hex length ({len(symbolbehex)}) for symbol: {repr(symbolbe)}")
+                continue
             if (symbolcheck.upper()) == (glyph.upper()):
                 if ":" in path:
                     try:
