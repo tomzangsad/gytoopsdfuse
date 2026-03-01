@@ -337,54 +337,59 @@ status_message process "Iterating through all vanilla associated model JSONs to 
 # Initialize empty config.json
 echo '{}' > config.json
 
-# Process OLD FORMAT (models/item) if it exists
+# Process OLD FORMAT (models/item) if it exists AND has JSON files
 if test -d "./assets/minecraft/models/item"; then
-  status_message process "Processing OLD format (models/item)..."
+  OLD_JSON_COUNT=$(find "./assets/minecraft/models/item" -maxdepth 1 -name "*.json" | wc -l)
+  if [[ "$OLD_JSON_COUNT" -gt 0 ]]; then
+    status_message process "Processing OLD format (models/item)... (${OLD_JSON_COUNT} files)"
   
-  jq --slurpfile item_texture scratch_files/item_texture.json --slurpfile item_mappings scratch_files/item_mappings.json -n '
-[inputs | {(input_filename | sub("(.+)/(?<itemname>.*?).json"; .itemname)): .overrides?[]?}] |
+    jq --slurpfile item_texture scratch_files/item_texture.json --slurpfile item_mappings scratch_files/item_mappings.json -n '
+  [inputs | {(input_filename | sub("(.+)/(?<itemname>.*?).json"; .itemname)): .overrides?[]?}] |
 
-def maxdur($input):
-($item_mappings[] |
-[to_entries | map(.key as $key | .value | .java_identifer = $key) | .[] | select(.max_damage)] 
-| map({(.java_identifer | split(":") | .[1]): (.max_damage)}) 
-| add
-| .[$input] // 1)
-;
+  def maxdur($input):
+  ($item_mappings[] |
+  [to_entries | map(.key as $key | .value | .java_identifer = $key) | .[] | select(.max_damage)] 
+  | map({(.java_identifer | split(":") | .[1]): (.max_damage)}) 
+  | add
+  | .[$input] // 1)
+  ;
 
-def bedrocktexture($input):
-($item_texture[] | .[$input] // {"icon": "camera", "frame": 0})
-;
+  def bedrocktexture($input):
+  ($item_texture[] | .[$input] // {"icon": "camera", "frame": 0})
+  ;
 
-def namespace:
-if contains(":") then sub("\\:(.+)"; "") else "minecraft" end
-;
+  def namespace:
+  if contains(":") then sub("\\:(.+)"; "") else "minecraft" end
+  ;
 
-[.[] | to_entries | map( select((.value.predicate.damage != null) or (.value.predicate.damaged != null)  or (.value.predicate.custom_model_data != null)) |
-      (if .value.predicate.damage then (.value.predicate.damage * maxdur(.key) | ceil) else null end) as $damage
-    | (if .value.predicate.damaged == 0 then true else null end) as $unbreakable
-    | (if .value.predicate.custom_model_data then .value.predicate.custom_model_data else null end) as $custom_model_data |
-  {
-    "item": .key,
-    "bedrock_icon": bedrocktexture(.key),
-    "nbt": ({
-      "Damage": $damage,
-      "Unbreakable": $unbreakable,
-      "CustomModelData": $custom_model_data
-    }),
-    "path": ("./assets/" + (.value.model | namespace) + "/models/" + (.value.model | sub("(.*?)\\:"; "")) + ".json"),
-    "namespace": (.value.model | namespace),
-    "model_path": ((.value.model | sub("(.*?)\\:"; "")) | split("/")[:-1] | map(. + "/") | add[:-1] // ""),
-    "model_name": ((.value.model | sub("(.*?)\\:"; "")) | split("/")[-1]),
-    "generated": false
+  [.[] | to_entries | map( select((.value.predicate.damage != null) or (.value.predicate.damaged != null)  or (.value.predicate.custom_model_data != null)) |
+        (if .value.predicate.damage then (.value.predicate.damage * maxdur(.key) | ceil) else null end) as $damage
+      | (if .value.predicate.damaged == 0 then true else null end) as $unbreakable
+      | (if .value.predicate.custom_model_data then .value.predicate.custom_model_data else null end) as $custom_model_data |
+    {
+      "item": .key,
+      "bedrock_icon": bedrocktexture(.key),
+      "nbt": ({
+        "Damage": $damage,
+        "Unbreakable": $unbreakable,
+        "CustomModelData": $custom_model_data
+      }),
+      "path": ("./assets/" + (.value.model | namespace) + "/models/" + (.value.model | sub("(.*?)\\:"; "")) + ".json"),
+      "namespace": (.value.model | namespace),
+      "model_path": ((.value.model | sub("(.*?)\\:"; "")) | split("/")[:-1] | map(. + "/") | add[:-1] // ""),
+      "model_name": ((.value.model | sub("(.*?)\\:"; "")) | split("/")[-1]),
+      "generated": false
 
-}) | .[]]
-| walk(if type == "object" then with_entries(select(.value != null)) else . end)
-| to_entries | map( ((.value.geyserID = "gmdl_\(1+.key)") | .value))
-| INDEX(.geyserID)
+  }) | .[]]
+  | walk(if type == "object" then with_entries(select(.value != null)) else . end)
+  | to_entries | map( ((.value.geyserID = "gmdl_\(1+.key)") | .value))
+  | INDEX(.geyserID)
 
-' ./assets/minecraft/models/item/*.json > config.json || { status_message error "Invalid JSON exists in block or item folder! See above log."; exit 1; }
-  status_message completion "OLD format predicate config generated"
+  ' ./assets/minecraft/models/item/*.json > config.json || { status_message error "Invalid JSON exists in block or item folder! See above log."; exit 1; }
+    status_message completion "OLD format predicate config generated"
+  else
+    status_message info "OLD format folder exists but contains no JSON files, skipping..."
+  fi
 else
   status_message info "No OLD format (models/item) found, skipping..."
 fi
