@@ -1336,7 +1336,7 @@ do
       }))) else {} end
       ;
       {
-        "format_version": "1.16.0",
+        "format_version": "1.21.0",
         "minecraft:geometry": [{
           "description": {
             "identifier": ( "geometry.geyser_custom." + ($geometry)),
@@ -1347,46 +1347,6 @@ do
             "visible_bounds_offset": [0, 0.75, 0]
           },
           "bones": ([{
-            "name": "root",
-            "pivot": [0, 0, 0]
-          }, {
-            "name": "waist",
-            "parent": "root",
-            "pivot": [0, 12, 0]
-          }, {
-            "name": "body",
-            "parent": "waist",
-            "pivot": [0, 24, 0]
-          }, {
-            "name": "head",
-            "parent": "body",
-            "pivot": [0, 24, 0]
-          }, {
-            "name": "leftArm",
-            "parent": "body",
-            "pivot": [5, 22, 0]
-          }, {
-            "name": "leftItem",
-            "parent": "leftArm",
-            "pivot": [6, 15, 1]
-          }, {
-            "name": "rightArm",
-            "parent": "body",
-            "pivot": [-5, 22, 0]
-          }, {
-            "name": "rightItem",
-            "parent": "rightArm",
-            "pivot": [-6, 15, 1],
-            "locators": {"lead_hold": [-6, 15, 1]}
-          }, {
-            "name": "leftLeg",
-            "parent": "root",
-            "pivot": [1.9, 12, 0]
-          }, {
-            "name": "rightLeg",
-            "parent": "root",
-            "pivot": [-1.9, 12, 0]
-          }, {
             "name": "geyser_custom",
             "binding": $binding,
             "pivot": [0, 8, 0]
@@ -1416,90 +1376,286 @@ do
 			
         # MULTI KEYWORD CHECK
 		mkdir -p ./target/rp/animations/${namespace}/${model_path}
+        #if [[ "$model_lower" =~ (wing|tail|backpack|shield) ]]; then
+		#if [[ "${model_name,,}" =~ (wing|back|backpack|shield) ]]; then
+		#if [[ "${model_name,,}" == *"wing"* ]]; then
+		if [[ "${model_name,,}" == *wing* ]] || \
+		   [[ "${model_name,,}" == *back* ]] || \
+		   [[ "${model_name,,}" == *backpack* ]]; then
 
-	      # generate our rp attachable definition using molang setup
-	      mkdir -p ./target/rp/attachables/${namespace}/${model_path}
-	      jq -c --arg generated "${generated}" --arg atlas_index "${atlas_index}" --arg attachable_material "${attachable_material}" --arg path_hash "${path_hash}" --arg namespace "${namespace}" --arg model_path "${model_path}" --arg model_name "${model_name}" --arg geometry "${geometry}" '
-	      def tobool: if .=="true" then true elif .=="false" then false else null end;
-	      def extract_sc: if . == null then "1" elif type == "array" then .[0] | tostring else . | tostring end;
-	      
-	      .display as $d |
-	      {
-	        "format_version": "1.10.0",
-	        "minecraft:attachable": {
-	          "description": {
-	            "identifier": ("geyser_custom:" + $path_hash),
-	            "materials": {
-	              "default": $attachable_material,
-	              "enchanted": $attachable_material
+        # ------------------------------------------
+        #  WING SPECIAL ANIMATION
+        # ------------------------------------------
+        jq -c --arg geometry "${geometry}" '
+      
+        {
+            "format_version": "1.8.0",
+            "animations": {
+              ("animation.geyser_custom." + ($geometry) + ".thirdperson_main_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom_x": (if .display.thirdperson_righthand then {
+                    "rotation": (if .display.thirdperson_righthand.rotation then [(- .display.thirdperson_righthand.rotation[0]), 0, 0] else null end),
+                    "position": (if .display.thirdperson_righthand.translation then [(- .display.thirdperson_righthand.translation[0]), (.display.thirdperson_righthand.translation[1]), (.display.thirdperson_righthand.translation[2])] else null end),
+                    "scale": (if .display.thirdperson_righthand.scale then [(.display.thirdperson_righthand.scale[0]), (.display.thirdperson_righthand.scale[1]), (.display.thirdperson_righthand.scale[2])] else null end)
+                  } else null end),
+                  "geyser_custom_y": (if .display.thirdperson_righthand.rotation then {
+                    "rotation": (if .display.thirdperson_righthand.rotation then [0, (- .display.thirdperson_righthand.rotation[1]), 0] else null end)
+                  } else null end),
+                  "geyser_custom_z": (if .display.thirdperson_righthand.rotation then {
+                    "rotation": [0, 0, (.display.thirdperson_righthand.rotation[2])]
+                  } else null end),
+                  "geyser_custom": {
+                    "rotation": [90, 0, 0],
+                    "position": [0, 13, -3]
+                  }
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".thirdperson_off_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom_x": (if .display.thirdperson_lefthand then {
+                    "rotation": (if .display.thirdperson_lefthand.rotation then [(- .display.thirdperson_lefthand.rotation[0]), 0, 0] else null end),
+                    "position": (if .display.thirdperson_lefthand.translation then [(.display.thirdperson_lefthand.translation[0]), (.display.thirdperson_lefthand.translation[1]), (.display.thirdperson_lefthand.translation[2])] else null end),
+                    "scale": (if .display.thirdperson_lefthand.scale then [(.display.thirdperson_lefthand.scale[0]), (.display.thirdperson_lefthand.scale[1]), (.display.thirdperson_lefthand.scale[2])] else null end)
+                  } else null end),
+                  "geyser_custom_y": (if .display.thirdperson_lefthand.rotation then {
+                    "rotation": (if .display.thirdperson_lefthand.rotation then [0, (- .display.thirdperson_lefthand.rotation[1]), 0] else null end)
+                  } else null end),
+                  "geyser_custom_z": (if .display.thirdperson_lefthand.rotation then {
+                    "rotation": [0, 0, (.display.thirdperson_lefthand.rotation[2])]
+                  } else null end),
+                  "geyser_custom": {
+                    "rotation": [90, 0, 0],
+                    "position": [0, 13, -3]
+                  }
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".head"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom_x": {
+                    "rotation": (if .display.head.rotation then [(- .display.head.rotation[0]), 0, 0] else null end),
+                    "position": (if .display.head.translation then [(- .display.head.translation[0] * 0.625), (.display.head.translation[1] * 0.625), (.display.head.translation[2] * 0.625)] else null end),
+                    "scale": (if .display.head.scale then (.display.head.scale | map(. * 0.625)) else 0.625 end)
+                  },
+                  "geyser_custom_y": (if .display.head.rotation then {
+                    "rotation": [0, (- .display.head.rotation[1]), 0]
+                  } else null end),
+                  "geyser_custom_z": (if .display.head.rotation then {
+                    "rotation": [0, 0, (.display.head.rotation[2])]
+                  } else null end),
+                  "geyser_custom": {
+                    "position": [0, 19.9, 0]
+                  }
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".firstperson_main_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom": {
+                    "rotation": [90, 60, -40],
+                    "position": [4, 10, 4],
+                    "scale": 1.5
+                  },
+                  "geyser_custom_x": {
+                    "position": (if .display.firstperson_righthand.translation then [(- .display.firstperson_righthand.translation[0]), (.display.firstperson_righthand.translation[1]), (- .display.firstperson_righthand.translation[2])] else null end),
+                    "rotation": (if .display.firstperson_righthand.rotation then [(- .display.firstperson_righthand.rotation[0]), 0, 0] else [0.1, 0.1, 0.1] end),
+                    "scale": (if .display.firstperson_righthand.scale then (.display.firstperson_righthand.scale) else null end)
+                  },
+                  "geyser_custom_y": (if .display.firstperson_righthand.rotation then {
+                    "rotation": [0, (- .display.firstperson_righthand.rotation[1]), 0]
+                  } else null end),
+                  "geyser_custom_z": (if .display.firstperson_righthand.rotation then {
+                    "rotation": [0, 0, (.display.firstperson_righthand.rotation[2])]
+                  } else null end)
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".firstperson_off_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom": {
+                    "rotation": [90, 60, -40],
+                    "position": [4, 10, 4],
+                    "scale": 1.5
+                  },
+                  "geyser_custom_x": {
+                    "position": (if .display.firstperson_lefthand.translation then [(.display.firstperson_lefthand.translation[0]), (.display.firstperson_lefthand.translation[1]), (- .display.firstperson_lefthand.translation[2])] else null end),
+                    "rotation": (if .display.firstperson_lefthand.rotation then [(- .display.firstperson_lefthand.rotation[0]), 0, 0] else [0.1, 0.1, 0.1] end),
+                    "scale": (if .display.firstperson_lefthand.scale then (.display.firstperson_lefthand.scale) else null end)
+                  },
+                  "geyser_custom_y": (if .display.firstperson_lefthand.rotation then {
+                    "rotation": [0, (- .display.firstperson_lefthand.rotation[1]), 0]
+                  } else null end),
+                  "geyser_custom_z": (if .display.firstperson_lefthand.rotation then {
+                    "rotation": [0, 0, (.display.firstperson_lefthand.rotation[2])]
+                  } else null end)
+                }
+              }
+            }
+          } | walk( if type == "object" then with_entries(select(.value != null)) else . end)
+        ' ${file} | sponge ./target/rp/animations/${namespace}/${model_path}/animation.${model_name}.json
+      
+      else
+        # ------------------------------------------
+        #  NORMAL ANIMATION (ใช้ของเดิม)
+        # ------------------------------------------
+        jq -c --arg geometry "${geometry}" '
+          {
+            "format_version": "1.8.0",
+            "animations": {
+              ("animation.geyser_custom." + ($geometry) + ".thirdperson_main_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom_x": (if .display.thirdperson_righthand then {
+                    "rotation": (if .display.thirdperson_righthand.rotation then [(- .display.thirdperson_righthand.rotation[0]), 0, 0] else null end),
+                    "position": (if .display.thirdperson_righthand.translation then [(- .display.thirdperson_righthand.translation[0]), (.display.thirdperson_righthand.translation[1]), (.display.thirdperson_righthand.translation[2])] else null end),
+                    "scale": (if .display.thirdperson_righthand.scale then [(.display.thirdperson_righthand.scale[0]), (.display.thirdperson_righthand.scale[1]), (.display.thirdperson_righthand.scale[2])] else null end)
+                  } else null end),
+                  "geyser_custom_y": (if .display.thirdperson_righthand.rotation then {
+                    "rotation": (if .display.thirdperson_righthand.rotation then [0, (- .display.thirdperson_righthand.rotation[1]), 0] else null end)
+                  } else null end),
+                  "geyser_custom_z": (if .display.thirdperson_righthand.rotation then {
+                    "rotation": [0, 0, (.display.thirdperson_righthand.rotation[2])]
+                  } else null end),
+                  "geyser_custom": {
+                    "rotation": [90, 0, 0],
+                    "position": [0, 13, -3]
+                  }
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".thirdperson_off_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom_x": (if .display.thirdperson_lefthand then {
+                    "rotation": (if .display.thirdperson_lefthand.rotation then [(- .display.thirdperson_lefthand.rotation[0]), 0, 0] else null end),
+                    "position": (if .display.thirdperson_lefthand.translation then [(.display.thirdperson_lefthand.translation[0]), (.display.thirdperson_lefthand.translation[1]), (.display.thirdperson_lefthand.translation[2])] else null end),
+                    "scale": (if .display.thirdperson_lefthand.scale then [(.display.thirdperson_lefthand.scale[0]), (.display.thirdperson_lefthand.scale[1]), (.display.thirdperson_lefthand.scale[2])] else null end)
+                  } else null end),
+                  "geyser_custom_y": (if .display.thirdperson_lefthand.rotation then {
+                    "rotation": (if .display.thirdperson_lefthand.rotation then [0, (- .display.thirdperson_lefthand.rotation[1]), 0] else null end)
+                  } else null end),
+                  "geyser_custom_z": (if .display.thirdperson_lefthand.rotation then {
+                    "rotation": [0, 0, (.display.thirdperson_lefthand.rotation[2])]
+                  } else null end),
+                  "geyser_custom": {
+                    "rotation": [90, 0, 0],
+                    "position": [0, 13, -3]
+                  }
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".head"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom_x": {
+                    "rotation": (if .display.head.rotation then [(- .display.head.rotation[0]), 0, 0] else null end),
+                    "position": (if .display.head.translation then [(- .display.head.translation[0] * 0.625), (.display.head.translation[1] * 0.625), (.display.head.translation[2] * 0.625)] else null end),
+                    "scale": (if .display.head.scale then (.display.head.scale | map(. * 0.625)) else 0.625 end)
+                  },
+                  "geyser_custom_y": (if .display.head.rotation then {
+                    "rotation": [0, (- .display.head.rotation[1]), 0]
+                  } else null end),
+                  "geyser_custom_z": (if .display.head.rotation then {
+                    "rotation": [0, 0, (.display.head.rotation[2])]
+                  } else null end),
+                  "geyser_custom": {
+                    "position": [0, 19.9, 0]
+                  }
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".firstperson_main_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom": {
+                    "rotation": [90, 60, -40],
+                    "position": [4, 10, 4],
+                    "scale": 1.5
+                  },
+                  "geyser_custom_x": {
+	              "position": [-1.5, 3.25, 0.5],
+	              "rotation": [-9, 0, 0]
 	            },
-	            "textures": {
-	              "default": (if ($generated | tobool) == true then ("textures/" + $namespace + "/" + $model_path + "/" + $model_name) else ("textures/" + $atlas_index) end),
-	              "enchanted": "textures/misc/enchanted_item_glint"
-	            },
-	            "geometry": {
-	              "default": ("geometry.geyser_custom." + $geometry)
-	            },
-	            "scripts": {
-	              "pre_animation": [
-	                "v.main_hand = c.item_slot == '\''main_hand'\'';",
-	                "v.off_hand = c.item_slot == '\''off_hand'\'';",
-	                "v.head = c.item_slot == '\''head'\'';"
-	              ],
-	              "animate": [
-	                {"thirdperson_hand": "(v.main_hand||v.off_hand)&&!c.is_first_person"},
-	                {"thirdperson_head": "v.head&&!c.is_first_person"},
-	                {"firstperson_hand": "(v.main_hand||v.off_hand)&&c.is_first_person"},
-	                {"firstperson_head": "c.is_first_person&&v.head"}
-	              ],
-	              "initialize": [
-	                "v.thirdperson_hand_same = false;",
-	                "v.firstperson_hand_same = true;",
-	                
-	                ("v.thirdperson_mainhand_rot_x = " + (($d.thirdperson_righthand.rotation[0] // 0) | tostring) + ";"),
-	                ("v.thirdperson_mainhand_rot_y = " + (($d.thirdperson_righthand.rotation[1] // 0) | tostring) + ";"),
-	                ("v.thirdperson_mainhand_rot_z = " + (($d.thirdperson_righthand.rotation[2] // 0) | tostring) + ";"),
-	                ("v.thirdperson_mainhand_pos_x = " + (($d.thirdperson_righthand.translation[0] // 0) | tostring) + ";"),
-	                ("v.thirdperson_mainhand_pos_y = " + (($d.thirdperson_righthand.translation[1] // 0) | tostring) + ";"),
-	                ("v.thirdperson_mainhand_pos_z = " + (($d.thirdperson_righthand.translation[2] // 0) | tostring) + ";"),
-	                ("v.thirdperson_mainhand_scale = " + ($d.thirdperson_righthand.scale | extract_sc) + ";"),
-	                
-	                ("v.thirdperson_offhand_rot_x = " + (($d.thirdperson_lefthand.rotation[0] // ($d.thirdperson_righthand.rotation[0] // 0)) | tostring) + ";"),
-	                ("v.thirdperson_offhand_rot_y = " + (($d.thirdperson_lefthand.rotation[1] // ($d.thirdperson_righthand.rotation[1] // 0)) | tostring) + ";"),
-	                ("v.thirdperson_offhand_rot_z = " + (($d.thirdperson_lefthand.rotation[2] // ($d.thirdperson_righthand.rotation[2] // 0)) | tostring) + ";"),
-	                ("v.thirdperson_offhand_pos_x = " + (($d.thirdperson_lefthand.translation[0] // ($d.thirdperson_righthand.translation[0] // 0)) | tostring) + ";"),
-	                ("v.thirdperson_offhand_pos_y = " + (($d.thirdperson_lefthand.translation[1] // ($d.thirdperson_righthand.translation[1] // 0)) | tostring) + ";"),
-	                ("v.thirdperson_offhand_pos_z = " + (($d.thirdperson_lefthand.translation[2] // ($d.thirdperson_righthand.translation[2] // 0)) | tostring) + ";"),
-	                ("v.thirdperson_offhand_scale = " + (if $d.thirdperson_lefthand.scale != null then ($d.thirdperson_lefthand.scale | extract_sc) else ($d.thirdperson_righthand.scale | extract_sc) end) + ";"),
-	                
-	                ("v.firstperson_mainhand_rot_x = " + (($d.firstperson_righthand.rotation[0] // 0) | tostring) + ";"),
-	                ("v.firstperson_mainhand_rot_y = " + (($d.firstperson_righthand.rotation[1] // 0) | tostring) + ";"),
-	                ("v.firstperson_mainhand_rot_z = " + (($d.firstperson_righthand.rotation[2] // 0) | tostring) + ";"),
-	                ("v.firstperson_mainhand_pos_x = " + (($d.firstperson_righthand.translation[0] // 0) | tostring) + ";"),
-	                ("v.firstperson_mainhand_pos_y = " + (($d.firstperson_righthand.translation[1] // 0) | tostring) + ";"),
-	                ("v.firstperson_mainhand_pos_z = " + (($d.firstperson_righthand.translation[2] // 0) | tostring) + ";"),
-	                ("v.firstperson_mainhand_scale = " + ($d.firstperson_righthand.scale | extract_sc) + ";"),
-	                
-	                ("v.thirdperson_head_rot_x = " + (($d.head.rotation[0] // 0) | tostring) + ";"),
-	                ("v.thirdperson_head_rot_y = " + (($d.head.rotation[1] // 0) | tostring) + ";"),
-	                ("v.thirdperson_head_rot_z = " + (($d.head.rotation[2] // 0) | tostring) + ";"),
-	                ("v.thirdperson_head_pos_x = " + (($d.head.translation[0] // 0) | tostring) + ";"),
-	                ("v.thirdperson_head_pos_y = " + (($d.head.translation[1] // 0) | tostring) + ";"),
-	                ("v.thirdperson_head_pos_z = " + (($d.head.translation[2] // 0) | tostring) + ";"),
-	                ("v.thirdperson_head_scale = " + ($d.head.scale | extract_sc) + ";")
-	              ]
-	            },
-	            "animations": {
-	              "thirdperson_hand": "animation.geyser_custom.thirdperson_hand",
-	              "thirdperson_head": "animation.geyser_custom.thirdperson_head",
-	              "firstperson_hand": "animation.geyser_custom.firstperson_hand",
-	              "firstperson_head": "animation.geyser_custom.disable"
-	            },
-	            "render_controllers": [ "controller.render.item_default" ]
-	          }
-	        }
-	      }
-	      ' ${file} | sponge ./target/rp/attachables/${namespace}/${model_path}/${model_name}.${path_hash}.attachable.json
+                  "geyser_custom_y": (if .display.firstperson_righthand.rotation then {
+                    "rotation": [0, (- .display.firstperson_righthand.rotation[1]), 0]
+                  } else null end),
+                  "geyser_custom_z": (if .display.firstperson_righthand.rotation then {
+                    "rotation": [0, 0, (.display.firstperson_righthand.rotation[2])]
+                  } else null end)
+                }
+              },
+              ("animation.geyser_custom." + ($geometry) + ".firstperson_off_hand"): {
+                "loop": true,
+                "bones": {
+                  "geyser_custom": {
+                    "rotation": [0, 180, 0],
+		            "position": [-16, 14, 14],
+		            "scale": 1.1
+                  },
+                  "geyser_custom_x": {
+                    "rotation": [9.47, 0, 0],
+                	"position": [5.5, 10.0, -3.75]
+                  },
+                  "geyser_custom_y": (if .display.firstperson_lefthand.rotation then {
+                    "rotation": [0, (- .display.firstperson_lefthand.rotation[1]), 0]
+                  } else null end),
+                  "geyser_custom_z": (if .display.firstperson_lefthand.rotation then {
+                    "rotation": [0, 0, (.display.firstperson_lefthand.rotation[2])]
+                  } else null end)
+                }
+              }
+            }
+          } | walk( if type == "object" then with_entries(select(.value != null)) else . end)
+        ' ${file} | sponge ./target/rp/animations/${namespace}/${model_path}/animation.${model_name}.json
+      fi
+
+
+      
+
+      # generate our rp attachable definition
+      mkdir -p ./target/rp/attachables/${namespace}/${model_path}
+      jq -c -n --arg generated "${generated}" --arg atlas_index "${atlas_index}" --arg attachable_material "${attachable_material}" --arg v_main "v.main_hand = c.item_slot == 'main_hand';" --arg v_off "v.off_hand = c.item_slot == 'off_hand';" --arg v_head "v.head = c.item_slot == 'head';" --arg path_hash "${path_hash}" --arg namespace "${namespace}" --arg model_path "${model_path}" --arg model_name "${model_name}" --arg geometry "${geometry}" '
+      def tobool: if .=="true" then true elif .=="false" then false else null end;
+      {
+        "format_version": "1.10.0",
+        "minecraft:attachable": {
+          "description": {
+            "identifier": ("geyser_custom:" + $path_hash),
+            "materials": {
+              "default": $attachable_material,
+              "enchanted": $attachable_material
+            },
+            "textures": {
+              "default": (if ($generated | tobool) == true then ("textures/" + $namespace + "/" + $model_path + "/" + $model_name) else ("textures/" + $atlas_index) end),
+              "enchanted": "textures/misc/enchanted_item_glint"
+            },
+            "geometry": {
+              "default": ("geometry.geyser_custom." + $geometry)
+            },
+            "scripts": {
+              "pre_animation": [$v_main, $v_off, $v_head],
+              "animate": [
+                {"thirdperson_main_hand": "v.main_hand && !c.is_first_person"},
+                {"thirdperson_off_hand": "v.off_hand && !c.is_first_person"},
+                {"thirdperson_head": "v.head && !c.is_first_person"},
+                {"firstperson_main_hand": "v.main_hand && c.is_first_person"},
+                {"firstperson_off_hand": "v.off_hand && c.is_first_person"},
+                {"firstperson_head": "c.is_first_person && v.head"}
+              ]
+            },
+            "animations": {
+              "thirdperson_main_hand": ("animation.geyser_custom." + $geometry + ".thirdperson_main_hand"),
+              "thirdperson_off_hand": ("animation.geyser_custom." + $geometry + ".thirdperson_off_hand"),
+              "thirdperson_head": ("animation.geyser_custom." + $geometry + ".head"),
+              "firstperson_main_hand": ("animation.geyser_custom." + $geometry + ".firstperson_main_hand"),
+              "firstperson_off_hand": ("animation.geyser_custom." + $geometry + ".firstperson_off_hand"),
+              "firstperson_head": "animation.geyser_custom.disable"
+            },
+            "render_controllers": [ "controller.render.item_default" ]
+          }
+        }
+      }
+
+      ' | sponge ./target/rp/attachables/${namespace}/${model_path}/${model_name}.${path_hash}.attachable.json
    }
    
    wait_for_jobs
@@ -1509,13 +1665,8 @@ done < scratch_files/all.csv
 wait # wait for all the jobs to finish
 
 # write lang file US
-status_message process "Copying SMC global animations..."
-mkdir -p ./target/rp/animations
-cp smc_K29Q7UJQ/target/unpackaged/rp/animations/animations.json ./target/rp/animations/animations.json 2>/dev/null || true
-cp smc_K29Q7UJQ/target/unpackaged/rp/animations/player.first_person.animation.json ./target/rp/animations/player.first_person.animation.json 2>/dev/null || true
-
 status_message process "Writing en_US and en_GB lang files"
-mkdir -p ./target/rp/texts
+mkdir ./target/rp/texts
 jq -r '
 
 def format: (.[0:1] | ascii_upcase ) + (.[1:] | gsub( "_(?<a>[a-z])"; (" " + .a) | ascii_upcase));
