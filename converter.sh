@@ -154,6 +154,13 @@ else
   status_message info "No kaizer_config.json found → animation enabled by default"
 fi
 
+# 🔥 FREE PLAN OVERRIDE: If ANIMATION_CONVERSION is false, force skip all animations
+if [[ ${ANIMATION_CONVERSION} == "false" ]]; then
+  status_message critical "FREE PLAN DETECTED: Forcing animation exclusion."
+  ANIMATION_SELECTION="true"
+  SKIP_PACKS=()
+fi
+
 # ============================================================
 # Read skip_pack config (STEP 2.5)
 # ============================================================
