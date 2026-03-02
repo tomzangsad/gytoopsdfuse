@@ -1141,10 +1141,14 @@ model_list=( $(jq -r '.[] | select(.generated == false) | .path' config.json) )
 # get a bash array of all texture files in our resource pack
 
 #Step3
-status_message process "Generating texture list for atlas (animation selection = ${ANIMATION_SELECTION})"
+if [[ "${ANIMATION_CONVERSION}" == "false" ]]; then
+  status_message process "Generating texture list for atlas (Animations: DISABLED for FREE plan)"
+else
+  status_message process "Generating texture list for atlas (animation selection = ${ANIMATION_SELECTION})"
+fi
 
-if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
-  # ❌ ไม่รวม animation ยกเว้น namespace ใน SKIP_PACKS
+if [[ "${ANIMATION_CONVERSION}" == "false" ]] || [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+  # ❌ ไม่รวม animation ยกเว้น namespace ใน SKIP_PACKS (ถ้าเป็น FREE จะไม่มี skip_pack)
   if [[ ${#SKIP_PACKS[@]} -gt 0 ]]; then
     # สร้าง include pattern สำหรับ skip_packs (รวม animation เฉพาะ packs เหล่านี้)
     INCLUDE_EXPR=""
@@ -1163,7 +1167,7 @@ if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
     cat /tmp/non_anim.txt /tmp/skip_anim.txt | sort -u | jq -nR '[inputs]' | sponge scratch_files/all_textures.temp
     rm -f /tmp/non_anim.txt /tmp/skip_anim.txt
   else
-    # ไม่มี skip_pack → ไม่รวม animation ทั้งหมด
+    # ไม่มี skip_pack หรือเป็น FREE plan → ไม่รวม animation ทั้งหมด
     find ./assets/**/textures -type f -name '*.png' ! -exec test -f "{}.mcmeta" \; -print \
     | jq -nR '[inputs]' | sponge scratch_files/all_textures.temp
   fi
@@ -1173,16 +1177,23 @@ else
   | jq -nR '[inputs]' | sponge scratch_files/all_textures.temp
 fi
 
-status_message completion "Texture list generated (animation=${ANIMATION_SELECTION}, include_anim_for: ${SKIP_PACKS[*]:-none})"
+if [[ "${ANIMATION_CONVERSION}" == "false" ]]; then
+  status_message completion "Texture list generated (Animations: DISABLED)"
+else
+  status_message completion "Texture list generated (animation=${ANIMATION_SELECTION}, include_anim_for: ${SKIP_PACKS[*]:-none})"
+fi
 
-# get bash array of all texture files listed in our models
 #step4
-status_message process "Generating union atlas arrays (animation selection = ${ANIMATION_SELECTION})"
+if [[ "${ANIMATION_CONVERSION}" == "false" ]]; then
+  status_message process "Generating union atlas arrays (Animations: DISABLED for FREE plan)"
+else
+  status_message process "Generating union atlas arrays (animation selection = ${ANIMATION_SELECTION})"
+fi
 
 # ไม่ต้องกรอง model ออก เพราะเราต้องการ geometry ของทุก pack
 # เราแค่ไม่เอา texture animation ของ pack อื่นๆ
 
-if [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+if [[ "${ANIMATION_CONVERSION}" == "false" ]] || [[ "${ANIMATION_SELECTION}" == "true" ]]; then
   # ❌ ไม่รวม animation texture ยกเว้น SKIP_PACKS
   jq -s --argjson skip_packs "$(printf '%s\n' "${SKIP_PACKS[@]}" | jq -R . | jq -s . 2>/dev/null || echo '[]')" '
   def namespace:
