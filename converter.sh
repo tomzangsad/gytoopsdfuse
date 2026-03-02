@@ -1147,7 +1147,7 @@ else
   status_message process "Generating texture list for atlas (animation selection = ${ANIMATION_SELECTION})"
 fi
 
-if [[ "${ANIMATION_CONVERSION}" == "false" ]] || [[ "${ANIMATION_SELECTION}" == "true" ]]; then
+if [[ "${ANIMATION_CONVERSION}" == "true" ]] && [[ "${ANIMATION_SELECTION}" == "true" ]]; then
   # ❌ ไม่รวม animation ยกเว้น namespace ใน SKIP_PACKS (ถ้าเป็น FREE จะไม่มี skip_pack)
   if [[ ${#SKIP_PACKS[@]} -gt 0 ]]; then
     # สร้าง include pattern สำหรับ skip_packs (รวม animation เฉพาะ packs เหล่านี้)
