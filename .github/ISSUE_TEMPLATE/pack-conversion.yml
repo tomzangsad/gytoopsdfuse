@@ -143,6 +143,14 @@ body:
         - "true"
         - "false"
 
+  - type: dropdown
+    id: animation-conversion
+    attributes:
+      label: Animation Conversion
+      options:
+        - "true"
+        - "false"
+
   - type: checkboxes
     id: terms
     attributes:
