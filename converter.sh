@@ -1308,10 +1308,10 @@ do
     def roundit: (.*10000 | round) / 10000;
     def element_array:
         if .elements then (.elements | map({
-        "origin": [((-.to[0] + 8) | roundit), ((.from[1]) | roundit), ((.from[2] - 8) | roundit)],
-        "size": [((.to[0] - .from[0]) | roundit), ((.to[1] - .from[1]) | roundit), ((.to[2] - .from[2]) | roundit)],
-        "rotation": (if (.rotation.axis) == "x" then [(.rotation.angle | tonumber * -1), 0, 0] elif (.rotation.axis) == "y" then [0, (.rotation.angle | tonumber * -1), 0] elif (.rotation.axis) == "z" then [0, 0, (.rotation.angle | tonumber)] else null end),
-        "pivot": (if .rotation.origin then [((- .rotation.origin[0] + 8) | roundit), (.rotation.origin[1] | roundit), ((.rotation.origin[2] - 8) | roundit)] else null end),
+        "origin": [((-(.to[0] // 0) + 8) | roundit), (((.from[1] // 0)) | roundit), (((.from[2] // 0) - 8) | roundit)],
+        "size": [(((.to[0] // 0) - (.from[0] // 0)) | roundit), (((.to[1] // 0) - (.from[1] // 0)) | roundit), (((.to[2] // 0) - (.from[2] // 0)) | roundit)],
+        "rotation": (if (.rotation.axis) == "x" then [((.rotation.angle // 0) | tonumber * -1), 0, 0] elif (.rotation.axis) == "y" then [0, ((.rotation.angle // 0) | tonumber * -1), 0] elif (.rotation.axis) == "z" then [0, 0, ((.rotation.angle // 0) | tonumber)] else null end),
+        "pivot": (if .rotation.origin then [((- (.rotation.origin[0] // 0) + 8) | roundit), ((.rotation.origin[1] // 0) | roundit), (((.rotation.origin[2] // 0) - 8) | roundit)] else null end),
         "uv": (
           def uv_calc($input):
             (if (.faces | .[$input]) then
@@ -1344,8 +1344,8 @@ do
       if .elements then ((element_array) as $element_array |
       [[.elements[].rotation] | unique | .[] | select (.!=null)]
       | map((
-      [((- .origin[0] + 8) | roundit), (.origin[1] | roundit), ((.origin[2] - 8) | roundit)] as $i_piv |
-      (if (.axis) == "x" then [(.angle | tonumber * -1), 0, 0] elif (.axis) == "y" then [0, (.angle | tonumber * -1), 0] else [0, 0, (.angle | tonumber)] end) as $i_rot |
+      [((- (.origin[0] // 0) + 8) | roundit), ((.origin[1] // 0) | roundit), (((.origin[2] // 0) - 8) | roundit)] as $i_piv |
+      (if (.axis) == "x" then [((.angle // 0) | tonumber * -1), 0, 0] elif (.axis) == "y" then [0, ((.angle // 0) | tonumber * -1), 0] else [0, 0, ((.angle // 0) | tonumber)] end) as $i_rot |
       {
         "parent": "geyser_custom_z",
         "pivot": ($i_piv),
